@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MicrophoneStream, MicrophoneStreamState } from './microphone';
+import type { MicrophoneError, MicrophoneErrorReason, MicrophoneStream, MicrophoneStreamState } from './microphone';
 import type { AudioEngineError, EngineStatus } from './types';
 
 // Only requestMicrophoneStream (the real getUserMedia boundary) is faked here; everything else in
@@ -168,4 +168,34 @@ describe('createAudioEngine - start()/stop() race safety', () => {
     expect(engine.status).toBe('error');
     expect(errors).toHaveLength(1);
   });
+});
+
+describe('createAudioEngine - microphone error mapping', () => {
+  // AudioEngine's own error vocabulary is coarser than MicrophoneError's; this exercises every branch
+  // of that narrowing through the public start()/onError() surface, since the mapping function itself
+  // is a private implementation detail.
+  it.each([
+    ['permission-denied', 'permission-denied'],
+    ['blocked-by-policy', 'permission-denied'],
+    ['no-device', 'no-input-device'],
+    ['device-unavailable', 'no-input-device'],
+    ['constraints-not-satisfiable', 'no-input-device'],
+    ['context-unsupported', 'context-unsupported'],
+    ['aborted', 'unknown'],
+    ['unknown', 'unknown'],
+  ] as const satisfies ReadonlyArray<readonly [MicrophoneErrorReason, AudioEngineError['reason']]>)(
+    'maps MicrophoneError reason "%s" to AudioEngineError reason "%s"',
+    async (microphoneReason, expectedReason) => {
+      const microphoneError: MicrophoneError = { reason: microphoneReason, message: 'mic said no' };
+      requestMicrophoneStream.mockRejectedValue(microphoneError);
+      const errors: AudioEngineError[] = [];
+
+      const engine = createAudioEngine();
+      engine.onError((error) => errors.push(error));
+      await engine.start();
+
+      expect(engine.status).toBe('error');
+      expect(errors).toEqual([{ reason: expectedReason, message: 'mic said no' }]);
+    },
+  );
 });
