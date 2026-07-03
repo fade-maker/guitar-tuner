@@ -40,11 +40,6 @@ const RAPID_ADJUSTMENT_THRESHOLD_CENTS = 15;
 // Floor between haptic firings, independent of the lock/in-tune edge detection, as a safety net
 // against boundary oscillation the hysteresis bands don't fully rule out.
 const HAPTIC_COOLDOWN_MS = 1200;
-// A single noisy reading right as a note decays toward silence can flip state/inTune away from an
-// already-confirmed 'locked' verdict for one hop before the signal disappears entirely, flashing a
-// false Tune Up/Down. This briefly holds the last confirmed 'locked' display on the same target so a
-// transient blip never renders; a sustained drop (e.g. real detuning) still surfaces after this window.
-const LOCKED_EXIT_HOLD_MS = 120;
 
 const SEARCHING_STATE: TunerPresentationState = {
   state: 'searching',
@@ -64,26 +59,24 @@ export const createTunerPresenter: CreateTunerPresenter = (config) => {
 
   let currentTarget: StringTarget | undefined;
   let identitySince: number | undefined;
+  let lastCents: number | undefined;
   let lastReadingAt: number | undefined;
   let recentCents: CentsSample[] = [];
   let lastHapticAt: number | undefined;
   let wasLocked = false;
   let wasInTune = false;
   let cachedState: TunerPresentationState = SEARCHING_STATE;
-  // Timestamp of the first reading in an in-progress "leaving locked" streak on the current target;
-  // undefined when no such streak is pending. See LOCKED_EXIT_HOLD_MS.
-  let pendingDowngradeSince: number | undefined;
 
   function clearSession(): void {
     currentTarget = undefined;
     identitySince = undefined;
+    lastCents = undefined;
     lastReadingAt = undefined;
     recentCents = [];
     lastHapticAt = undefined;
     wasLocked = false;
     wasInTune = false;
     cachedState = SEARCHING_STATE;
-    pendingDowngradeSince = undefined;
   }
 
   function isRapidlyChanging(timestamp: number): boolean {
@@ -107,50 +100,34 @@ export const createTunerPresenter: CreateTunerPresenter = (config) => {
     onReading(reading) {
       lastReadingAt = reading.timestamp;
       const match = findNearestTarget(reading.frequency, targets);
-      const isSameTarget = currentTarget !== undefined && match.target.id === currentTarget.id;
 
-      if (!isSameTarget) {
+      if (currentTarget === undefined || match.target.id !== currentTarget.id) {
         currentTarget = match.target;
         identitySince = reading.timestamp;
         wasInTune = false;
         recentCents = [];
-        pendingDowngradeSince = undefined;
       }
 
+      lastCents = match.cents;
       recentCents.push({ cents: match.cents, timestamp: reading.timestamp });
 
       // Safe: identitySince is always set above, either freshly this call or by a prior one.
       const sustainedMs = reading.timestamp - identitySince!;
       const rapidlyChanging = isRapidlyChanging(reading.timestamp);
-      const rawState: TunerLifecycleState =
+      const state: TunerLifecycleState =
         sustainedMs >= config.lockDurationMs && !rapidlyChanging ? 'locked' : 'active';
 
       const inTune = updateInTune(match.cents);
 
-      const justLocked = rawState === 'locked' && !wasLocked;
+      const justLocked = state === 'locked' && !wasLocked;
       const cooldownElapsed = lastHapticAt === undefined || reading.timestamp - lastHapticAt >= HAPTIC_COOLDOWN_MS;
       const hapticTrigger = justLocked && inTune && cooldownElapsed;
       if (hapticTrigger) {
         lastHapticAt = reading.timestamp;
       }
-      wasLocked = rawState === 'locked';
+      wasLocked = state === 'locked';
 
-      // Deliberately narrow: only guards leaving 'locked' on the SAME target. Target switches (above)
-      // and entering lock (justLocked, above) stay immediate; isRapidlyChanging() already handles
-      // active re-tuning separately, so this never delays feedback while a string is being adjusted.
-      const isDowngradeFromLocked = isSameTarget && cachedState.state === 'locked' && (rawState !== 'locked' || !inTune);
-      if (isDowngradeFromLocked) {
-        if (pendingDowngradeSince === undefined) {
-          pendingDowngradeSince = reading.timestamp;
-        }
-        if (reading.timestamp - pendingDowngradeSince < LOCKED_EXIT_HOLD_MS) {
-          return cachedState;
-        }
-      } else {
-        pendingDowngradeSince = undefined;
-      }
-
-      cachedState = { state: rawState, target: match.target, cents: match.cents, inTune, hapticTrigger };
+      cachedState = { state, target: match.target, cents: match.cents, inTune, hapticTrigger };
       return cachedState;
     },
 
@@ -174,7 +151,7 @@ export const createTunerPresenter: CreateTunerPresenter = (config) => {
         cachedState = {
           state: 'lost',
           target: currentTarget ?? null,
-          cents: cachedState.cents,
+          cents: lastCents ?? null,
           inTune: false,
           hapticTrigger: false,
         };
