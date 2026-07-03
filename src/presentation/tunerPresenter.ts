@@ -148,11 +148,15 @@ export const createTunerPresenter: CreateTunerPresenter = (config) => {
         if (cachedState.state === 'lost') {
           return cachedState;
         }
+        // 'lost' means the signal disappeared, not that the pitch is newly wrong - inTune carries
+        // forward the last confirmed verdict instead of being invented here. Confirmed via
+        // instrumentation: tick() was flipping inTune=true readings to false with no new reading in
+        // between, producing a false Tune Up/Down flash right before the display cleared to searching.
         cachedState = {
           state: 'lost',
           target: currentTarget ?? null,
           cents: lastCents ?? null,
-          inTune: false,
+          inTune: cachedState.inTune,
           hapticTrigger: false,
         };
         return cachedState;
