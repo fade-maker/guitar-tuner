@@ -50,6 +50,12 @@ export const createAudioEngine: CreateAudioEngine = () => {
   let micStateUnsubscribe: (() => void) | undefined;
   let audioContext: AudioContext | undefined;
   let workletNode: AudioWorkletNode | undefined;
+  // Bumped by stopEngine()/failEngine() so an in-flight startEngine() can tell, after resuming from an
+  // await, whether it's still the current attempt. Without this, a stop() (or a mic 'ended' event) that
+  // lands while startEngine() is mid-flight has no way to cancel it, and the stale continuation can
+  // resurrect torn-down state - reopening a mic/AudioContext the user already closed and silently
+  // overwriting a correctly-set 'idle'/'error' status back to 'listening'.
+  let generation = 0;
 
   const readingListeners = new Set<(reading: PitchReading) => void>();
   const errorListeners = new Set<(error: AudioEngineError) => void>();
@@ -108,11 +114,13 @@ export const createAudioEngine: CreateAudioEngine = () => {
   }
 
   function stopEngine(): void {
+    generation += 1;
     releaseResources();
     setStatus('idle');
   }
 
   function failEngine(error: AudioEngineError): void {
+    generation += 1;
     releaseResources();
     setStatus('error');
     emitError(error);
@@ -122,13 +130,20 @@ export const createAudioEngine: CreateAudioEngine = () => {
     if (status === 'listening' || status === 'requesting-permission') {
       return;
     }
+    const myGeneration = generation;
     setStatus('requesting-permission');
 
     let stream: MicrophoneStream;
     try {
       stream = await requestMicrophoneStream();
     } catch (error) {
+      if (myGeneration !== generation) return;
       failEngine(mapMicrophoneError(error as MicrophoneError));
+      return;
+    }
+    if (myGeneration !== generation) {
+      // stop() ran while permission was pending: discard this stream rather than resurrecting state.
+      stream.close();
       return;
     }
     microphoneStream = stream;
@@ -146,10 +161,17 @@ export const createAudioEngine: CreateAudioEngine = () => {
     try {
       await context.audioWorklet.addModule(pitchCaptureWorkletUrl);
     } catch {
+      if (myGeneration !== generation) return;
       failEngine({
         reason: 'context-unsupported',
         message: 'This browser does not support the required audio processing.',
       });
+      return;
+    }
+    if (myGeneration !== generation) {
+      // stop()/failEngine() already tore down shared state (and this context, if it got that far) while
+      // the worklet module was loading. Close our own local reference and stop; nothing else to resurrect.
+      void context.close().catch(() => undefined);
       return;
     }
 
