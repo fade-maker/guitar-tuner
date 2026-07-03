@@ -39,9 +39,8 @@ export interface MicrophoneError {
 
 export type RequestMicrophoneStream = (options?: MicrophoneRequestOptions) => Promise<MicrophoneStream>;
 
-// Bare boolean constraints are treated as required by the browser's constraint algorithm; on hardware that
-// can't disable AEC, a hard `false` would throw OverconstrainedError and block the mic entirely, so these
-// are expressed as soft preferences that degrade gracefully instead.
+// Expressed as soft (ideal) preferences: a bare `false` here would be treated as a required constraint by
+// the browser and could throw OverconstrainedError on hardware that can't disable AEC outright.
 const CAPTURE_CONSTRAINTS: MediaTrackConstraints = {
   echoCancellation: { ideal: false },
   noiseSuppression: { ideal: false },
@@ -125,13 +124,14 @@ function readDiagnostics(track: MediaStreamTrack): MicrophoneDiagnostics {
 function createMicrophoneStream(stream: MediaStream): MicrophoneStream {
   const track = stream.getAudioTracks()[0];
   const listeners = new Set<(state: MicrophoneStreamState) => void>();
-  let state: MicrophoneStreamState = 'active';
+  let state: MicrophoneStreamState;
   let closing = false; // set by close() so the native 'ended' event it triggers isn't reported as an external interruption
 
-  // commitState is the only place `state` is written; setState additionally notifies, close() intentionally commits without notifying.
+  // commitState is the only place `state` is written, including this initial value; setState additionally notifies, close() intentionally commits without notifying.
   const commitState = (next: MicrophoneStreamState): void => {
     state = next;
   };
+  commitState('active');
 
   const setState = (next: MicrophoneStreamState): void => {
     if (state === next) return;
