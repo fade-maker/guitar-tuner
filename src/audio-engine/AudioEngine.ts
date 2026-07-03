@@ -4,6 +4,13 @@ import { requestMicrophoneStream } from './microphone';
 import type { MicrophoneError, MicrophoneStream } from './microphone';
 import type { AudioEngineError, EngineStatus, PitchReading } from './types';
 import type { AudioBlockMessage } from './worklets/worklet-messages';
+// The `?worker&url` suffix is required, not stylistic: a plain `new URL('./x.worklet.ts', import.meta.url)`
+// is NOT recognized by Vite as a JS/TS entry needing transpilation - it gets treated as an opaque static
+// asset and inlined as a base64 data: URL containing raw, un-transpiled TypeScript source, which the
+// browser cannot execute (a well-documented Vite issue: vitejs/vite#11823). `?worker&url` routes it
+// through Vite's worker-aware pipeline instead - real transpilation, a separate emitted chunk, and this
+// import resolves to that chunk's URL string (never an actual Worker instance, which isn't wanted here).
+import pitchCaptureWorkletUrl from './worklets/pitch-capture.worklet.ts?worker&url';
 
 export interface AudioEngine {
   readonly status: EngineStatus;
@@ -137,8 +144,7 @@ export const createAudioEngine: CreateAudioEngine = () => {
     audioContext = context;
 
     try {
-      const workletUrl = new URL('./worklets/pitch-capture.worklet.ts', import.meta.url);
-      await context.audioWorklet.addModule(workletUrl);
+      await context.audioWorklet.addModule(pitchCaptureWorkletUrl);
     } catch {
       failEngine({
         reason: 'context-unsupported',
