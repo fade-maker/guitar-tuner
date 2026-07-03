@@ -88,7 +88,9 @@ export const createPitchStabilizer: CreatePitchStabilizer = () => {
           return null;
         }
         if (result.timestamp - lastAcceptedAt <= DEBOUNCE_TOLERANCE_MS) {
-          return currentReading();
+          // Nothing established yet (still confirming a fresh candidate) - there's no held value to
+          // return, but the brief gap alone shouldn't abandon the in-progress confirmation either.
+          return emaValue === undefined ? null : currentReading();
         }
         clearAll();
         return null;
@@ -98,6 +100,27 @@ export const createPitchStabilizer: CreatePitchStabilizer = () => {
       const candidateMidi = frequencyToMidi(frequency, DEFAULT_A4_FREQUENCY);
 
       if (emaValue === undefined) {
+        // Mirrors the severe-deviation confirmation below: a fresh candidate after a period with no
+        // established track must persist - matching a prior pending candidate within
+        // PENDING_AGREEMENT_TOLERANCE_CENTS for at least CONFIRMATION_DURATION_MS - before it seeds a
+        // new track. This is what rejects a loud, non-periodic transient (a knock, a click) that
+        // happens to pass the RMS gate and clarity threshold on a single frame: with no real
+        // periodicity behind it, it essentially never produces two-plus consecutive matching
+        // detections. Nothing is reported while unconfirmed - there's no established value to hold.
+        if (
+          pendingDeviation === undefined ||
+          Math.abs((candidateMidi - pendingDeviation.candidateMidi) * 100) >= PENDING_AGREEMENT_TOLERANCE_CENTS
+        ) {
+          pendingDeviation = { candidateMidi, firstObservedAt: timestamp };
+          lastAcceptedAt = timestamp;
+          return null;
+        }
+
+        lastAcceptedAt = timestamp;
+        if (timestamp - pendingDeviation.firstObservedAt < CONFIRMATION_DURATION_MS) {
+          return null;
+        }
+
         seed(candidateMidi, clarity, timestamp);
         return currentReading();
       }

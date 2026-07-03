@@ -81,7 +81,8 @@ describe('createFrameProcessor', () => {
 
   it('resets cleanly: after reset, warm-up is required again from scratch', () => {
     const processor = createFrameProcessor(config);
-    const firstPass = pushTone(processor, 220, WINDOW_SIZE + HOP_SIZE * 2, 0);
+    // Enough hops to clear both window fill and the Stabilizer's fresh-start confirmation window.
+    const firstPass = pushTone(processor, 220, WINDOW_SIZE + HOP_SIZE * 10, 0);
     expect(firstPass.length).toBeGreaterThan(0);
 
     processor.reset();

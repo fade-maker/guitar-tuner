@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createPitchStabilizer } from './stabilizer';
 import type { CandidateValidationResult } from './candidateValidator';
+import type { PitchStabilizer, StabilizedReading } from './stabilizer';
 
 function shiftCents(frequency: number, cents: number): number {
   return frequency * 2 ** (cents / 1200);
@@ -17,27 +18,125 @@ function rejected(timestamp: number): CandidateValidationResult {
 const BASE_FREQUENCY = 220; // A3
 const HOP_MS = 12;
 
-describe('bootstrap', () => {
-  it('seeds directly from the first accepted candidate', () => {
+// Repeatedly pushes the same (frequency, clarity) until the stabilizer reports a non-null reading -
+// i.e. until fresh-start confirmation completes. Mirrors tunerPresenter.test.ts's lockIn() helper.
+function bootstrap(
+  stabilizer: PitchStabilizer,
+  frequency: number,
+  clarity: number,
+  startTime: number,
+): { reading: StabilizedReading; t: number } {
+  let t = startTime;
+  let reading = stabilizer.push(accepted(frequency, clarity, t));
+  while (reading === null) {
+    t += HOP_MS;
+    reading = stabilizer.push(accepted(frequency, clarity, t));
+    if (t > startTime + 1000) throw new Error('bootstrap() safety valve tripped - never confirmed');
+  }
+  return { reading, t };
+}
+
+describe('bootstrap (fresh start, no prior track)', () => {
+  it('does not seed from a single accepted candidate', () => {
     const stabilizer = createPitchStabilizer();
     const reading = stabilizer.push(accepted(BASE_FREQUENCY, 0.95, 1000));
 
-    expect(reading).not.toBeNull();
-    expect(reading!.frequency).toBeCloseTo(BASE_FREQUENCY, 6);
-    expect(reading!.clarity).toBe(0.95);
+    expect(reading).toBeNull();
   });
 
-  it('returns null for a rejected candidate before anything has ever been accepted', () => {
+  it('seeds once a matching candidate persists past the confirmation window', () => {
     const stabilizer = createPitchStabilizer();
-    expect(stabilizer.push(rejected(1000))).toBeNull();
+    const { reading } = bootstrap(stabilizer, BASE_FREQUENCY, 0.95, 1000);
+
+    expect(reading.frequency).toBeCloseTo(BASE_FREQUENCY, 0);
+    expect(reading.clarity).toBe(0.95);
+  });
+
+  it('never confirms an isolated candidate that never repeats (rejects a knock/click-style transient)', () => {
+    const stabilizer = createPitchStabilizer();
+    let t = 1000;
+    let reading = stabilizer.push(accepted(BASE_FREQUENCY, 0.95, t));
+    expect(reading).toBeNull();
+
+    // The transient doesn't repeat - RMS gate cuts off immediately after, exactly like a knock's
+    // instant decay. No accepted candidate follows within the debounce tolerance.
+    t += 500; // well beyond DEBOUNCE_TOLERANCE_MS
+    reading = stabilizer.push(rejected(t));
+    expect(reading).toBeNull();
+
+    // A later, unrelated candidate must start its own fresh confirmation, not inherit the transient's.
+    t += HOP_MS;
+    reading = stabilizer.push(accepted(shiftCents(BASE_FREQUENCY, 500), 0.9, t));
+    expect(reading).toBeNull(); // still just the first observation of a new streak
+  });
+
+  it('restarts the confirmation window when a different candidate replaces a pending one', () => {
+    const stabilizer = createPitchStabilizer();
+    let t = 1000;
+    stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t)); // candidate A pending
+
+    t += HOP_MS;
+    const differentFrequency = shiftCents(BASE_FREQUENCY, 700);
+    let reading = stabilizer.push(accepted(differentFrequency, 0.9, t)); // replaces A, doesn't confirm it
+    expect(reading).toBeNull();
+
+    // B needs its own full confirmation window from here, not credit for A's elapsed time.
+    for (let i = 0; i < 2; i++) {
+      t += HOP_MS;
+      reading = stabilizer.push(accepted(differentFrequency, 0.9, t));
+    }
+    expect(reading).toBeNull(); // only ~24ms since B started - not yet 40ms
+
+    t += HOP_MS * 2;
+    reading = stabilizer.push(accepted(differentFrequency, 0.9, t));
+    expect(reading!.frequency).toBeCloseTo(differentFrequency, 0);
+  });
+
+  it('tolerates a single brief rejection during confirmation without restarting it', () => {
+    const stabilizer = createPitchStabilizer();
+    let t = 1000;
+    stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t)); // pending observed at t=1000
+
+    t += HOP_MS;
+    let reading = stabilizer.push(rejected(t)); // one dropped frame, well within debounce tolerance
+    expect(reading).toBeNull();
+
+    // The pending streak survived the blip - resuming matching candidates still counts from t=1000,
+    // not restarted from here.
+    t += HOP_MS;
+    reading = stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t)); // t=1024, 24ms since first observed
+    expect(reading).toBeNull();
+
+    t += HOP_MS * 2; // t=1048, 48ms since first observed - past the 40ms window
+    reading = stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t));
+    expect(reading!.frequency).toBeCloseTo(BASE_FREQUENCY, 0);
+  });
+
+  it('abandons a pending candidate after a sustained rejection, requiring a fresh confirmation', () => {
+    const stabilizer = createPitchStabilizer();
+    let t = 1000;
+    stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t)); // pending observed at t=1000
+
+    t += 500; // sustained gap, well beyond the debounce tolerance
+    let reading = stabilizer.push(rejected(t));
+    expect(reading).toBeNull();
+
+    // Resuming the exact same candidate now must confirm from scratch, not from t=1000's progress.
+    t += HOP_MS;
+    reading = stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t));
+    expect(reading).toBeNull(); // freshly pending again, not yet confirmed
+
+    const { reading: confirmed } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, t);
+    expect(confirmed.frequency).toBeCloseTo(BASE_FREQUENCY, 0);
   });
 });
 
 describe('steady state', () => {
   it('stays close to a run of nearly identical candidates', () => {
     const stabilizer = createPitchStabilizer();
-    let t = 1000;
-    let last = stabilizer.push(accepted(BASE_FREQUENCY, 0.95, t))!;
+    const { reading: seeded, t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.95, 1000);
+    let last = seeded;
+    let t = seededAt;
 
     for (let i = 0; i < 10; i++) {
       t += HOP_MS;
@@ -49,17 +148,18 @@ describe('steady state', () => {
 
   it('reports a frequency within the range of recently fed values (never invents or overshoots)', () => {
     const stabilizer = createPitchStabilizer();
-    let t = 1000;
+    const { t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, 1000);
+    let t = seededAt;
     const frequencies = [0, 3, -2, 4, 1].map((cents) => shiftCents(BASE_FREQUENCY, cents));
-    let last: { frequency: number; clarity: number } | null = null;
+    let last: StabilizedReading | null = null;
 
     for (const f of frequencies) {
-      last = stabilizer.push(accepted(f, 0.9, t));
       t += HOP_MS;
+      last = stabilizer.push(accepted(f, 0.9, t));
     }
 
-    const min = Math.min(...frequencies);
-    const max = Math.max(...frequencies);
+    const min = Math.min(BASE_FREQUENCY, ...frequencies);
+    const max = Math.max(BASE_FREQUENCY, ...frequencies);
     expect(last!.frequency).toBeGreaterThanOrEqual(min - 1e-6);
     expect(last!.frequency).toBeLessThanOrEqual(max + 1e-6);
   });
@@ -67,14 +167,12 @@ describe('steady state', () => {
   it('responds faster to a moderate deviation than to steady-state noise', () => {
     const settled = createPitchStabilizer();
     const moved = createPitchStabilizer();
-    let t = 1000;
 
-    settled.push(accepted(BASE_FREQUENCY, 0.9, t));
-    moved.push(accepted(BASE_FREQUENCY, 0.9, t));
-    t += HOP_MS;
+    const { t: settledSeededAt } = bootstrap(settled, BASE_FREQUENCY, 0.9, 1000);
+    const { t: movedSeededAt } = bootstrap(moved, BASE_FREQUENCY, 0.9, 1000);
 
-    const settledReading = settled.push(accepted(shiftCents(BASE_FREQUENCY, 2), 0.9, t))!;
-    const movedReading = moved.push(accepted(shiftCents(BASE_FREQUENCY, 20), 0.9, t))!;
+    const settledReading = settled.push(accepted(shiftCents(BASE_FREQUENCY, 2), 0.9, settledSeededAt + HOP_MS))!;
+    const movedReading = moved.push(accepted(shiftCents(BASE_FREQUENCY, 20), 0.9, movedSeededAt + HOP_MS))!;
 
     const settledMove = Math.abs(settledReading.frequency - BASE_FREQUENCY);
     const movedMove = Math.abs(movedReading.frequency - BASE_FREQUENCY);
@@ -85,22 +183,20 @@ describe('steady state', () => {
   });
 });
 
-describe('severe deviation confirmation', () => {
+describe('severe deviation confirmation (against an existing track)', () => {
   it('does not move the estimate on a single severe deviation', () => {
     const stabilizer = createPitchStabilizer();
-    let t = 1000;
-    stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t));
-    t += HOP_MS;
+    const { t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, 1000);
 
-    const reading = stabilizer.push(accepted(shiftCents(BASE_FREQUENCY, 700), 0.9, t))!;
+    const reading = stabilizer.push(accepted(shiftCents(BASE_FREQUENCY, 700), 0.9, seededAt + HOP_MS))!;
 
     expect(reading.frequency).toBeCloseTo(BASE_FREQUENCY, 0);
   });
 
   it('confirms a severe deviation once it persists past the confirmation window', () => {
     const stabilizer = createPitchStabilizer();
-    let t = 1000;
-    stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t));
+    const { t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, 1000);
+    let t = seededAt;
 
     const newFrequency = shiftCents(BASE_FREQUENCY, 700);
     let reading = null;
@@ -114,9 +210,8 @@ describe('severe deviation confirmation', () => {
 
   it('abandons a severe deviation that does not repeat', () => {
     const stabilizer = createPitchStabilizer();
-    let t = 1000;
-    stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t));
-    t += HOP_MS;
+    const { t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, 1000);
+    let t = seededAt + HOP_MS;
     stabilizer.push(accepted(shiftCents(BASE_FREQUENCY, 700), 0.9, t)); // one-off spike
     t += HOP_MS;
 
@@ -127,10 +222,8 @@ describe('severe deviation confirmation', () => {
 
   it('restarts the confirmation window when a different severe deviation replaces a pending one', () => {
     const stabilizer = createPitchStabilizer();
-    let t = 1000;
-    stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t));
-
-    t += HOP_MS;
+    const { t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, 1000);
+    let t = seededAt + HOP_MS;
     stabilizer.push(accepted(shiftCents(BASE_FREQUENCY, 700), 0.9, t)); // candidate A pending
 
     t += HOP_MS;
@@ -148,12 +241,11 @@ describe('severe deviation confirmation', () => {
   });
 });
 
-describe('rejection handling', () => {
+describe('rejection handling (against an existing track)', () => {
   it('absorbs a rejection within the debounce tolerance without changing the estimate', () => {
     const stabilizer = createPitchStabilizer();
-    let t = 1000;
-    stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t));
-    t += 10; // well within the short internal debounce
+    const { t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, 1000);
+    const t = seededAt + 10; // well within the short internal debounce
 
     const reading = stabilizer.push(rejected(t));
 
@@ -163,26 +255,25 @@ describe('rejection handling', () => {
 
   it('returns null once rejections exceed the debounce tolerance', () => {
     const stabilizer = createPitchStabilizer();
-    let t = 1000;
-    stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t));
-    t += 500; // well beyond the short internal debounce
+    const { t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, 1000);
+    const t = seededAt + 500; // well beyond the short internal debounce
 
     expect(stabilizer.push(rejected(t))).toBeNull();
   });
 
-  it('treats resumption after a cleared signal as a fresh bootstrap, not a continuation', () => {
+  it('treats resumption after a cleared signal as a fresh, unbiased confirmation - not a continuation', () => {
     const stabilizer = createPitchStabilizer();
-    let t = 1000;
-    stabilizer.push(accepted(BASE_FREQUENCY, 0.9, t));
-    t += 500;
-    stabilizer.push(rejected(t)); // exceeds tolerance, clears state
+    const { t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, 1000);
+    let t = seededAt + 500; // exceeds tolerance, clears state
+    stabilizer.push(rejected(t));
     t += HOP_MS;
 
-    const newFrequency = shiftCents(BASE_FREQUENCY, 700); // would have been "severe" against the old value
-    const reading = stabilizer.push(accepted(newFrequency, 0.9, t));
+    // Would have been "severe" against the old value - proving it isn't compared against stale history,
+    // just goes through the same ordinary fresh confirmation as any other new candidate.
+    const newFrequency = shiftCents(BASE_FREQUENCY, 700);
+    const { reading } = bootstrap(stabilizer, newFrequency, 0.9, t);
 
-    // Treated as a fresh seed, not evaluated against stale history - takes effect immediately.
-    expect(reading!.frequency).toBeCloseTo(newFrequency, 0);
+    expect(reading.frequency).toBeCloseTo(newFrequency, 0);
   });
 });
 
