@@ -39,13 +39,16 @@ vi.mock('../telegram/haptics', () => ({
   triggerHapticFeedback: vi.fn(),
 }));
 
-import { getStandardTuning, midiToFrequency } from '../music-theory';
+import { getAllTunings, getStandardTuning, midiToFrequency } from '../music-theory';
 import { triggerHapticFeedback } from '../telegram/haptics';
 import { useAudioEngine } from './useAudioEngine';
 
 const HIGH_E = getStandardTuning().strings[5];
 const HIGH_E_FREQUENCY = midiToFrequency(HIGH_E.midi);
 const HOP_MS = 15;
+
+const DROP_D_TUNING = getAllTunings().find((tuning) => tuning.id === 'guitar-drop-d')!;
+const BASS_TUNING = getAllTunings().find((tuning) => tuning.id === 'bass-standard')!;
 
 function emitReading(reading: PitchReading): void {
   readingListeners.forEach((fn) => fn(reading));
@@ -84,6 +87,39 @@ describe('useAudioEngine', () => {
     expect(result.current.error).toBeNull();
     expect(result.current.frequency).toBeNull();
     expect(result.current.presentation.state).toBe('searching');
+  });
+
+  it('defaults to standard tuning when no preset is given', () => {
+    const { result } = renderHook(() => useAudioEngine());
+
+    act(() => emitStatus('listening'));
+    act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: 1000 }));
+
+    expect(result.current.presentation.target?.label).toBe(HIGH_E.label);
+  });
+
+  it('threads a given tuning preset into the presenter from the start', () => {
+    const { result } = renderHook(() => useAudioEngine(BASS_TUNING));
+
+    act(() => emitStatus('listening'));
+    const bassLowE = BASS_TUNING.strings[0];
+    act(() => emitReading({ frequency: midiToFrequency(bassLowE.midi), clarity: 0.95, timestamp: 1000 }));
+
+    expect(result.current.presentation.target?.id).toBe(bassLowE.id);
+    expect(result.current.presentation.target?.label).toBe(bassLowE.label);
+  });
+
+  it('re-targets the presenter via setTargets() when the tuning preset changes across renders', () => {
+    const { result, rerender } = renderHook(({ preset }) => useAudioEngine(preset), {
+      initialProps: { preset: getStandardTuning() },
+    });
+    act(() => emitStatus('listening'));
+
+    const dropDLowString = DROP_D_TUNING.strings[0];
+    rerender({ preset: DROP_D_TUNING });
+    act(() => emitReading({ frequency: midiToFrequency(dropDLowString.midi), clarity: 0.95, timestamp: 1000 }));
+
+    expect(result.current.presentation.target?.label).toBe(dropDLowString.label);
   });
 
   it('delegates start()/stop() to the AudioEngine instance', async () => {

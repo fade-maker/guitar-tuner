@@ -4,6 +4,7 @@ import type { AudioEngine, AudioEngineError, EngineStatus } from '../audio-engin
 import { createTunerPresenter } from '../presentation/tunerPresenter';
 import type { TunerPresentationState, TunerPresenter } from '../presentation/tunerPresenter';
 import { getStandardTuning } from '../music-theory';
+import type { TuningPreset } from '../music-theory';
 import { DEFAULT_PRESENTATION_CONFIG, DEFAULT_TUNING_TOLERANCE_CONFIG } from '../config';
 import { triggerHapticFeedback } from '../telegram/haptics';
 
@@ -17,28 +18,34 @@ export interface UseAudioEngineResult {
   stop(): void;
 }
 
-export type UseAudioEngine = () => UseAudioEngineResult;
+export type UseAudioEngine = (tuningPreset?: TuningPreset) => UseAudioEngineResult;
 
-function createPresenter(): TunerPresenter {
+function createPresenter(tuningPreset: TuningPreset): TunerPresenter {
   return createTunerPresenter({
-    targets: getStandardTuning().strings,
+    targets: tuningPreset.strings,
     inTuneCents: DEFAULT_TUNING_TOLERANCE_CONFIG.inTuneCents,
     closeCents: DEFAULT_TUNING_TOLERANCE_CONFIG.closeCents,
     lockDurationMs: DEFAULT_PRESENTATION_CONFIG.lockDurationMs,
   });
 }
 
-export const useAudioEngine: UseAudioEngine = () => {
+export const useAudioEngine: UseAudioEngine = (tuningPreset = getStandardTuning()) => {
   // Lazy useState initializers, not useRef: this project's lint rules forbid touching ref.current
   // during render at all (React Compiler-era purity rules), so useState's one-time initializer is the
   // sanctioned way to construct something exactly once per mount.
-  const [presenter] = useState<TunerPresenter>(() => createPresenter());
+  const [presenter] = useState<TunerPresenter>(() => createPresenter(tuningPreset));
   const [engine] = useState<AudioEngine>(() => createAudioEngine());
 
   const [presentation, setPresentation] = useState<TunerPresentationState>(() => presenter.tick(0));
   const [engineStatus, setEngineStatus] = useState<EngineStatus>('idle');
   const [error, setError] = useState<AudioEngineError | null>(null);
   const [frequency, setFrequency] = useState<number | null>(null);
+
+  // Re-targets the presenter whenever the caller switches tuningPreset. Redundant but harmless on the
+  // mount render (the lazy useState initializer above already used this same preset).
+  useEffect(() => {
+    presenter.setTargets(tuningPreset.strings);
+  }, [presenter, tuningPreset]);
 
   // Listener registration and clock reads are side effects, so they live here rather than inline in
   // the render body.
