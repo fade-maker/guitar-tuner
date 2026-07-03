@@ -1,9 +1,8 @@
 import type { ReactElement, ReactNode } from 'react';
-
-export type PermissionStatus = 'idle' | 'requesting' | 'granted' | 'denied';
+import type { EngineStatus } from '../../audio-engine';
 
 export interface PermissionGateProps {
-  readonly status: PermissionStatus;
+  readonly status: EngineStatus;
   readonly onRequestAccess: () => void;
   readonly children: ReactNode;
 }

@@ -1,8 +1,9 @@
 import type { ReactElement } from 'react';
+import type { TunerLifecycleState } from '../../presentation/tunerPresenter';
 
 export interface TunerGaugeProps {
-  readonly cents: number;
-  readonly isActive: boolean;
+  readonly cents: number | null;
+  readonly state: TunerLifecycleState;
   readonly isInTune: boolean;
 }
 

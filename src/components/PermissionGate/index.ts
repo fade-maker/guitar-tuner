@@ -1,1 +1,1 @@
-export type { PermissionStatus, PermissionGateProps, PermissionGateComponent } from './PermissionGate';
+export type { PermissionGateProps, PermissionGateComponent } from './PermissionGate';
