@@ -1,4 +1,4 @@
-import type { PitchDetectionResult } from '../pitchDetection/PitchDetector';
+import type { PitchCandidate } from './candidateValidator';
 
 export interface StabilizedReading {
   readonly frequency: number;
@@ -7,7 +7,7 @@ export interface StabilizedReading {
 }
 
 export interface PitchStabilizer {
-  push(reading: PitchDetectionResult): StabilizedReading | null;
+  push(candidate: PitchCandidate): StabilizedReading | null;
   reset(): void;
 }
 
