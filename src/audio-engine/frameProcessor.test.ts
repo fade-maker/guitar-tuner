@@ -14,6 +14,7 @@ const config: FrameProcessorConfig = {
   minFrequency: 20,
   maxFrequency: 5000,
   clarityThreshold: 0.9,
+  minRmsAmplitude: 0.0012,
 };
 
 function sineWave(frequency: number, length: number, startSample = 0, amplitude = 0.8): Float32Array {
@@ -57,6 +58,21 @@ describe('createFrameProcessor', () => {
     for (let i = 0; i < 40; i++) {
       const silence = new Float32Array(BLOCK_SIZE);
       const reading = processor.processBlock(silence, t);
+      if (reading) readingCount++;
+      t += (BLOCK_SIZE / SAMPLE_RATE) * 1000;
+    }
+    expect(readingCount).toBe(0);
+  });
+
+  it('produces no readings for a clean periodic signal below the RMS gate', () => {
+    const processor = createFrameProcessor(config);
+    let readingCount = 0;
+    let t = 0;
+    for (let i = 0; i < 40; i++) {
+      // amplitude 0.0005 -> rms ~0.00035, well below config.minRmsAmplitude (0.0012). Pitchy would
+      // happily report high clarity on this if the gate didn't block detection before it ran.
+      const quiet = sineWave(220, BLOCK_SIZE, i * BLOCK_SIZE, 0.0005);
+      const reading = processor.processBlock(quiet, t);
       if (reading) readingCount++;
       t += (BLOCK_SIZE / SAMPLE_RATE) * 1000;
     }
