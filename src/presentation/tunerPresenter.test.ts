@@ -148,6 +148,61 @@ describe('rapid adjustment suppresses locking', () => {
   });
 });
 
+describe('locked-exit hold', () => {
+  it('holds the last locked display through a single brief off-tune reading, then resumes on recovery', () => {
+    const presenter = createTunerPresenter(config);
+    const { state: locked, t: lockedAt } = lockIn(presenter, FREQ_A, 1000, config);
+    expect(locked.state).toBe('locked');
+    expect(locked.inTune).toBe(true);
+
+    // 10 cents: beyond closeCents (8, flips inTune false) but below the rapid-adjustment threshold
+    // (15, so rawState itself would still compute as 'locked') - isolates the inTune-only downgrade
+    // path from the separate isRapidlyChanging() mechanism.
+    const noisy = presenter.onReading(reading(shiftCents(FREQ_A, 10), lockedAt + HOP_MS));
+    expect(noisy).toEqual(locked); // held: identical to the last confirmed locked state, not recomputed
+
+    const recovered = presenter.onReading(reading(FREQ_A, lockedAt + HOP_MS * 2));
+    expect(recovered.state).toBe('locked');
+    expect(recovered.inTune).toBe(true);
+  });
+
+  it('surfaces a sustained off-tune reading once it persists past the hold window', () => {
+    const presenter = createTunerPresenter(config);
+    const { state: locked, t: lockedAt } = lockIn(presenter, FREQ_A, 1000, config);
+    expect(locked.inTune).toBe(true);
+
+    let t = lockedAt;
+    let state = locked;
+    // Keep feeding the same 10-cent-off reading well past the ~120ms hold window.
+    while (t < lockedAt + 200) {
+      t += HOP_MS;
+      state = presenter.onReading(reading(shiftCents(FREQ_A, 10), t));
+    }
+
+    expect(state.inTune).toBe(false);
+    expect(state.state).toBe('locked'); // still locked - genuinely off-tune, not a lost signal
+  });
+
+  it('applies a target switch immediately, even though the previous target was locked', () => {
+    const presenter = createTunerPresenter(config);
+    const { state: locked, t: lockedAt } = lockIn(presenter, FREQ_A, 1000, config);
+    expect(locked.state).toBe('locked');
+
+    const switched = presenter.onReading(reading(FREQ_B, lockedAt + HOP_MS));
+    expect(switched.state).toBe('active');
+    expect(switched.target?.id).toBe('b');
+  });
+
+  it('enters locked immediately on the reading that crosses lockDurationMs - no hold delay for upgrades', () => {
+    const presenter = createTunerPresenter(config);
+    const first = presenter.onReading(reading(FREQ_A, 1000));
+    expect(first.state).toBe('active');
+
+    const state = presenter.onReading(reading(FREQ_A, 1000 + config.lockDurationMs));
+    expect(state.state).toBe('locked'); // applied on this exact reading, not delayed
+  });
+});
+
 describe('tick - searching and lost', () => {
   it('returns searching before any reading has ever arrived', () => {
     const presenter = createTunerPresenter(config);
