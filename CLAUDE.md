@@ -132,4 +132,24 @@ Decisions and one bug caught while implementing:
 Not yet done: nothing reads `AppPreferences.autoMode`/`a4Frequency` to call these - no screen exists
 yet to drive them.
 
-Next: project structure scaffolding, theme layer, routing stubs, motion architecture.
+### Stage 3 — Project structure (`src/components/{ui,layout}/`, `src/providers/`)
+
+What: added `components/ui/` and `components/layout/` as empty, documented scaffolds; added
+`providers/` with `AppProviders` - a single composition root that nests every app-level context
+provider (currently just `PreferencesProvider`) so `App.tsx` never has to know the wrapping order.
+
+Why: gives Stage 0+ of the implementation roadmap (see the UI spec artifact) a home to land in
+without inventing folder structure mid-build.
+
+Decisions:
+- Existing component folders (`components/TunerGauge`, `StringSelector`, `Header`,
+  `PermissionGate`) were left exactly where they are - moving already-placed code without a reason
+  was explicitly out of scope for this pass.
+- `components/screens/` was deliberately not created empty here - it gets created already-populated
+  in the routing stage (Stage 5) instead of as a two-step empty-then-filled scaffold.
+
+Not yet done: `AppProviders` is not mounted in `main.tsx` - `App.tsx` is untouched, on purpose, so
+the existing debug harness for manually testing the real audio engine keeps working until a real
+screen is ready to replace it.
+
+Next: theme layer, routing stubs, motion architecture.
