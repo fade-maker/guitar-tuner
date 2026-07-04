@@ -284,3 +284,75 @@ aid (same deletable pattern as `debug.html`), not wired into any build config.
 
 Next: build the actual screens (Simple Tuner, Advanced Tuner, Settings, Select Tuning) from these
 primitives, per the implementation roadmap.
+
+### Stage 8 — Simple Tuner screen (`src/components/screens/SimpleTunerScreen.tsx`)
+
+What: the first real screen, assembled entirely from Stage 7's primitives (`AppHeader`,
+`SimplePitchBadge`, `CurrentTargetNote`, `GuitarIllustration`/`BassIllustration`, `StringControl`,
+`FooterNavigation`) - no new UI components, no design-token changes. Wired to the real
+`useAudioEngine()`/`TunerPresenter`/`TunerPresentationState` - their APIs are untouched, the screen
+just consumes them (plus `usePreferences()` and `useNavigation()`, both already-existing
+architecture).
+
+Why: proves the component library and the presentation layer compose into a working screen without
+needing to touch business logic.
+
+Layout: absolutely positioned to match Figma's exact coordinates (`get_design_context` on
+`74:4342`), not a responsive flow layout - a 402px-wide screen container with each element placed
+at its transcribed `left`/`top`. The background wave pattern and the vertical center guide line are
+reproduced as plain screen-level decoration (not new reusable components) using the exact Figma
+SVG assets, since neither is one of the six named components and turning either into a
+"component" would go beyond what was asked.
+
+Decisions:
+- `SimplePitchBadge` and `CurrentTargetNote` both anchor at `left: 179px` - not a guess: Figma's own
+  calc()-based position for the badge looked asymmetric until cross-checked against
+  `CurrentTargetNote`'s plain `left: 179px` and the tune-line's center - all three share one
+  horizontal center (201px, mid-screen), and the badge's own first child (its 44px indicator
+  circle) is what's meant to sit on that center, with its text label free to extend further right.
+  Anchoring the whole component at `left: 179px` reproduces that without needing the calc().
+  Both are only rendered once `presentation.target`/`presentation.cents` are non-null - before any
+  reading, neither exists in Figma's "waiting" state either.
+- String→column split: confirmed from Figma for 6 strings (first half reversed on the left, second
+  half forward on the right - e.g. `[D,A,E]` / `[G,B,E]`), generalized to any string count since
+  it's the only confirmed data point. **Bass's exact layout is unconfirmed** - Figma's Bass screen
+  (`144:1976`) still uses the pre-redesign raw-shape mockup, not the current component set - so the
+  2-per-column, vertically-centered bass layout here is inferred by generalizing the guitar
+  pattern, not verified against a current design. Flagged, not silently assumed away.
+- The outer frame's 56px corner radius + overflow-clip (from Figma's `74:4342` root) was **not**
+  reproduced - treated as phone-mockup framing (like the excluded `system(ios)` chrome), not real
+  app chrome, since a Mini App's actual viewport isn't clipped to a rounded phone bezel. A judgment
+  call, called out rather than silently applied.
+- Screen-level, not-a-business-logic-change formatting: `TUNING_INSTRUMENT`/`TUNING_SUBTITLE` local
+  lookups derive the header's "Guitar 6-string"/"Standard" two-line text from
+  `TuningPreset.id`/`.strings.length`, since `TuningPreset.name` is one combined descriptive string
+  and Figma expects two separate labels. Same stopgap already noted in `DebugSettingsPanel` - still
+  belongs on `TuningPreset` itself once Select Tuning is implemented, not invented as permanent
+  architecture here.
+- Manual string pinning: clicking a `StringControl` calls `pinTarget()` only when
+  `preferences.autoMode` is already false; toggling Auto off calls `pinTarget()` with whatever was
+  last clicked (or does nothing yet if nothing has been clicked this session) - toggling Auto back
+  on calls `unpinTarget()`. No presenter changes needed; this is exactly the API Stage 2's
+  extension was built for.
+- Footer's Settings tab calls `useNavigation().navigateTo('settings')` - lands on the existing
+  stub, since building the Settings screen itself is explicitly out of scope for this stage.
+
+Verification: re-opened Figma via MCP (`get_design_context` + `get_screenshot` on `74:4342`) after
+assembly and compared side-by-side against a screenshot of the real assembled screen (added
+temporarily to `gallery.html`, built statically, screenshotted via Playwright at a `file://` URL -
+same technique as Stage 7). **No pixel discrepancies found** requiring a fix - header text/layout,
+icon positions, string button order/labels, footer, and background pattern all matched. The one
+thing not visually re-verified is `SimplePitchBadge`/`CurrentTargetNote` positioning in a populated
+state (the gallery has no real pitch reading to trigger them) - confidence there rests on their
+`left: 179px` coordinates being transcribed directly from Figma's own generated markup, not
+estimated.
+
+Not yet done: Advanced Tuner, Settings, and Select Tuning screens are still stubs, per this stage's
+explicit scope. `AppRouter` unconditionally renders `SimpleTunerScreen` for the `simple-tuner`
+route regardless of `preferences.tunerMode` - switching to `AdvancedTunerScreen` based on that
+preference is a later wiring task. `AppProviders`/`AppRouter` are still not mounted in `main.tsx` -
+`App.tsx` remains the debug harness.
+
+Next: Advanced Tuner screen (blocked on the deferred stabilization-sharing architecture discussion
+and the remaining Figma gauge-behavior gap - see the "Advanced Tuner stabilization" memory), or
+Settings/Select Tuning if tackled first.

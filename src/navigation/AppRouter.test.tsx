@@ -1,17 +1,37 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ScreenId } from './types';
 import { AppRouter } from './AppRouter';
 import { NavigationProvider } from './NavigationProvider';
 
+// SimpleTunerScreen is real now (Stage 2) and needs the audio engine mocked the same way
+// useAudioEngine.test.ts does - only the Web Audio/getUserMedia boundary is faked.
+const { fakeEngine } = vi.hoisted(() => {
+  const fakeEngine = {
+    start: vi.fn(async () => undefined),
+    stop: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
+    onStatusChange: vi.fn(() => () => {}),
+    onError: vi.fn(() => () => {}),
+  };
+  return { fakeEngine };
+});
+
+vi.mock('../audio-engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../audio-engine')>();
+  return { ...actual, createAudioEngine: () => fakeEngine };
+});
+
+import { PreferencesProvider } from '../preferences';
+
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
 });
 
 describe('AppRouter', () => {
   it.each([
-    ['simple-tuner', 'Simple Tuner (stub)'],
     ['advanced-tuner', 'Advanced Tuner (stub)'],
     ['select-tuning', 'Select Tuning (stub)'],
     ['settings', 'Settings (stub)'],
@@ -24,5 +44,17 @@ describe('AppRouter', () => {
     );
 
     expect(screen.getByText(text)).not.toBeNull();
+  });
+
+  it('renders the real SimpleTunerScreen for simple-tuner', () => {
+    render(
+      <PreferencesProvider>
+        <NavigationProvider initialScreen="simple-tuner">
+          <AppRouter />
+        </NavigationProvider>
+      </PreferencesProvider>,
+    );
+
+    expect(screen.getByText('Guitar 6-string')).not.toBeNull();
   });
 });

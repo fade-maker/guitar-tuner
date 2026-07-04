@@ -17,6 +17,7 @@ import {
   StringNoteChip,
   ToggleSwitch,
 } from '../components/ui';
+import { SimpleTunerScreen } from '../components/screens';
 
 // Temporary, throwaway visual QA gallery - not part of the production app, not a screen. Used to
 // self-compare every ui/ primitive against Figma via a screenshot. Delete alongside src/debug/ once
@@ -123,6 +124,10 @@ export function ComponentGallery(): ReactElement {
         <div style={{ width: 402 }}>
           <FooterNavigation active={tab} onSelect={setTab} />
         </div>
+      </Row>
+
+      <Row title="SimpleTunerScreen (assembled)">
+        <SimpleTunerScreen />
       </Row>
     </div>
   );

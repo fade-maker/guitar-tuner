@@ -1,0 +1,126 @@
+@import '../../theme/tokens.css';
+
+.screen {
+  position: relative;
+  width: 402px;
+  min-height: 874px;
+  background: var(--color-surface-page);
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.bgPattern {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 179.79px;
+  width: 434px;
+  height: 284.417px;
+  opacity: 0.08;
+  mask-repeat: no-repeat;
+  mask-size: 402px 325px;
+  mask-position: 16px 7.208px;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 402px 325px;
+  -webkit-mask-position: 16px 7.208px;
+  pointer-events: none;
+}
+
+.bgPatternImg {
+  position: absolute;
+  inset: -0.19% 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.header {
+  position: absolute;
+  left: 0;
+  top: 121px;
+  width: 402px;
+}
+
+.tuneLineWrap {
+  position: absolute;
+  left: 50%;
+  top: 158px;
+  width: 0;
+  height: 270px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.tuneLine {
+  transform: rotate(-90deg);
+  width: 270px;
+  height: 1px;
+  flex: none;
+}
+
+.tuneLineImg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Anchored at the same left edge as .currentNote, on purpose: SimplePitchBadge's own first child
+   (the 44px indicator circle) then lands centered on the screen exactly like CurrentTargetNote and
+   the tune line, with its text label free to extend further right - matching how Figma's own
+   asymmetric calc() position resolves, without reproducing that calc(). */
+.pitchBadge {
+  position: absolute;
+  left: 179px;
+  top: 259px;
+}
+
+.currentNote {
+  position: absolute;
+  left: 179px;
+  top: 342px;
+}
+
+.illustration {
+  position: absolute;
+  left: 50%;
+  top: 400px;
+  transform: translateX(-50%);
+}
+
+.stringContainer {
+  position: absolute;
+  left: 0;
+  top: 452px;
+  width: 402px;
+  height: 204px;
+  padding: 0 var(--space-16);
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24, 24px);
+  align-items: flex-start;
+}
+
+/* Guitar (3-per-column) fills the band top-down like Figma. Bass (2-per-column) has no current
+   Figma reference with the current component set (see the Stage 2 report) - centering the pair
+   vertically in the same band is an inferred, not confirmed, choice. */
+.columnCentered {
+  justify-content: center;
+  height: 100%;
+}
+
+.footer {
+  position: absolute;
+  left: 0;
+  top: 768px;
+  width: 402px;
+}
