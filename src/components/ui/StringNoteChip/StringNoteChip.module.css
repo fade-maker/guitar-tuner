@@ -1,0 +1,33 @@
+@import '../../../theme/tokens.css';
+
+.chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(44, 44, 44, 0.6);
+}
+
+.content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.note {
+  font-size: 15px;
+}
+
+.octave {
+  font-size: 10px;
+}

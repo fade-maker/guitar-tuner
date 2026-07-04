@@ -1,0 +1,52 @@
+@import '../../../theme/tokens.css';
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0 var(--space-16);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* sizes */
+.large {
+  height: 44px;
+  font-size: var(--type-body-size);
+}
+.small {
+  height: 32px;
+  font-size: 14px;
+}
+
+/* Primary */
+.primary {
+  background: var(--color-surface-inverse);
+  color: var(--color-text-inverse);
+}
+.primary:disabled {
+  background: rgba(197, 197, 199, 0.2);
+  color: rgba(20, 20, 19, 0.5);
+}
+
+/* Secondary */
+.secondary {
+  background: transparent;
+  border: 1px solid var(--color-border-primary);
+  color: var(--color-text-primary);
+}
+.secondary:disabled {
+  border-color: rgba(222, 220, 209, 0.1);
+  color: rgba(156, 154, 146, 0.5);
+}

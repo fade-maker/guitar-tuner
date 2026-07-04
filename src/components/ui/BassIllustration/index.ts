@@ -1,0 +1,1 @@
+export { BassIllustration } from './BassIllustration';

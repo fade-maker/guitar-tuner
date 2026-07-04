@@ -1,4 +1,28 @@
-// Reusable, screen-agnostic UI primitives (Button, Switcher, CheckIndicator, StepperButton,
-// IconGlyph, FooterNav, ...) land here once their Figma contracts are pixel-perfect-ready.
-// Intentionally empty scaffold - see CLAUDE.md's architecture log for the current stage.
-export {};
+export type { IconName, IconProps } from './Icon';
+export { Icon } from './Icon';
+export type { ButtonProps, ButtonVariant, ButtonSize } from './Button';
+export { Button } from './Button';
+export type { ToggleSwitchProps } from './ToggleSwitch';
+export { ToggleSwitch } from './ToggleSwitch';
+export type { CheckIndicatorProps, CheckIndicatorState } from './CheckIndicator';
+export { CheckIndicator } from './CheckIndicator';
+export type { StringControlProps, StringControlState } from './StringControl';
+export { StringControl } from './StringControl';
+export type { SimplePitchBadgeProps, SimplePitchBadgeState } from './SimplePitchBadge';
+export { SimplePitchBadge } from './SimplePitchBadge';
+export type { AdvancedStatusBadgeProps, AdvancedStatusBadgeState } from './AdvancedStatusBadge';
+export { AdvancedStatusBadge } from './AdvancedStatusBadge';
+export type { CurrentTargetNoteProps } from './CurrentTargetNote';
+export { CurrentTargetNote } from './CurrentTargetNote';
+export type { StringNoteChipProps } from './StringNoteChip';
+export { StringNoteChip } from './StringNoteChip';
+export type { NoteCircleProps, NoteCircleState } from './NoteCircle';
+export { NoteCircle } from './NoteCircle';
+export type { InTuneZoneProps, InTuneZoneState } from './InTuneZone';
+export { InTuneZone } from './InTuneZone';
+export type { AppHeaderProps, AppHeaderDefaultProps, AppHeaderAdvancedProps, Accidental } from './AppHeader';
+export { AppHeader } from './AppHeader';
+export type { FooterNavigationProps, FooterNavigationTab } from './FooterNavigation';
+export { FooterNavigation } from './FooterNavigation';
+export { GuitarIllustration } from './GuitarIllustration';
+export { BassIllustration } from './BassIllustration';

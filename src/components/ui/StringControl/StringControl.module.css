@@ -1,0 +1,34 @@
+@import '../../../theme/tokens.css';
+
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  box-sizing: border-box;
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 10px;
+}
+
+.default {
+  background: var(--color-surface-card);
+  border: 1px solid rgba(225, 224, 217, 0.08);
+  color: var(--color-text-primary);
+}
+
+.inTune {
+  background: var(--color-surface-inverse);
+  border: 1px solid rgba(225, 224, 217, 0.08);
+  color: var(--color-text-inverse);
+}
+
+.tuned {
+  background: var(--color-surface-card);
+  border: 2px solid var(--color-border-primary);
+  color: var(--color-text-primary);
+}

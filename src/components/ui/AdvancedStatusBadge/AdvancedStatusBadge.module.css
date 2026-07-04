@@ -1,0 +1,19 @@
+@import '../../../theme/tokens.css';
+
+.badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-card);
+}
+
+.text {
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}

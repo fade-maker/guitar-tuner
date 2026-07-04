@@ -1,0 +1,78 @@
+/*
+  CSS custom properties mirroring src/theme/{colors,radius,spacing,typography,shadows}.ts.
+  Import this file once per component that needs it (import '../../theme/tokens.css') - repeated
+  imports are deduped by the bundler, so no central "app root" wiring is required. Values must stay
+  in sync with the .ts token files by hand; there's no build step generating one from the other.
+*/
+:root {
+  /* colors */
+  --color-surface-page: #121212;
+  --color-surface-card: #1e1e1e;
+  --color-surface-elevated: #2c2c2c;
+  --color-surface-inverse: #ffffff;
+
+  --color-text-primary: #faf9f5;
+  --color-text-secondary: #9c9a92;
+  --color-text-tertiary: #7b7a82;
+  --color-text-inverse: #141413;
+
+  --color-border-primary: #faf9f5;
+  --color-border-secondary: #dedcd1;
+
+  --color-accent-info: #4682d5;
+  --color-accent-danger: #cd5c58;
+
+  /* radius */
+  --radius-full: 99999px;
+  --radius-card: 24px;
+  --radius-chip: 10px;
+
+  /* spacing */
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+
+  /* typography */
+  --font-family-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --type-body-weight: 500;
+  --type-body-size: 16px;
+  --type-body-line-height: 22.4px;
+
+  --type-body-semibold-weight: 600;
+  --type-body-semibold-size: 16px;
+  --type-body-semibold-line-height: 22.4px;
+
+  --type-body-secondary-weight: 400;
+  --type-body-secondary-size: 15px;
+  --type-body-secondary-line-height: 36px;
+
+  --type-body-small-weight: 400;
+  --type-body-small-size: 13px;
+  --type-body-small-line-height: 19.6px;
+
+  --type-body-small-medium-weight: 500;
+  --type-body-small-medium-size: 13px;
+  --type-body-small-medium-line-height: 19.6px;
+
+  --type-caption-regular-weight: 400;
+  --type-caption-regular-size: 11px;
+  --type-caption-regular-line-height: 16.8px;
+
+  --type-caption-bold-weight: 700;
+  --type-caption-bold-size: 11px;
+  --type-caption-bold-line-height: 16.8px;
+
+  --type-heading-weight: 400;
+  --type-heading-size: 20px;
+  --type-heading-line-height: 25px;
+
+  /* shadows */
+  --shadow-footer: 0px 0px 40px 0px rgba(22, 22, 23, 0.08);
+  --shadow-footer-inner: inset 0px 0px 12.6px 0px rgba(0, 0, 0, 0.25);
+  --backdrop-blur-footer: 6px;
+}

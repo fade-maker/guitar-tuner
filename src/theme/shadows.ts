@@ -1,6 +1,6 @@
-// Shape only - no values. Modeled after the one composite effect the Figma audit found (the
-// footer's drop-shadow + background-blur + inner-shadow stack, currently an unnamed "Background
-// Blur + Shadow" style) so a real token can slot in once it's named properly in Figma.
+// Real values for the one composite effect Figma actually defines ("Background Blur + Shadow",
+// used by the footer). No card shadow is populated - none exists on real screens (cards are flat
+// fills, no elevation shadow observed) - inventing one here would be unrequested design.
 
 export interface ShadowLayer {
   readonly offsetX: number;
@@ -20,3 +20,12 @@ export interface ShadowTokens {
   readonly card: ShadowToken;
   readonly footer: ShadowToken;
 }
+
+export const shadows: ShadowTokens = {
+  card: {},
+  footer: {
+    dropShadow: { offsetX: 0, offsetY: 0, blur: 40, spread: 0, color: 'rgba(22,22,23,0.08)' },
+    innerShadow: { offsetX: 0, offsetY: 0, blur: 12.6, spread: 0, color: 'rgba(0,0,0,0.25)' },
+    backgroundBlur: 6,
+  },
+};

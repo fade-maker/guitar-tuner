@@ -1,0 +1,1 @@
+export { GuitarIllustration } from './GuitarIllustration';

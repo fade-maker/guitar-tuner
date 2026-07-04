@@ -1,0 +1,30 @@
+@import '../../../theme/tokens.css';
+
+.circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 158px;
+  height: 158px;
+  box-sizing: border-box;
+  padding: var(--space-10);
+  border-radius: var(--radius-full);
+}
+
+.inTune {
+  background: var(--color-surface-inverse);
+  color: var(--color-text-inverse);
+}
+
+.searching {
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+}
+
+.text {
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  font-size: 48px;
+  text-align: center;
+  width: 100%;
+}

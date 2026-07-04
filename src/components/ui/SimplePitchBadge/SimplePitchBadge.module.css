@@ -1,0 +1,68 @@
+@import '../../../theme/tokens.css';
+
+.badge {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.badgeColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 44px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-full);
+  padding: var(--space-10);
+  box-sizing: border-box;
+}
+.indicator.inTune {
+  background: var(--color-surface-inverse);
+}
+.indicator.offPitch {
+  background: var(--color-surface-card);
+  border: 2px solid var(--color-accent-danger);
+}
+
+.centsText {
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  font-size: 20px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.tail {
+  position: absolute;
+  left: 18px;
+  top: 42px;
+  width: 8px;
+  height: 8px;
+}
+
+.label {
+  background: var(--color-surface-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px var(--space-10);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.labelText {
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}

@@ -1,0 +1,50 @@
+@import '../../../theme/tokens.css';
+
+.track {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  width: 66px;
+  height: 28px;
+  box-sizing: border-box;
+  border: none;
+  cursor: pointer;
+}
+.track.off {
+  background: rgba(197, 197, 199, 0.2);
+}
+.track.on {
+  background: var(--color-accent-info);
+}
+
+.thumb {
+  background: var(--color-surface-inverse);
+  height: 24px;
+  width: 38px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.indicatorSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.trackBorder {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(222, 220, 209, 0.3);
+}
+
+.onSliver {
+  background: var(--color-surface-inverse);
+  width: 1px;
+  height: 10px;
+  border-radius: 9px;
+}

@@ -1,0 +1,31 @@
+.container {
+  position: relative;
+  width: 253px;
+  height: 474px;
+}
+
+.frame {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 32px);
+  transform: translate(-50%, -50%);
+  width: 293px;
+  height: 450px;
+  overflow: hidden;
+}
+
+.crop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.photo {
+  position: absolute;
+  left: -11.6%;
+  top: -5.14%;
+  width: 123.21%;
+  height: 110.29%;
+  max-width: none;
+}

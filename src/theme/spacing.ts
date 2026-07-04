@@ -1,12 +1,23 @@
-// Shape only - no values. The Figma audit found a flat, unscaled 10px padding reused on
-// containers ranging from 24px to 184px, with no named spacing scale behind it anywhere in the
-// file. A real scale (and which components should actually scale their padding vs. stay fixed) is
-// a Figma decision, not something to guess at here.
+// Real values. Figma's own spacing "tokens" are literally named after their value (a variable named
+// "10" bound to 10, etc.) rather than a semantic role - see the punch list. Reproduced honestly as
+// the same un-semantic scale rather than inventing xs/sm/md/lg names Figma doesn't have.
 
 export interface SpacingScale {
-  readonly xs: number;
-  readonly sm: number;
-  readonly md: number;
-  readonly lg: number;
-  readonly xl: number;
+  readonly space2: number;
+  readonly space4: number;
+  readonly space8: number;
+  readonly space10: number;
+  readonly space12: number;
+  readonly space16: number;
+  readonly space24: number;
 }
+
+export const spacing: SpacingScale = {
+  space2: 2,
+  space4: 4,
+  space8: 8,
+  space10: 10,
+  space12: 12,
+  space16: 16,
+  space24: 24,
+};

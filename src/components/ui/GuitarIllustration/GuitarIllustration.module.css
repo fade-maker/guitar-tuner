@@ -1,0 +1,24 @@
+.container {
+  position: relative;
+  width: 253px;
+  height: 474px;
+}
+
+.masked {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: 617 / 1155;
+  mask-repeat: no-repeat;
+  mask-size: 253px 474px;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 253px 474px;
+}
+
+.photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}

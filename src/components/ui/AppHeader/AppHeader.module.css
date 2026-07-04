@@ -1,0 +1,105 @@
+@import '../../../theme/tokens.css';
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 402px;
+  box-sizing: border-box;
+}
+.header.default {
+  gap: var(--space-24);
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0 var(--space-16);
+  box-sizing: border-box;
+}
+.topRow.default {
+  justify-content: space-between;
+}
+
+.titleColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+}
+.titleRow.default {
+  gap: 3px;
+  cursor: pointer;
+}
+
+.title {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.subtitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.subtitleRow.default {
+  gap: 3px;
+}
+
+.subtitle {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: var(--type-body-small-size);
+  line-height: var(--type-body-small-line-height);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.dot {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: var(--color-text-secondary);
+}
+
+.autoRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.autoLabel {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: var(--type-body-small-size);
+  line-height: var(--type-body-small-line-height);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.accidentalRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 var(--space-10);
+  box-sizing: border-box;
+}
+
+.accidentalButton {
+  display: inline-flex;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-text-primary);
+}

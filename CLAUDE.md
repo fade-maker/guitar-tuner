@@ -238,3 +238,49 @@ in real `theme/` token values from the finalized Figma file → build the actual
 `components/ui/` → replace the placeholder screens in `components/screens/` with real,
 Figma-matched implementations → mount `AppProviders`/`AppRouter` in `main.tsx`, retiring the debug
 harness.
+
+### Stage 7 — UI component library (`src/components/ui/`)
+
+What: real values populated in every `theme/` token file (colors/radius/spacing/typography/shadows,
+transcribed exactly from Figma's `get_variable_defs`/`get_design_context`, including the 4
+mis-scaled type line-heights - reproduced as-is, not silently corrected); `theme/tokens.css`
+mirroring the same values as CSS custom properties, imported per-component (no central wiring). 14
+pixel-perfect primitives built bottom-up: `Icon`, `Button`, `ToggleSwitch`, `CheckIndicator`,
+`StringControl`, `SimplePitchBadge`, `AdvancedStatusBadge`, `CurrentTargetNote`, `StringNoteChip`,
+`NoteCircle`, `InTuneZone`, `AppHeader` (Default/Advanced), `FooterNavigation`,
+`GuitarIllustration`/`BassIllustration`. CSS Modules throughout - no styling library added.
+
+Why: gives Stage 4-8 of the implementation roadmap real, tested building blocks instead of
+placeholders, without touching `audio-engine/`, `presentation/`, or `music-theory/` at all.
+
+Decisions:
+- Styling approach: CSS Modules + a hand-written `theme/tokens.css` (CSS custom properties). No new
+  dependency (no Tailwind, no CSS-in-JS, no `clsx` - a 4-line local `classNames()` helper covers
+  conditional classes).
+- Every color/radius/spacing value picks **one** canonical name/value where Figma itself binds the
+  same role under several overlapping names (`bg/secondary` vs `Background/inverse`, etc.) - see
+  `theme/colors.ts`'s comments for which name won and why.
+- `text/tertiary` resolved to `#7b7a82` (the value actually bound on real screens), not `#73726c`
+  (which only colors the Typography page's own internal dev-annotation captions).
+- Known Figma bugs (the 4 mis-scaled line-heights, "Advanced tunind"'s master-component typo) are
+  **not** silently fixed inside components - `AppHeader`'s title/frequency are plain props, so the
+  typo never actually reaches rendered output; the typography values are transcribed exactly as
+  Figma has them, bugs included, since "pixel perfect" means transcription, not correction.
+- `AppHeader`'s Advanced variant intentionally has no Auto switcher, no dropdown, no accidental
+  icons - matches the architecture decision that Simple and Advanced Tuner are different products
+  (see the "Advanced Tuner stabilization" memory/decision log).
+- `NoteCircle` maps to Figma's current "AdvancedPitchIndicator" component (states renamed to
+  `In tune`/`Searching`); `StringControl` maps to "StringSelectorButton" - built under the names
+  requested here, Figma's internal names noted in comments.
+- Verified visually, not just by transcription: built a temporary `gallery.html` +
+  `src/debug/ComponentGallery.tsx` (same throwaway-QA pattern as `debug.html`), built it statically,
+  and screenshotted it via Playwright at `file://` (the sandbox's networking blocks `localhost`
+  dev-server requests from external tools - `file://` sidesteps that entirely). Screenshot matched
+  Figma on every component; no fixes were needed after the comparison.
+
+Not yet done: no screens assembled - these are still unconnected primitives. `components/screens/`
+placeholders are untouched. `gallery.html`/`ComponentGallery.tsx` are a permanent-but-optional QA
+aid (same deletable pattern as `debug.html`), not wired into any build config.
+
+Next: build the actual screens (Simple Tuner, Advanced Tuner, Settings, Select Tuning) from these
+primitives, per the implementation roadmap.
