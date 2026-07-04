@@ -201,4 +201,40 @@ Decisions:
 Not yet done: `AppRouter`/`AppProviders` are not mounted in `main.tsx` - same reasoning as Stage 3,
 the existing debug harness in `App.tsx` stays untouched.
 
-Next: motion architecture.
+### Stage 6 — Motion architecture (`src/motion/`)
+
+What: `fade.ts`, `scale.ts`, `slide.ts`, `spring.ts` - one composed preset shape each - plus an
+aggregate `MotionTokens` interface in `index.ts`. Types only, no values, no animation library
+dependency, no actual animations.
+
+Why: a single, typed home for every future animation so later stages don't invent ad hoc timing
+per component.
+
+Decisions:
+- Resolves the overlap between the request's "theme → animation" and "motion architecture": raw
+  primitives (durations, easing curves) stay in `theme/animation.ts` (Stage 4); `fade`/`scale`/
+  `slide` presets here reference those tokens by key (`keyof DurationTokens`/`keyof EasingTokens`)
+  instead of duplicating or re-declaring them.
+- `spring.ts` doesn't reference duration/easing tokens at all - a spring's feel comes from
+  stiffness/damping/mass, not a duration+curve pair - and is kept library-agnostic (no
+  framer-motion or similar dependency) so whichever animation approach a later stage picks can
+  consume the same shape.
+- No default preset values anywhere: Figma has no animation designs yet (every screen audited is
+  static), so populating this now would be inventing motion design, not preparing architecture for it.
+
+Not yet done: nothing produces or consumes a `MotionTokens` instance yet.
+
+## Current state (all stages)
+
+Every module above (`preferences/`, the `tunerPresenter` extension, `components/{ui,layout,screens}/`,
+`providers/`, `theme/`, `navigation/`, `motion/`) is additive and fully unit-tested (231 tests
+passing across 21 files), but **none of it is wired into `main.tsx`/`App.tsx` yet**. The running app
+is still the original debug harness in `App.tsx`, on purpose - it's the only way to manually verify
+the real audio engine right now, and swapping it for `AppProviders` + `AppRouter` is a deliberate
+later step, not an oversight.
+
+Next steps, in order: close the Critical/Important items in the UI spec's Figma punch list → fill
+in real `theme/` token values from the finalized Figma file → build the actual UI primitives in
+`components/ui/` → replace the placeholder screens in `components/screens/` with real,
+Figma-matched implementations → mount `AppProviders`/`AppRouter` in `main.tsx`, retiring the debug
+harness.
