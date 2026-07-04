@@ -177,4 +177,28 @@ Decisions:
 
 Not yet done: no component reads from `theme/` yet - there's nothing to read, on purpose.
 
-Next: routing stubs, motion architecture.
+### Stage 5 — Routing (`src/navigation/`, `src/components/screens/`)
+
+What: `NavigationProvider` + `useNavigation()` (Context + hook, same split-file shape as
+`preferences/` for the `react-refresh` lint rule) holding one of 5 `ScreenId`s
+(`simple-tuner | advanced-tuner | select-tuning | settings | permission`); `AppRouter` renders the
+matching stub; 5 placeholder screen components in `components/screens/`. `AppProviders` now nests
+`NavigationProvider` inside `PreferencesProvider`.
+
+Why: gives every future screen a mount point and a way to navigate between them without inventing
+a routing library - a plain `switch` is enough for 5 flat, non-nested screens.
+
+Decisions:
+- No routing library added (e.g. react-router) - unnecessary dependency for an in-memory,
+  single-view Telegram Mini App with no deep-linkable URLs.
+- Default screen is `'simple-tuner'`, not `'permission'`, even though `PermissionGate` conceptually
+  wraps everything per the UI spec's dependency map. Reconciling "which screen renders while the
+  permission gate is closed" is a real integration decision for whenever `PermissionGate` is wired
+  up - not invented here. `initialScreen` is an explicit, overridable prop for exactly this reason.
+- Screens are plain placeholder markup (e.g. `<div>Simple Tuner (stub)</div>`) - no layout, no
+  styling, no Figma content, per this stage's explicit scope.
+
+Not yet done: `AppRouter`/`AppProviders` are not mounted in `main.tsx` - same reasoning as Stage 3,
+the existing debug harness in `App.tsx` stays untouched.
+
+Next: motion architecture.
