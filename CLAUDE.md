@@ -99,5 +99,37 @@ Decisions:
 Not yet done: not wired into `App.tsx`/`main.tsx` - nothing reads or writes these preferences yet.
 That wiring happens once a screen actually needs a given field.
 
-Next: Presentation API extension (`setA4`/`pinTarget`/`tunedTargetIds` on `TunerPresenter`),
-project structure scaffolding, theme layer, routing stubs, motion architecture.
+### Stage 2 — Presentation API extension (`src/presentation/tunerPresenter.ts`)
+
+What: `TunerPresenterConfig` gained an optional `a4` (defaults to `DEFAULT_A4_FREQUENCY`);
+`TunerPresenter` gained `setA4()`, `pinTarget(id)`, `unpinTarget()`; `TunerPresentationState`
+gained `tunedTargetIds: ReadonlySet<string>`. `useAudioEngine()`'s return value passes
+`setA4`/`pinTarget`/`unpinTarget` straight through to the presenter.
+
+Why: A4 calibration, Manual string-pinning and the "Tuned" StringControl state are all mockup
+requirements with no DSP dependency - `findNearestTarget`/`midiToFrequency`/`centsBetween` in
+`music-theory` already accepted an `a4` parameter before this stage, so calibration is a
+pass-through, not new math. Nothing in `audio-engine/` (microphone, worklets, pitch detection,
+signal/*) changed.
+
+Decisions and one bug caught while implementing:
+- `tunedTargetIds` survives brief signal loss (`tick()`'s `lost`/`searching` transitions) and is
+  only cleared by `reset()` or `setTargets()` - a guitarist pausing between strings must not lose
+  "already tuned" progress just because `tick()` briefly reports `lost`.
+- **Found while writing tests, not asked for**: `StringTarget.id` is a string-position slot
+  (`'1'..'6'`), not a globally unique id - the same id means a different physical string in a
+  guitar preset than in a bass preset. A pin or a tuned-id surviving a `setTargets()` preset switch
+  would silently resolve against the wrong string. Fixed by having `setTargets()` clear both the
+  pin and `tunedTargetIds`, and by refreshing `cachedState.tunedTargetIds` immediately inside
+  `setTargets()` (unlike `target`/`cents`, which intentionally still take effect only on the next
+  reading, per the existing `setTargets` test).
+- `pinTarget()`/`unpinTarget()` are the two explicit methods (not a single `pinTarget(id | null)`)
+  to match the requested API shape. `resolveMatch()` falls back to auto-detection if the pinned id
+  doesn't match any current target - a real input-boundary guard (caller error), not defensive code
+  for an unreachable case.
+- Test suite extended (`tunerPresenter.test.ts`) to cover all of the above; 221 tests passing.
+
+Not yet done: nothing reads `AppPreferences.autoMode`/`a4Frequency` to call these - no screen exists
+yet to drive them.
+
+Next: project structure scaffolding, theme layer, routing stubs, motion architecture.

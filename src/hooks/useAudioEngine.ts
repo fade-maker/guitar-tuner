@@ -16,6 +16,11 @@ export interface UseAudioEngineResult {
   readonly isRunning: boolean;
   start(): Promise<void>;
   stop(): void;
+  // Presenter passthroughs, exposed ahead of any UI that calls them. None of this reads from or
+  // writes to AppPreferences - wiring a screen's Auto switch or A4 stepper to these is a later step.
+  setA4(a4: number): void;
+  pinTarget(targetId: string): void;
+  unpinTarget(): void;
 }
 
 export type UseAudioEngine = (tuningPreset?: TuningPreset) => UseAudioEngineResult;
@@ -109,6 +114,10 @@ export const useAudioEngine: UseAudioEngine = (tuningPreset = getStandardTuning(
     engine.stop();
   }, [engine]);
 
+  const setA4 = useCallback((a4: number) => presenter.setA4(a4), [presenter]);
+  const pinTarget = useCallback((targetId: string) => presenter.pinTarget(targetId), [presenter]);
+  const unpinTarget = useCallback(() => presenter.unpinTarget(), [presenter]);
+
   return {
     presentation,
     engineStatus,
@@ -117,5 +126,8 @@ export const useAudioEngine: UseAudioEngine = (tuningPreset = getStandardTuning(
     isRunning: engineStatus === 'listening',
     start,
     stop,
+    setA4,
+    pinTarget,
+    unpinTarget,
   };
 };

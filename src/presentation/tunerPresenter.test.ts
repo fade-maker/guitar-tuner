@@ -222,6 +222,117 @@ describe('reset', () => {
   });
 });
 
+describe('tunedTargetIds', () => {
+  it('starts empty', () => {
+    const presenter = createTunerPresenter(config);
+    expect(presenter.tick(0).tunedTargetIds.size).toBe(0);
+  });
+
+  it('adds a target once it locks in tune, and keeps earlier ids after switching targets', () => {
+    const presenter = createTunerPresenter(config);
+    const { state: aLocked, t } = lockIn(presenter, FREQ_A, 1000, config);
+    expect(aLocked.tunedTargetIds.has('a')).toBe(true);
+
+    const { state: bLocked } = lockIn(presenter, FREQ_B, t + HOP_MS, config);
+    expect(bLocked.tunedTargetIds.has('a')).toBe(true);
+    expect(bLocked.tunedTargetIds.has('b')).toBe(true);
+  });
+
+  it('does not add a target that locks out of tune', () => {
+    const presenter = createTunerPresenter(config);
+    const { state } = lockIn(presenter, shiftCents(FREQ_A, 20), 1000, config);
+
+    expect(state.state).toBe('locked');
+    expect(state.inTune).toBe(false);
+    expect(state.tunedTargetIds.size).toBe(0);
+  });
+
+  it('survives a signal-loss transition to lost/searching', () => {
+    const presenter = createTunerPresenter(config);
+    const { t } = lockIn(presenter, FREQ_A, 1000, config);
+
+    const lost = presenter.tick(t + 150);
+    expect(lost.state).toBe('lost');
+    expect(lost.tunedTargetIds.has('a')).toBe(true);
+
+    const searching = presenter.tick(t + 500);
+    expect(searching.state).toBe('searching');
+    expect(searching.tunedTargetIds.has('a')).toBe(true);
+  });
+
+  it('is cleared by reset()', () => {
+    const presenter = createTunerPresenter(config);
+    lockIn(presenter, FREQ_A, 1000, config);
+
+    presenter.reset();
+
+    expect(presenter.tick(0).tunedTargetIds.size).toBe(0);
+  });
+
+  it('is cleared by setTargets(), since a target id can mean a different string in a different preset', () => {
+    const presenter = createTunerPresenter(config);
+    lockIn(presenter, FREQ_A, 1000, config);
+
+    presenter.setTargets([TARGET_A, TARGET_B]);
+
+    expect(presenter.tick(0).tunedTargetIds.size).toBe(0);
+  });
+});
+
+describe('setA4', () => {
+  it('shifts which frequency a target resolves to, without needing a matching config change', () => {
+    const presenter = createTunerPresenter(config);
+    presenter.setA4(432);
+
+    // TARGET_A is A4 (midi 69); at a4=432 its expected frequency is 432Hz, not 440Hz.
+    const state = presenter.onReading(reading(432, 1000));
+
+    expect(state.target?.id).toBe('a');
+    expect(state.cents).toBeCloseTo(0, 1);
+  });
+});
+
+describe('pinTarget / unpinTarget', () => {
+  it('resolves every reading against the pinned target, ignoring which is nearest', () => {
+    const presenter = createTunerPresenter(config);
+    presenter.pinTarget('b');
+
+    // FREQ_A is much closer to TARGET_A than to TARGET_B, but the pin should win.
+    const state = presenter.onReading(reading(FREQ_A, 1000));
+
+    expect(state.target?.id).toBe('b');
+  });
+
+  it('unpinTarget() returns to auto-detection', () => {
+    const presenter = createTunerPresenter(config);
+    presenter.pinTarget('b');
+    presenter.unpinTarget();
+
+    const state = presenter.onReading(reading(FREQ_A, 1000));
+
+    expect(state.target?.id).toBe('a');
+  });
+
+  it('falls back to auto-detection if the pinned id matches no current target', () => {
+    const presenter = createTunerPresenter(config);
+    presenter.pinTarget('does-not-exist');
+
+    const state = presenter.onReading(reading(FREQ_A, 1000));
+
+    expect(state.target?.id).toBe('a');
+  });
+
+  it('setTargets() clears the pin, since a target id can mean a different string in a different preset', () => {
+    const presenter = createTunerPresenter(config);
+    presenter.pinTarget('b');
+
+    presenter.setTargets([TARGET_A, TARGET_B]);
+    const state = presenter.onReading(reading(FREQ_A, 1000));
+
+    expect(state.target?.id).toBe('a'); // back to auto-detection, not still pinned to 'b'
+  });
+});
+
 describe('invariants', () => {
   it('never throws across a varied sequence of readings and ticks', () => {
     const presenter = createTunerPresenter(config);
