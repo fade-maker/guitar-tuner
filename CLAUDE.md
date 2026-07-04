@@ -356,3 +356,15 @@ preference is a later wiring task. `AppProviders`/`AppRouter` are still not moun
 Next: Advanced Tuner screen (blocked on the deferred stabilization-sharing architecture discussion
 and the remaining Figma gauge-behavior gap - see the "Advanced Tuner stabilization" memory), or
 Settings/Select Tuning if tackled first.
+
+### Post-Stage-8 addition — auto-start + live manual test entry (`tuner.html`)
+
+What: `SimpleTunerScreen` now calls `start()` on mount and `stop()` on unmount (both already exposed
+by `useAudioEngine()` - no API change). A third temporary entry point, `tuner.html` +
+`src/debug/tuner-main.tsx`, mounts the real screen full-page for manually testing it against a live
+microphone - same disposable pattern as `debug.html`/`gallery.html`.
+
+Why: Figma's screen has no visible Start control, so auto-start on mount is the intended real
+behavior once `PermissionGate` requests mic access upstream. `PermissionGate` isn't wired into the
+app shell yet, so the screen starts the engine itself for now - that responsibility moves to
+`PermissionGate`, not duplicated, once it exists.

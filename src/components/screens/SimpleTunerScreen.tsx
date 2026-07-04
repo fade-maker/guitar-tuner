@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useAudioEngine } from '../../hooks';
 import { getAllTunings, midiToNoteName } from '../../music-theory';
@@ -59,8 +59,17 @@ export function SimpleTunerScreen(): ReactElement {
   const allTunings = useMemo(() => getAllTunings(), []);
   const activeTuning: TuningPreset = allTunings.find((t) => t.id === preferences.selectedTuning) ?? allTunings[0];
 
-  const { presentation, pinTarget, unpinTarget } = useAudioEngine(activeTuning);
+  const { presentation, pinTarget, unpinTarget, start, stop } = useAudioEngine(activeTuning);
   const [manualStringId, setManualStringId] = useState<string | null>(null);
+
+  // Figma's screen has no visible Start control - the real flow is PermissionGate requesting mic
+  // access upstream, then this screen just listens. PermissionGate isn't wired into the app shell
+  // yet (see CLAUDE.md), so this screen starts the engine itself for now; that responsibility
+  // moves to PermissionGate once it exists, not duplicated here.
+  useEffect(() => {
+    void start();
+    return () => stop();
+  }, [start, stop]);
 
   const instrument = TUNING_INSTRUMENT[activeTuning.id] ?? 'guitar';
   const title = `${instrument === 'bass' ? 'Bass' : 'Guitar'} ${activeTuning.strings.length}-string`;
