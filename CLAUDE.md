@@ -152,4 +152,29 @@ Not yet done: `AppProviders` is not mounted in `main.tsx` - `App.tsx` is untouch
 the existing debug harness for manually testing the real audio engine keeps working until a real
 screen is ready to replace it.
 
-Next: theme layer, routing stubs, motion architecture.
+Next: routing stubs, motion architecture.
+
+### Stage 4 — Theme layer (`src/theme/`)
+
+What: `colors.ts`, `radius.ts`, `spacing.ts`, `typography.ts`, `shadows.ts`, `animation.ts`, plus an
+aggregate `ThemeTokens` interface in `index.ts`. Every file is types only - no default values, no
+CSS, no components.
+
+Why: gives Figma tokens a typed destination to land in later, without guessing at values the UI
+spec's punch list already flagged as unresolved (six near-black surfaces with no elevation system,
+no named spacing scale, 4 mis-scaled type line-heights, an unnamed shadow/blur composite effect,
+zero animation designs in Figma at all).
+
+Decisions:
+- Deliberately populated with **zero** real values, including ones that look "safe" (e.g.
+  `radius.full` is a real bound Figma variable already) - keeping every token file the same
+  shape-only treatment avoids an inconsistent "why does this one have data and this one doesn't."
+- `theme/animation.ts` holds only raw primitives (durations, easing curves). Composed, reusable
+  presets (fade/scale/slide/spring) are Stage 6's `src/motion/`, which will consume these tokens
+  rather than duplicate them - this is the resolution to the overlap between "theme → animation"
+  and "motion architecture" in the request, called out explicitly since it wasn't specified which
+  one should own what.
+
+Not yet done: no component reads from `theme/` yet - there's nothing to read, on purpose.
+
+Next: routing stubs, motion architecture.
