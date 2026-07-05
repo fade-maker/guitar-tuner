@@ -662,3 +662,118 @@ above in the Simple Tuner quality-pass entry, re-verified: `tsc -b`, `vite build
 the full test suite (315 tests / 43 files) all clean; zero `console.error`/`console.warn` across the
 full click-through with a real rAF; no stray debug imports, `console.log`, or leftover TODO/dead code
 in any production file.
+
+### Simple Tuner layout fix — page-level scroll after deploying to Telegram Mini App
+
+Bug reported after the production deploy: the whole screen could scroll vertically, the footer
+drifted away from the bottom edge instead of staying pinned there, and blank space appeared above
+`AppHeader`.
+
+Root cause: `.screen` (`SimpleTunerScreen.module.css`) sized itself with `aspect-ratio: 402 / 874`
+computed from its own **width** - its height was never actually tied to the viewport at all. Every
+child (`.header`, `.footer`, `.illustration`, `.pitchBadge`, `.stringContainer`, ...) was then
+`position: absolute` with a `top` expressed as a percentage of that width-derived height. On a real
+device, viewport height essentially never equals `width * (874/402)` - Telegram's own WebView chrome
+in particular reports a usable viewport shorter than the raw device height - so the rendered
+`.screen` box routinely ended up taller *or* shorter than the actually-visible viewport. Since
+neither `html`, `body`, nor `#root` constrained height or set `overflow: hidden` anywhere, that
+mismatch was free to make the whole page scroll, which is what surfaced as "footer drifts down" /
+"gap above the header": both are just different views of the same underlying bug (the screen's own
+height was disconnected from the viewport's actual height).
+
+Fix: `.screen` now sizes directly from the viewport (`height: 100vh` followed by `height: 100dvh` -
+not a fallback chain, the second declaration simply wins on engines that support the unit, using
+`dvh` because Telegram/mobile browser chrome can change the *usable* viewport height without
+changing `100vh`), laid out as a real flex column: `Header` (flex-shrink: 0, natural content
+height) -> `.main` (`flex: 1 1 auto; min-height: 0; overflow: hidden` - everything that used to be
+positioned relative to the whole 874px canvas now lives here instead) -> `Footer` (flex-shrink: 0,
+natural content height). Header and Footer are no longer `position: absolute` at all - they're
+ordinary flex children, which is what actually pins the footer to the bottom regardless of the
+viewport's real height, and what removes the gap above the header (it's simply the first thing in
+the column now, not something placed at an assumed `13.844%` down a canvas that may not match the
+real viewport). The content inside `.main` keeps the exact same relative arrangement, just rebased:
+each `top%` used to be `originalTopPx / 874`; it's now `(originalTopPx - 121) / 647`, where 121px was
+Header's old Figma-implied top offset and 647px (`874 - 121 - 106`) was the vertical span Figma
+implied for the region between Header and Footer - since `.main` only ever represents "the space
+between Header and Footer" now, its own real rendered height (whatever Header/Footer's actual
+content heights leave) is what these percentages scale against, not a fixed reference number.
+
+Files changed: `src/components/screens/SimpleTunerScreen.module.css` and
+`src/components/screens/SimpleTunerScreen.tsx` (wrapped the previously-flat sibling list in a new
+`.main` div; Header and Footer are unchanged JSX, just no longer inside anything absolutely
+positioned). Nothing else - no changes to `index.html`, `main.tsx`, `App.tsx`, `AppRouter`, `index.css`,
+`html`/`body`, or any other screen.
+
+Why the other screens are unaffected: `SettingsScreen.module.css`, `SelectTuningScreen.module.css`,
+and `AdvancedTunerScreen.module.css` each declare their own `.screen`/`.header`/`.footer` classes -
+CSS Modules scope every class name to its own file, so identically-named classes in different
+modules are completely independent rules at build time. None of them import from
+`SimpleTunerScreen.module.css`, and no shared/global stylesheet was touched, so this fix is fully
+contained to Simple Tuner's own two files. (Those other three screens still use the same
+aspect-ratio-driven `.screen` pattern this fix moves away from, and likely have the same
+underlying scroll bug - out of scope here per instruction, flagged for a follow-up pass.)
+
+Verified: `tsc -b`, `vite build`, `npm run lint`, full test suite (315 tests / 43 files) all clean.
+Checked for page-level scroll and footer/header pinning with Playwright at 5 viewport
+configurations - a 1280x800 desktop size, iPhone 13 (390x844), iPhone 15 Pro (393x852), and two
+intentionally short heights simulating Telegram's own reduced-chrome viewport (400x650, 375x560):
+`document.documentElement.scrollHeight` exactly equals `clientHeight` in every case (zero scroll
+possible), the screen's own bounding box starts at `top: 0` with no gap in every case, and the
+footer's bottom edge exactly equals the viewport height in every case. At the most extreme
+simulated height (375x560) the guitar illustration compresses/clips at the very bottom of `.main`
+rather than causing scroll - expected, not a regression, since the explicit requirement was "must
+not scroll", not "must never clip at extreme aspect ratios".
+
+### Simple Tuner viewport height - Telegram's own viewport API takes priority over dvh
+
+Follow-up to the layout fix above: `100dvh` alone doesn't know about Telegram's own native chrome
+(header, main button, etc.), only about the browser's visual viewport - Telegram's Mini App bridge
+reports a more accurate usable height directly. Added a 3-tier CSS priority (highest first):
+1. `var(--tg-viewport-height, ...)` - set inline on `.screen` only when running inside Telegram.
+2. `100dvh` - wins whenever the custom property isn't set; already tracks the real visual viewport
+   live (mobile chrome/keyboard changes) with no JS needed.
+3. `100vh` - pure safety net for an engine that understands neither `dvh` nor CSS custom properties.
+
+New: `src/telegram/webApp.ts` (`getTelegramWebApp()` + `initTelegramWebApp()`, calling Telegram's
+`ready()`/`expand()` once) and `src/telegram/useTelegramViewportHeight.ts` (reads
+`WebApp.viewportHeight`, subscribes to Telegram's `viewportChanged` event for live updates, returns
+`null` outside Telegram) - both follow `haptics.ts`'s existing convention (a fresh minimal local
+`WebApp` interface per file, reading `window.Telegram.WebApp` directly, no Context/Provider). Wired
+into `SimpleTunerScreen.tsx` only (sets the CSS custom property via inline `style`); no other screen
+consumes it yet. `index.html` gained the official `<script src="https://telegram.org/js/telegram-web-app.js">`
+tag (loads harmlessly outside Telegram); `main.tsx` calls `initTelegramWebApp()` once at bootstrap,
+since `ready()`/`expand()` are app-lifecycle calls, not tied to any one screen's mount/unmount.
+None of this touches `AppProviders`/`AppRouter` - it was intentionally kept to the same
+low-ceremony "read `window.Telegram.WebApp` directly" shape the codebase already uses for haptics,
+since that was sufficient here and a Context/Provider would have been unjustified ceremony for a
+single consumer.
+
+Verified via Playwright with the real telegram.org script blocked (to isolate the mechanism from a
+race against the real script's own load) and a mock `WebApp` injected: reporting `viewportHeight:
+560` while the real window was 700px tall sized the screen to exactly 560px (not 700) - Telegram's
+value correctly wins over `dvh`. Firing a simulated `viewportChanged` event with a new height (420)
+live-resized the screen to exactly 420px with no scroll introduced. Outside Telegram, the real
+telegram.org script loads without console errors and the screen falls back to `100dvh` (matches the
+real window height) exactly as before this change. Full test suite (324 tests / 45 files, up from
+315/43 - the two new telegram/ modules add their own tests), `tsc -b`, `vite build`, `npm run lint`
+all clean.
+
+Answers to the review questions asked alongside this fix:
+- **`safe-area-inset-bottom` is not used anywhere in the codebase** (confirmed by grep - the only
+  hit is a documentation comment in the still-empty `components/layout/index.ts` scaffold naming it
+  as future scope, nothing implemented). Now that the footer is genuinely pinned to the real bottom
+  edge of the viewport (previously it wasn't, per the bug this fix addresses), the footer sitting
+  flush against a device's home-indicator/gesture-bar area without any inset padding is a real,
+  adjacent concern worth a dedicated look - flagged here as a recommendation, not implemented, since
+  it wasn't asked for as an action item in this pass.
+- **The screen survives viewport height changes correctly**, verified two ways: `100dvh` already
+  tracks a plain mobile browser's visual viewport live (chrome bars, on-screen keyboard) with no JS
+  involved; and the new `useTelegramViewportHeight` hook now does the same for Telegram's own
+  `viewportChanged` event, confirmed above by the live 560px -> 420px resize test. Neither path
+  introduces scroll at any height tested.
+- **The same fix will very likely be needed on Settings, Select Tuning, and Advanced Tuner for a
+  uniform layout** - all three still use the pre-fix `aspect-ratio`-driven `.screen` pattern this
+  pass moved Simple Tuner away from, so they likely have the same underlying scroll bug and would
+  benefit from the same Header/Main(flex:1)/Footer restructuring and the same Telegram-viewport-height
+  priority. Not done here - out of scope per this task's explicit "don't touch other screens"
+  instruction - but noted as a concrete, scoped follow-up rather than a vague TODO.

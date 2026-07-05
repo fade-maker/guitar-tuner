@@ -5,6 +5,13 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>guitar-tuner</title>
+    <!--
+      Telegram's official Mini App bridge. Outside Telegram (plain browser, local dev) this script
+      loads harmlessly and simply never populates window.Telegram.WebApp with real data - every
+      consumer in this codebase (haptics, useTelegramViewportHeight) already treats that object as
+      optional for exactly this reason.
+    -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
     <div id="root"></div>
