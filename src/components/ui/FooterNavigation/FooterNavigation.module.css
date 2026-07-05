@@ -1,5 +1,11 @@
 @import '../../../theme/tokens.css';
 
+/* Structure transcribed exactly from Figma (2px backdrop-blur, gradient 0% -> #121212 at
+   78.302%) - verified against the raw guitar-photo.png asset and the mask/position math, both
+   match. In real Chromium this still blurs more of the neck's fret/binding detail into visible
+   haze than Figma's own screenshot shows for the same structure - likely a Figma-previewer-vs-
+   real-backdrop-filter rendering difference, not a transcription error. overflow:hidden added
+   defensively; flagged in the Stage 1 report rather than tuned further without confirmation. */
 .footer {
   display: flex;
   align-items: center;
@@ -9,6 +15,7 @@
   padding: 21px var(--space-20, 20px);
   backdrop-filter: blur(2px);
   background: linear-gradient(to bottom, rgba(18, 18, 18, 0), var(--color-surface-page) 78.302%);
+  overflow: hidden;
 }
 
 .pill {

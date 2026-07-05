@@ -413,3 +413,34 @@ Fixed exactly the 5 issues raised after Stage 8, nothing else:
 
 Not yet done: same as Stage 8 - Advanced Tuner/Settings/Select Tuning remain stubs; `AppProviders`/
 `AppRouter` still not mounted in `main.tsx`.
+
+### Stage 1 completion pass — Simple Tuner (3 named issues, 1 explicitly deferred)
+
+Fixed:
+- **SimplePitchBadge's pointer/tail looked detached from the circle.** Root cause found via a
+  zoomed screenshot diff against Figma: the `<svg>` inside `.tail` had no explicit `width`/`height`,
+  so it rendered at its inline-replaced-element default box rather than filling the 8x8px `.tail`
+  span - the visible triangle sat offset from where the circle's border actually ended, reading as
+  a separate floating shape. Fixed by giving the SVG explicit `width="100%" height="100%"` and
+  `display:block` (plus `display:block; line-height:0` on `.tail` itself). Now reads as one
+  continuous pin/teardrop shape, matching Figma.
+
+Investigated, structurally verified against Figma, left as an open question rather than
+guessed further (see the two entries under "What blocked the work" / "What needs your decision"
+below):
+- **Footer Border** - confirmed via 3 separate `get_design_context` calls at increasing specificity
+  that Figma's own tooling cannot resolve this style to a color (`get_variable_defs` always returns
+  it empty) - it's a gradient the reference-code generator flattens to solid white. The
+  `mask-composite` ring technique and stop values from the prior polish pass are a visual
+  approximation, not the recovered Figma parameters the instruction asked for.
+- **Footer blur affecting the neck above it** - verified the raw `guitar-photo.png` asset itself
+  (the bright nut/binding detail visible near the bottom of the neck is real photo content, not a
+  rendering artifact), verified the mask/mask-size math matches Figma's transcribed markup exactly,
+  and verified the blur/gradient structure (2px outer, 3px inner-pill, 0%->78.302% stops) matches
+  what Figma's own generated code specifies. The visual mismatch persists anyway - likely a
+  Figma-previewer-vs-real-`backdrop-filter` rendering difference over detailed imagery, not a
+  layer-structure or clipping bug on this end. Added `overflow: hidden` to `.footer` defensively;
+  did not tune the blur radius or gradient stops away from Figma's documented values without
+  confirmation.
+
+Not fixed, per explicit instruction: BG pattern (deferred to the end of the project).

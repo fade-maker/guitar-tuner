@@ -12,7 +12,15 @@ export interface SimplePitchBadgeProps {
 
 function Tail({ color }: { color: string }): ReactElement {
   return (
-    <svg viewBox="0 0 7.04791 8" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 7.04791 8"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
       <path
         d="M0.0725095 1.37139C-0.190236 0.714526 0.293522 0 1.00099 0H6.04692C6.75439 0 7.23814 0.714526 6.9754 1.37139L4.5754 7.37139C4.42353 7.75105 4.05583 8 3.64692 8H3.40099C2.99208 8 2.62437 7.75105 2.47251 7.37139L0.0725095 1.37139Z"
         fill={color}
