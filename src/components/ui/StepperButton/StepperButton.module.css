@@ -1,0 +1,30 @@
+@import '../../../theme/tokens.css';
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: var(--space-10);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-card);
+  border: 1px solid rgba(225, 224, 217, 0.08);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.stepper:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.large {
+  width: 52px;
+  height: 52px;
+}
+
+.small {
+  width: 24px;
+  height: 24px;
+}

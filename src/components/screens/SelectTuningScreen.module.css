@@ -1,0 +1,143 @@
+@import '../../theme/tokens.css';
+
+/* Same mobile-first fixed-aspect-ratio approach as SimpleTunerScreen.module.css. */
+.screen {
+  position: relative;
+  width: 100%;
+  max-width: 402px;
+  aspect-ratio: 402 / 874;
+  background: var(--color-surface-page);
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+/* Identical box (137px top / 325px tall / same mask-size+position) to SimpleTunerScreen's own BG
+   PATTERN node in Figma - reusing the same asset+values rather than re-deriving them. Not converted
+   to percentages yet, on purpose, for the same reason as Simple Tuner's copy of this pattern. */
+.bgPattern {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 179.79px;
+  width: 434px;
+  height: 284.417px;
+  opacity: 0.08;
+  mask-repeat: no-repeat;
+  mask-size: 402px 325px;
+  mask-position: 16px 7.208px;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 402px 325px;
+  -webkit-mask-position: 16px 7.208px;
+  pointer-events: none;
+}
+
+.bgPatternImg {
+  position: absolute;
+  inset: -0.19% 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.title {
+  position: absolute;
+  top: 14.076%; /* 123 / 874 */
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  font-size: 20px;
+  color: var(--color-text-primary);
+}
+
+.illustration {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* GuitarIllustration/BassIllustration render at their own fixed natural size (253x474) - scaled
+   down here via transform rather than duplicating those assets at a second size. */
+.illustrationScale {
+  transform-origin: top center;
+  flex-shrink: 0;
+}
+
+.pickerBlock {
+  position: absolute;
+  top: 51.259%; /* 448 / 874 */
+  left: 0;
+  width: 100%;
+  padding: 0 var(--space-16);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-card);
+  border: 1px solid rgba(225, 224, 217, 0.08);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  height: 60px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.rowLabel {
+  flex-shrink: 0;
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 22.4px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.rowRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chips {
+  display: flex;
+  gap: 4px;
+}
+
+.divider {
+  height: 0;
+  margin: 0 16px;
+  border: none;
+  border-top: 1px solid rgba(225, 224, 217, 0.08);
+}
+
+.footer {
+  position: absolute;
+  left: 0;
+  top: 87.872%; /* 768 / 874 */
+  width: 100%;
+}

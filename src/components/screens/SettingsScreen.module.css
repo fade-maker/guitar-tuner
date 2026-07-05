@@ -1,0 +1,181 @@
+@import '../../theme/tokens.css';
+
+/* Same mobile-first fixed-aspect-ratio approach as SimpleTunerScreen.module.css: the screen fills
+   the given viewport width but keeps every child proportional to Figma's 402x874 reference frame. */
+.screen {
+  position: relative;
+  width: 100%;
+  max-width: 402px;
+  aspect-ratio: 402 / 874;
+  background: var(--color-surface-page);
+  overflow: hidden;
+  overflow-y: auto;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.content {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  padding-top: 14.76%; /* 129 / 874 - matches the status-bar clearance used in Figma's mockup */
+  box-sizing: border-box;
+}
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.nickname {
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: -0.3px;
+  color: var(--color-text-primary);
+}
+
+.username {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -0.3px;
+  color: var(--color-text-tertiary);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-card);
+  border: 1px solid rgba(225, 224, 217, 0.08);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.iconSlot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 5.6px 0 rgba(255, 255, 255, 0.56);
+  color: var(--color-text-primary);
+}
+
+.iconSlot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.rowLabel {
+  flex: 1 0 0;
+  min-width: 0;
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.divider {
+  width: 100%;
+  height: 0;
+  margin: 0;
+  border: none;
+  border-top: 1px solid rgba(225, 224, 217, 0.08);
+  margin-left: 42px;
+  width: calc(100% - 42px);
+}
+
+.calibrateValue {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.navRow {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+}
+
+.version {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -0.3px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  width: 100%;
+}
+
+.footer {
+  flex-shrink: 0;
+  width: 100%;
+}

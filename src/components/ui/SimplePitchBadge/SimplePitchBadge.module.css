@@ -47,6 +47,12 @@
   white-space: nowrap;
 }
 
+/* 3-digit values only (see SimplePitchBadge.tsx) - smaller size so "+120"/"-300" fit inside the
+   same 44px circle instead of clipping against its edge. Circle size/color/padding-box unchanged. */
+.centsTextCompact {
+  font-size: 14px;
+}
+
 .tail {
   display: block;
   position: absolute;

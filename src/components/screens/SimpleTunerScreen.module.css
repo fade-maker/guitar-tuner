@@ -75,13 +75,17 @@
   display: block;
 }
 
-/* left is set inline per-render (see SimpleTunerScreen.tsx) - it tracks presentation.cents, not a
-   fixed position. Anchored the same way as .currentNote at rest: SimplePitchBadge's own first
-   child (the 44px indicator circle) centers on the screen's midline like CurrentTargetNote and the
-   tune line, with its text label free to extend further right. */
+/* left is set inline per-render (see SimpleTunerScreen.tsx) - it tracks presentation.cents (smoothed
+   via useSmoothedCents), not a fixed position. Anchored the same way as .currentNote at rest:
+   SimplePitchBadge's own first child (the 44px indicator circle) centers on the screen's midline
+   like CurrentTargetNote and the tune line, with its text label free to extend further right.
+   The transition fills in the gap between discrete reading updates with a fluid glide instead of a
+   visible step - the JS-side smoothing already removes sensor noise/jitter, this is purely cosmetic
+   interpolation on top, short enough that it never reads as added input lag. */
 .pitchBadge {
   position: absolute;
   top: 29.634%; /* 259 / 874 */
+  transition: left 100ms ease-out;
 }
 
 .currentNote {

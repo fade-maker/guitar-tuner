@@ -21,6 +21,10 @@ export interface UseAudioEngineResult {
   setA4(a4: number): void;
   pinTarget(targetId: string): void;
   unpinTarget(): void;
+  // Same passthrough shape as the above three - clears the presenter's pin, lock/identity state,
+  // and tunedTargetIds. Needed by Simple Tuner's Auto -> Manual switch (a mode change should start
+  // the manual session fresh, not carry over "already tuned" badges from Auto).
+  reset(): void;
 }
 
 export type UseAudioEngine = (tuningPreset?: TuningPreset) => UseAudioEngineResult;
@@ -117,6 +121,10 @@ export const useAudioEngine: UseAudioEngine = (tuningPreset = getStandardTuning(
   const setA4 = useCallback((a4: number) => presenter.setA4(a4), [presenter]);
   const pinTarget = useCallback((targetId: string) => presenter.pinTarget(targetId), [presenter]);
   const unpinTarget = useCallback(() => presenter.unpinTarget(), [presenter]);
+  const reset = useCallback(() => {
+    presenter.reset();
+    setPresentation(presenter.tick(performance.now()));
+  }, [presenter]);
 
   return {
     presentation,
@@ -129,5 +137,6 @@ export const useAudioEngine: UseAudioEngine = (tuningPreset = getStandardTuning(
     setA4,
     pinTarget,
     unpinTarget,
+    reset,
   };
 };

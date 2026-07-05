@@ -32,9 +32,6 @@ afterEach(() => {
 
 describe('AppRouter', () => {
   it.each([
-    ['advanced-tuner', 'Advanced Tuner (stub)'],
-    ['select-tuning', 'Select Tuning (stub)'],
-    ['settings', 'Settings (stub)'],
     ['permission', 'Permission (stub)'],
   ] as const satisfies readonly (readonly [ScreenId, string])[])('renders the %s screen', (initialScreen, text) => {
     render(
@@ -56,5 +53,41 @@ describe('AppRouter', () => {
     );
 
     expect(screen.getByText('Guitar 6-string')).not.toBeNull();
+  });
+
+  it('renders the real SettingsScreen for settings', () => {
+    render(
+      <PreferencesProvider>
+        <NavigationProvider initialScreen="settings">
+          <AppRouter />
+        </NavigationProvider>
+      </PreferencesProvider>,
+    );
+
+    expect(screen.getByText('Advanced mode')).not.toBeNull();
+  });
+
+  it('renders the real SelectTuningScreen for select-tuning', () => {
+    render(
+      <PreferencesProvider>
+        <NavigationProvider initialScreen="select-tuning">
+          <AppRouter />
+        </NavigationProvider>
+      </PreferencesProvider>,
+    );
+
+    expect(screen.getByText('Select tuning')).not.toBeNull();
+  });
+
+  it('renders the real AdvancedTunerScreen for advanced-tuner', () => {
+    render(
+      <PreferencesProvider>
+        <NavigationProvider initialScreen="advanced-tuner">
+          <AppRouter />
+        </NavigationProvider>
+      </PreferencesProvider>,
+    );
+
+    expect(screen.getByText('Advanced tuning')).not.toBeNull();
   });
 });

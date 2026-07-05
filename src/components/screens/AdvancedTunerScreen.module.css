@@ -1,0 +1,140 @@
+@import '../../theme/tokens.css';
+
+/* Same mobile-first fixed-aspect-ratio approach as SimpleTunerScreen.module.css. */
+.screen {
+  position: relative;
+  width: 100%;
+  max-width: 402px;
+  aspect-ratio: 402 / 874;
+  background: var(--color-surface-page);
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+/* Identical values to SimpleTunerScreen's own BG PATTERN node - Figma places this pattern at the
+   same absolute position on both screens. Not converted to percentages yet, on purpose, for the
+   same reason as Simple Tuner's copy of this pattern. */
+.bgPattern {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 179.79px;
+  width: 434px;
+  height: 284.417px;
+  opacity: 0.08;
+  mask-repeat: no-repeat;
+  mask-size: 402px 325px;
+  mask-position: 16px 7.208px;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 402px 325px;
+  -webkit-mask-position: 16px 7.208px;
+  pointer-events: none;
+}
+
+.bgPatternImg {
+  position: absolute;
+  inset: -0.19% 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.header {
+  position: absolute;
+  left: 0;
+  top: 15.103%; /* 132 / 874 */
+  width: 100%;
+}
+
+.noteArea {
+  position: absolute;
+  left: 50%;
+  top: 27.918%; /* 244 / 874 */
+  transform: translateX(-50%);
+  width: 184px;
+  height: 184px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.noteCircleLayer {
+  position: absolute;
+  inset: 13px; /* (184 - 158) / 2 - centers NoteCircle inside the InTuneZone ring */
+}
+
+.accidentalLeft,
+.accidentalRight {
+  position: absolute;
+  top: 37.072%; /* 324 / 874 */
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+.accidentalLeft {
+  left: 10px;
+}
+.accidentalRight {
+  right: 10px;
+}
+
+.statusBadge {
+  position: absolute;
+  left: 50%;
+  top: 54.005%; /* 472 / 874 */
+  transform: translateX(-50%);
+}
+
+.calibrateBlock {
+  position: absolute;
+  left: 50%;
+  top: 64.325%; /* 562 / 874 */
+  transform: translateX(-50%);
+  width: 221px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.stepperRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 67px;
+}
+
+.freqText {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.freqValue {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 36px;
+  color: var(--color-text-primary);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.freqUnit {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 20px;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.footer {
+  position: absolute;
+  left: 0;
+  top: 87.872%; /* 768 / 874 */
+  width: 100%;
+}

@@ -45,12 +45,22 @@ export function SimplePitchBadge({ state = 'In tune', cents = 11 }: SimplePitchB
   const isTuneUp = state === 'Tune up';
   const isOffPitch = isTuneUp || isTuneDown;
   const magnitude = Math.abs(Math.round(cents));
+  // 3-digit deviations (100+ cents) don't fit this circle's fixed 44px diameter at the normal type
+  // size - Figma has no separate component/state for this case (only 2-digit demo values exist),
+  // so rather than inventing a new visual treatment, the same circle just uses tighter padding and
+  // a smaller (but still legible) type size for the number, purely to stop it from clipping against
+  // the edge. Nothing about the circle's size, color, or layout changes.
+  const isCompact = magnitude >= 100;
 
   return (
     <div className={styles.badge}>
       <div className={styles.badgeColumn}>
         <div className={classNames(styles.indicator, isOffPitch ? styles.offPitch : styles.inTune)}>
-          {isOffPitch && <span className={styles.centsText}>{isTuneDown ? `+${magnitude}` : `-${magnitude}`}</span>}
+          {isOffPitch && (
+            <span className={classNames(styles.centsText, isCompact && styles.centsTextCompact)}>
+              {isTuneDown ? `+${magnitude}` : `-${magnitude}`}
+            </span>
+          )}
           {state === 'In tune' && <Checkmark />}
         </div>
         <span className={styles.tail}>

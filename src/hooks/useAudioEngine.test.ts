@@ -203,6 +203,24 @@ describe('useAudioEngine', () => {
     expect(triggerHapticFeedback).toHaveBeenCalledTimes(1);
   });
 
+  it('reset() clears tunedTargetIds and immediately reflects it in presentation, without waiting for the next tick', () => {
+    const { result } = renderHook(() => useAudioEngine());
+    act(() => emitStatus('listening'));
+
+    let t = 1000;
+    act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: t }));
+    while (result.current.presentation.state !== 'locked' && t < 1000 + 280 + 300) {
+      t += HOP_MS;
+      act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: t }));
+    }
+    expect(result.current.presentation.tunedTargetIds.size).toBeGreaterThan(0);
+
+    act(() => result.current.reset());
+
+    expect(result.current.presentation.tunedTargetIds.size).toBe(0);
+    expect(result.current.presentation.state).toBe('searching');
+  });
+
   it('unsubscribes and stops the engine on unmount', () => {
     const { unmount } = renderHook(() => useAudioEngine());
     expect(readingListeners.length).toBeGreaterThan(0);

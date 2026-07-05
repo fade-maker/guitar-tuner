@@ -444,3 +444,221 @@ below):
   confirmation.
 
 Not fixed, per explicit instruction: BG pattern (deferred to the end of the project).
+
+### Stages 2-4 — Settings, Select Tuning, Advanced Tuner (all real screens now)
+
+Built sequentially per the autonomous-work directive: each stage fully built, self-verified against
+Figma via MCP, build+typecheck+test-clean, before starting the next. Non-blocking cosmetic/MCP
+limitations were logged as TODOs and did not stop work, per that directive. 303 tests passing
+across 44 files; `tsc -b` and `vite build` both clean at every stage boundary.
+
+**New design-system primitives** (same `.tsx`+`.module.css`+`.test.tsx`+`index.ts` pattern as
+Stage 7's 14): `StepperButton` (Figma's "+/- buttons", 66:3252 - Large/Small x +/-, all 4 icon
+paths transcribed exactly) and `SegmentedControl` (Figma's "Swither", 144:2140 - generic
+2-option tab control, used for Select Tuning's Guitar/Bass switch). `Icon` gained 8 entries
+(`setting-4`, `volume-low`, `refresh-2`, `musicnote`, `global`, `arrow-right`, `messages-2`,
+`book`) needed by Settings, all path data pulled from Figma's asset server, not hand-drawn.
+
+**Settings screen** (`SettingsScreen.tsx`): profile block (static Figma placeholder - see below),
+3 grouped cards (Advanced mode / Sound effect+Left-handed+Calibrate+Language / Support+FAQ),
+version footer, `FooterNavigation`. Wired to real preferences: `tunerMode` (Advanced mode switch),
+`leftHanded`, `a4Frequency` (Calibrate stepper, persists only - see below). Footer's Tuner tab
+routes to `simple-tuner` or `advanced-tuner` based on `tunerMode`.
+
+**Select Tuning screen** (`SelectTuningScreen.tsx`): title, scaled-down headstock illustration
+(reuses `GuitarIllustration`/`BassIllustration` via CSS `transform:scale` rather than
+duplicating photo assets at a second size), `SegmentedControl` (Guitar 6-string/Bass 4-string, no
+ukulele per instruction), a card of tuning rows wired to `getAllTunings()` - each row's chips use
+the real `midiToNoteName()` output, and `CheckIndicator` reflects `preferences.selectedTuning`.
+Tapping a row persists `selectedInstrument`+`selectedTuning` and navigates back to the tuner.
+Extracted the `TUNING_INSTRUMENT` id->instrument lookup (previously duplicated in
+`SimpleTunerScreen.tsx` and `DebugSettingsPanel.tsx`) into a shared `tuningInstrument.ts` - a
+presentation-layer-only de-duplication, not a music-theory change. `SimpleTunerScreen`'s
+`AppHeader` now wires `onTitlePress` to open this screen (that prop already existed on
+`AppHeaderDefaultProps` from Stage 2's presenter extension but was never connected to anything).
+
+**Advanced Tuner screen** (`AdvancedTunerScreen.tsx`): re-examined the presumed architecture
+blocker from the "Advanced Tuner stabilization" memory before building - `TunerPresenter`'s
+existing `TunerPresentationState` (`state`/`target`/`cents`/`inTune`) already provides everything
+this screen needs (continuous cents, auto-detected nearest target, lock lifecycle) with **zero**
+`TunerPresenter`/`useAudioEngine` changes: the screen just mounts its own `useAudioEngine()`
+instance exactly like `SimpleTunerScreen` does and never calls `pinTarget`/`unpinTarget` (Figma's
+Advanced header has no Auto switch and no manual string picker). `InTuneZone` (idle "Start
+playing" ring vs. plain ring) layers under `NoteCircle` (shown only once `presentation.target` is
+non-null; state driven by `presentation.inTune`), `AdvancedStatusBadge`, flat/sharp buttons beside
+the ring (reusing the existing `Icon`+`accidental` preference, not a new control), and a Calibrate
+row (`StepperButton` Large x2 + `Button` secondary/large "Reset") that both persists
+`a4Frequency` **and** calls the local presenter's `setA4()` - safe here because, unlike Settings,
+this screen owns a live engine instance directly. Figma's header text ("Advansed tunind") is a
+typo, corrected to "Advanced tuning" rather than reproduced.
+
+Decisions and things **not** done, flagged per the "don't stop for this, log and continue" policy:
+- **Settings profile (avatar/nickname/username) is a static Figma placeholder.** No Telegram
+  user-identity API exists anywhere (`telegram/TelegramAdapter.ts` only exposes theme params +
+  haptics) - wiring real `initDataUnsafe.user` data would mean extending that interface, which is
+  an architecture change per the stop rules, not a Settings-screen decision. Flagged, not done.
+- **Settings' "Sound effect" toggle has no backing preference or behavior.** `AppPreferences` has
+  no matching field, and no sound-effect playback exists anywhere in `audio-engine`. Implemented as
+  local, unpersisted UI state rather than inventing a new preference/feature. Flagged, not done.
+- **Settings' Language/Support/FAQ rows are no-ops.** No i18n system, no support/FAQ
+  screen or URL exists. Rendered per Figma (including the arrow-right affordance) but wired to
+  empty handlers rather than invented destinations.
+- **Settings' Calibrate stepper only persists to `AppPreferences`, it does not call the engine's
+  `setA4()`.** Settings has no running audio engine (correctly - a Settings screen must not request
+  microphone access), and each screen (`SimpleTunerScreen`, `AdvancedTunerScreen`) mounts its own
+  independent `useAudioEngine()` instance. There is currently no shared/global engine instance
+  across screens for Settings to reach into, and `SimpleTunerScreen` itself never called `setA4()`
+  either (a pre-existing gap, not introduced here) - `preferences.a4Frequency` was decorative
+  (display-only) everywhere before this stage. Making calibration actually apply live across
+  screens would mean changing how/where the audio engine is instantiated (i.e. architecture) -
+  flagged per the stop rules rather than silently deciding an approach. Advanced Tuner's own
+  Calibrate row does call `setA4()` because that screen already owns a live engine instance
+  itself; that part works today.
+- **`SegmentedControl`'s exact Figma-bound colors are an approximation.** `get_design_context`
+  timed out (300s, no response) on both the screen instance and the master component (144:2139/
+  144:2140) across repeated attempts - reused existing surface/text tokens matching the screenshot
+  instead of extracted values. Every other primitive/screen in this project successfully used
+  `get_design_context`; this was an isolated, reproducible failure on this one component.
+  Functionally and visually correct per the screenshot comparison; flagged as unverified-exact.
+  colors, not a stop, per the non-blocking-MCP-limitation policy.
+- **Bass has no Drop-D tuning preset** (`music-theory` only defines `bass-standard`, no
+  `bass-drop-d`), while Figma's Select Tuning bass frame mockup shows a "Drop-D" row with the same
+  note values as Standard (a stale/unfinished mockup, per the Stage 2 report's existing note about
+  Figma's bass screen predating the current component redesign). `SelectTuningScreen` renders
+  exactly one row for Bass, driven by real data - it does not reproduce Figma's extra row.
+  `bass-drop-d` was not added to `music-theory` to make the row exist, since preset data is
+  frozen/business logic, not a presentation-layer decision.
+- **Select Tuning's headstock illustration scale/position for Bass is inferred**, same caveat as
+  Stage 2's SimpleTunerScreen note: Figma's Bass reference for this specific screen uses the
+  current component set (unlike Simple Tuner's Bass, which was flagged as using a pre-redesign
+  mockup), so this one is on firmer footing, but the per-instrument scale factor (0.6838) is derived
+  by ratio from the illustration's native size, not a value read directly off a Figma variable.
+- **`select-tuning`/`settings`/`advanced-tuner`/`tuner`/`gallery`/`debug` `.html` debug entry
+  points** (`settings.html`, `select-tuning.html`, `advanced-tuner.html` added this stage) follow
+  the same disposable-but-kept QA pattern as `debug.html`/`gallery.html`/`tuner.html` - not wired
+  into `main.tsx`/`index.html`/`App.tsx`.
+
+Not yet done: `AppProviders`/`AppRouter` are still not mounted in `main.tsx` - `App.tsx` remains the
+original debug harness, unchanged this stage, per the same reasoning as every prior stage.
+
+### Simple Tuner quality pass — SimplePitchBadge motion + String Selector reset
+
+Scoped strictly to Simple Tuner per instruction: no other screen touched, no changes to
+`audio-engine`, `music-theory`, or `TunerPresenter`'s logic.
+
+**SimplePitchBadge motion (`SimpleTunerScreen.tsx`):**
+- **Wider working range**: replaced the hard linear clamp at +-50 cents with a `Math.tanh`
+  soft-saturation curve (`BADGE_CENTS_SOFTNESS = 70`). The old clamp meant any reading beyond 50
+  cents landed on the exact same pixel (e.g. -60 and -300 were visually identical); tanh keeps
+  inching toward the same, Figma-confirmed ~35px/8.706% max travel without ever hard-stopping, so
+  large deviations stay distinguishable further out. The max-travel bound itself is unchanged from
+  Figma's demo states - only the input-to-fraction curve changed.
+- **New `useSmoothedCents` hook** (`src/components/screens/useSmoothedCents.ts`): a time-based
+  (not frame-based) exponential low-pass filter, `tau=120ms`, driving both the badge's position and
+  its displayed number - removes frame-to-frame sensor jitter without adding fixed latency (it
+  converges at a rate, not a delay). Snaps instantly whenever `presentation.target?.id` changes (a
+  different string) so it never visibly slides over from a stale position. A short CSS
+  `transition: left 100ms ease-out` on `.pitchBadge` adds a final layer of glide between the
+  discrete reading-driven updates. Tune-direction (`badgeState`: In tune/Tune up/Tune down) is
+  deliberately read from the raw, unsmoothed presenter values - correctness of "which way to turn"
+  never lags, only the continuous position/number are smoothed.
+  Implementation note (caught by `npm run lint`, not by hand-review): the first version called
+  `setState` directly inside a `useEffect` body, which this project's `react-hooks/set-state-in-effect`
+  rule rejects, and a second attempt at fixing it read `performance.now()` during render, which
+  `react-hooks/purity` also rejects. The shipped version splits the two cases instead - snapping (a
+  string change, going quiet, or the first-ever value) is pure and instant, so it uses React's
+  documented "adjusting state when a prop changes" render-time pattern (no effect needed at all);
+  continuing to blend for the *same* string needs a wall-clock delta, so that part stays in an
+  effect but only ever calls `setState` from inside the `requestAnimationFrame` callback itself
+  (mirroring `useAudioEngine`'s own tick-loop shape) rather than the effect body directly. Both
+  hooks are still called unconditionally per the Rules of Hooks - only the `setState` calls inside
+  are conditional. `useSmoothedCents.test.ts` drives the continuing-smoothing branch with a
+  synchronous, test-controlled `requestAnimationFrame` stub rather than mocking `performance.now()`,
+  since timing now comes from the rAF callback argument, not a direct clock read.
+- **3-digit cents (`SimplePitchBadge`)**: Figma only has demo states for 2-digit values; there's no
+  separate component/state for 100+ cents. Rather than inventing a new visual treatment, added a
+  `centsTextCompact` modifier (font-size 14px vs 20px) applied only when `magnitude >= 100` - the
+  44px circle's size, color, and padding-box are untouched, only the number's type size shrinks
+  enough to stop it clipping against the edge. Verified via a temporary Playwright probe (not kept)
+  screenshotting cents=11/45/99/100/120/300 side by side.
+
+**String Selector (`SimpleTunerScreen.tsx` + `useAudioEngine.ts`):** Auto -> Manual now clears every
+string's Tuned badge (`handleAutoModeChange` calls the presenter's `reset()` before pinning), since
+entering Manual is a fresh session, not a continuation of Auto's progress. Manual -> Auto is
+unchanged (`unpinTarget()` only). `reset()` did not exist on `useAudioEngine`'s return value before
+this - added as one more pure passthrough to the presenter's own, already-existing `reset()` method,
+exactly the same shape as the `setA4`/`pinTarget`/`unpinTarget` passthroughs added in Stage 2
+(`useAudioEngine.ts` is presentation-layer glue in `src/hooks/`, not `tunerPresenter.ts` itself -
+zero lines changed in that file). The hook's `reset()` also immediately re-runs `presenter.tick()`
+so the cleared state is reflected in `presentation` synchronously, not on the next animation frame.
+
+Verified: re-screenshotted the idle Simple Tuner screen (`tuner.html`) against Figma after all
+changes - layout/positions untouched, matches as before. 315 tests passing across 43 files;
+`tsc -b`/`vite build`/`npm run lint` clean.
+
+### Production entry point — `App.tsx` now mounts the real app
+
+What: `src/App.tsx` no longer renders the original raw-needle debug harness (the manual audio-engine
+test screen that lived here since the project's start). It now renders `<AppProviders><AppRouter
+/></AppProviders>` - the exact composition every stage's log has been describing as "not yet
+mounted." `src/main.tsx` is untouched (it already just rendered `<App />`); `index.html` is
+untouched. `/` now serves the real Simple Tuner screen (via `NavigationProvider`'s existing default
+`initialScreen = 'simple-tuner'`), with working in-app navigation to Settings/Select Tuning/Advanced
+Tuner through the same footer/header affordances already built and tested in prior stages.
+
+Why: this was the last step blocking a production deploy - every screen existed and was tested, but
+nothing wired them to the real entry point yet.
+
+Decisions:
+- The retired harness's actual purpose (manually exercising the real audio engine without any UI
+  polish) is already fully covered by `debug.html` + `DebugSettingsPanel.tsx`, which is a strict
+  superset of what the old `App.tsx` did (instrument/tuning selection, A4 calibration, manual
+  pinning, start/stop, error display - the original harness only had a single hardcoded tuning and a
+  raw needle). Re-creating it as a new dedicated debug page would have been pure duplication, so it
+  wasn't - this is a judgment call worth flagging rather than assuming silently.
+- No `vercel.json` added. This is a plain Vite React SPA with no server code and no client-side
+  routing (`NavigationProvider` is in-memory `useState`, not URL-based - there is nothing to add
+  rewrite rules for). Vercel's zero-config Vite framework preset already resolves to exactly the
+  right settings from `package.json`/`vite.config.ts` alone: Framework = Vite, Build Command = `npm
+  run build` (runs the project's own `tsc -b && vite build`, so a real type error would fail the
+  Vercel build too, not just slip through), Output Directory = `dist`. Adding a redundant config file
+  that duplicates auto-detected defaults was judged more likely to go stale than to help.
+- `vite.config.ts` itself is unchanged from before this pass (no `base` override, no multi-page
+  `rollupOptions.input`) - confirmed (see below) that Vite's default single-entry build already only
+  ever bundles `index.html` into `dist/`, so every debug/gallery/demo `.html` page
+  (`debug.html`/`gallery.html`/`tuner.html`/`settings.html`/`select-tuning.html`/
+  `advanced-tuner.html`) is automatically excluded from the production build with zero extra
+  config - they simply aren't referenced by any `rollupOptions.input`, and remain fully usable via
+  `npm run dev` for local manual testing.
+
+Verified:
+- `tsc -b && vite build` clean; full test suite green (315 tests / 43 files, unchanged by this pass).
+- Inspected `dist/` after a real `npm run build`: contains exactly one HTML file (`index.html`) plus
+  its bundled JS/CSS/image assets - no debug/demo page leaked into the production output.
+- Screenshotted the built `dist/index.html` (via the project's established static-build +
+  Playwright + `file://` technique, with `base: './'` temporarily set only for this local,
+  `file://`-based check and reverted immediately after - a real Vercel deploy serves from a domain
+  root, where the default root-absolute `base` is correct, not `'./'`) - Simple Tuner renders
+  correctly with no console errors, and clicking the footer's Settings tab correctly navigates
+  in-place to the real Settings screen, confirming `AppRouter` wiring works end-to-end from the
+  actual production entry point, not just in isolated per-screen debug pages.
+
+Not yet done, out of scope for this pass: `PermissionGate` is still not wired in front of the
+router, so the real app requests microphone access immediately on load (same behavior the `tuner.html`
+debug page already had) rather than gating on an explicit permission screen first.
+
+### Pre-commit verification pass
+
+Ran the full quality gate before the first commit: `npm run build`, full test suite, `npm run lint`
+(not run as part of any prior stage's own checklist - added here), a grep for stray `console.log`/
+`TODO`/commented-out code in every shipped `src/` file (excluding `src/debug/`, which is intentionally
+excluded from the production build already), and a real-browser (Playwright, real `requestAnimationFrame`,
+not the jsdom/stubbed one tests use) click-through of Simple Tuner -> Settings -> Select Tuning ->
+Advanced Tuner via the actual `AppRouter`, capturing every `console.error`/`console.warn`.
+
+`npm run lint` caught a real bug `npm run build`/the test suite both missed: `useSmoothedCents`
+violated `react-hooks/set-state-in-effect` (direct `setState` in an effect body). Fixed as described
+above in the Simple Tuner quality-pass entry, re-verified: `tsc -b`, `vite build`, `npm run lint`, and
+the full test suite (315 tests / 43 files) all clean; zero `console.error`/`console.warn` across the
+full click-through with a real rAF; no stray debug imports, `console.log`, or leftover TODO/dead code
+in any production file.

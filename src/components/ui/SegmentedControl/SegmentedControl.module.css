@@ -1,0 +1,33 @@
+@import '../../../theme/tokens.css';
+
+.track {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 46px;
+  box-sizing: border-box;
+  padding: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-elevated);
+}
+
+.segment {
+  flex: 1 0 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.active {
+  background: var(--color-surface-inverse);
+  color: var(--color-text-inverse);
+}
