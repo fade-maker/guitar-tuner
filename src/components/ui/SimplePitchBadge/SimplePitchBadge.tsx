@@ -46,24 +46,42 @@ export function SimplePitchBadge({ state = 'In tune', cents = 11 }: SimplePitchB
   const isOffPitch = isTuneUp || isTuneDown;
   const magnitude = Math.abs(Math.round(cents));
 
+  const badgeColumn = (
+    <div className={styles.badgeColumn}>
+      <div className={classNames(styles.indicator, isOffPitch ? styles.offPitch : styles.inTune)}>
+        {isOffPitch && <span className={styles.centsText}>{isTuneDown ? `+${magnitude}` : `-${magnitude}`}</span>}
+        {state === 'In tune' && <Checkmark />}
+      </div>
+      <span className={styles.tail}>
+        <Tail color={isOffPitch ? '#CD5C58' : '#ffffff'} />
+      </span>
+    </div>
+  );
+
+  const label = (
+    <div className={styles.label}>
+      <span className={styles.labelText}>{isTuneDown ? 'Tune down' : isTuneUp ? 'Tune up' : 'In tune!'}</span>
+    </div>
+  );
+
   return (
     <div className={styles.badge}>
-      <div className={styles.badgeColumn}>
-        <div className={classNames(styles.indicator, isOffPitch ? styles.offPitch : styles.inTune)}>
-          {isOffPitch && (
-            <span className={styles.centsText}>
-              {isTuneDown ? `+${magnitude}` : `-${magnitude}`}
-            </span>
-          )}
-          {state === 'In tune' && <Checkmark />}
-        </div>
-        <span className={styles.tail}>
-          <Tail color={isOffPitch ? '#CD5C58' : '#ffffff'} />
-        </span>
-      </div>
-      <div className={styles.label}>
-        <span className={styles.labelText}>{isTuneDown ? 'Tune down' : isTuneUp ? 'Tune up' : 'In tune!'}</span>
-      </div>
+      {/* Figma's master component reverses this order only for Tune down: every other state has
+          the label extend to the right of the circle, which would run past the screen's right
+          edge once the badge is near it. Swapping to label-then-circle for this one state keeps
+          the circle - the actual position anchor - flush with the badge's own right edge instead
+          of the label pushing further right as its text grows. */}
+      {isTuneDown ? (
+        <>
+          {label}
+          {badgeColumn}
+        </>
+      ) : (
+        <>
+          {badgeColumn}
+          {label}
+        </>
+      )}
     </div>
   );
 }

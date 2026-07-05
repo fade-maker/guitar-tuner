@@ -114,7 +114,11 @@
 .pitchBadge {
   position: absolute;
   top: 21.329%; /* (259 - 121) / 647 */
-  transition: left 100ms ease-out;
+  /* Tune down anchors via `right` instead of `left` (see pitchBadgeStyle in SimpleTunerScreen.tsx)
+     - both need a transition so every state's movement glides the same way. */
+  transition:
+    left 100ms ease-out,
+    right 100ms ease-out;
 }
 
 .currentNote {

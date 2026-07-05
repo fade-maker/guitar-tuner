@@ -55,6 +55,42 @@ const RAPID_ADJUSTMENT_THRESHOLD_CENTS = 15;
 // against boundary oscillation the hysteresis bands don't fully rule out.
 const HAPTIC_COOLDOWN_MS = 1200;
 
+// How many octaves up/down a reading is tried at when checking whether it's actually a pitch
+// detector octave error (a known McLeod-Pitch-Method failure mode, most likely on low-frequency
+// strings where a fixed-duration analysis window covers relatively few wave periods) rather than a
+// genuine pitch. 2 covers both a single-octave-up misread and the two-octaves-down subharmonic
+// artifact already documented in audioConfig.ts's own calibration notes.
+const MAX_OCTAVE_OFFSET = 2;
+
+// How much better (in cents) an octave-folded reading against the target already being tracked has
+// to be than the plain nearest-target search, before that continuity is trusted over just switching
+// targets outright. This exists only to protect two real collisions in this project's own tuning
+// presets - pairs of targets an exact octave/two apart (Drop D's Low D/D string; standard tuning's
+// Low E/High E) - where a folded reading and the naively-nearest target can legitimately tie at ~0
+// cents each; below this margin, a genuine target switch always wins over forced continuity.
+//
+// This can't be made airtight from frequency alone: a string tuned significantly (~200+ cents) flat
+// can, by coincidence, double into a neighboring target's own zone closely enough that this margin
+// doesn't catch it - a real, known limitation, not fixable without more signal than frequency+clarity
+// provides (e.g. timbre/harmonic-profile analysis, which this pipeline doesn't do).
+const OCTAVE_CONTINUITY_MARGIN_CENTS = 100;
+
+// Tries every octave-shifted interpretation of `frequency` (within +-MAX_OCTAVE_OFFSET) against a
+// single known target frequency and returns whichever lands closest - not just the direct,
+// unshifted comparison.
+function octaveFoldedCents(frequency: number, targetFrequency: number): { frequency: number; cents: number } {
+  let best = { frequency, cents: centsBetween(frequency, targetFrequency) };
+  for (let octave = -MAX_OCTAVE_OFFSET; octave <= MAX_OCTAVE_OFFSET; octave++) {
+    if (octave === 0) continue;
+    const candidateFrequency = frequency * 2 ** octave;
+    const cents = centsBetween(candidateFrequency, targetFrequency);
+    if (Math.abs(cents) < Math.abs(best.cents)) {
+      best = { frequency: candidateFrequency, cents };
+    }
+  }
+  return best;
+}
+
 function searchingState(tunedTargetIds: ReadonlySet<string>): TunerPresentationState {
   return { state: 'searching', target: null, cents: null, inTune: false, hapticTrigger: false, tunedTargetIds };
 }
@@ -86,11 +122,33 @@ export const createTunerPresenter: CreateTunerPresenter = (config) => {
     if (pinnedTargetId !== null) {
       const pinnedTarget = targets.find((target) => target.id === pinnedTargetId);
       if (pinnedTarget !== undefined) {
+        // Unambiguous: there's only one possible target while pinned, so whichever octave brings
+        // the reading closest to it is simply the detector's most plausible read of that same
+        // string, never a competing hypothesis.
         const targetFrequency = midiToFrequency(pinnedTarget.midi, a4);
-        return { target: pinnedTarget, frequency: targetFrequency, cents: centsBetween(frequency, targetFrequency) };
+        const { cents } = octaveFoldedCents(frequency, targetFrequency);
+        return { target: pinnedTarget, frequency: targetFrequency, cents };
       }
     }
-    return findNearestTarget(frequency, targets, a4);
+
+    const naiveMatch = findNearestTarget(frequency, targets, a4);
+
+    // Only usable as a continuity anchor if it's still a real member of the current target set -
+    // setTargets() can swap the whole list without clearing currentTarget (by design: target/cents
+    // intentionally only take effect on the next reading), so a stale reference must not be trusted
+    // just because it's still non-undefined.
+    const trackedTarget = currentTarget;
+    const continuityTarget = trackedTarget && targets.find((target) => target.id === trackedTarget.id);
+
+    if (continuityTarget) {
+      const continuityFrequency = midiToFrequency(continuityTarget.midi, a4);
+      const folded = octaveFoldedCents(frequency, continuityFrequency);
+      if (Math.abs(folded.cents) + OCTAVE_CONTINUITY_MARGIN_CENTS < Math.abs(naiveMatch.cents)) {
+        return { target: continuityTarget, frequency: continuityFrequency, cents: folded.cents };
+      }
+    }
+
+    return naiveMatch;
   }
 
   // Clears per-identity bookkeeping (what's currently sounding, lock timer, haptic cooldown) on a

@@ -346,3 +346,77 @@ describe('invariants', () => {
     }).not.toThrow();
   });
 });
+
+// Corrects a specific pitch-detector failure mode (McLeod Pitch Method occasionally misreading a
+// frequency as an octave multiple of the true one, most often on low strings - see the audio-engine
+// investigation this follows up on) without breaking a genuine switch between two targets that
+// happen to sit an exact octave apart, e.g. Drop D's Low D / D string.
+describe('octave correction', () => {
+  it('suppresses a single octave-up glitch while sustained on one target, keeping the original target', () => {
+    const presenter = createTunerPresenter(config);
+    const { t } = lockIn(presenter, FREQ_A, 1000, config);
+
+    const glitched = presenter.onReading(reading(FREQ_A * 2, t + HOP_MS));
+
+    expect(glitched.target?.id).toBe('a');
+    expect(glitched.cents).toBeCloseTo(0, 1);
+  });
+
+  it('suppresses a single octave-down (subharmonic) glitch the same way', () => {
+    const presenter = createTunerPresenter(config);
+    const { t } = lockIn(presenter, FREQ_A, 1000, config);
+
+    const glitched = presenter.onReading(reading(FREQ_A / 2, t + HOP_MS));
+
+    expect(glitched.target?.id).toBe('a');
+    expect(glitched.cents).toBeCloseTo(0, 1);
+  });
+
+  it('still switches targets normally when two targets are a full octave apart', () => {
+    const LOW: StringTarget = { id: 'low', label: 'Low', midi: 50 };
+    const HIGH: StringTarget = { id: 'high', label: 'High', midi: 62 }; // +12 semitones = 1 octave
+    const octaveConfig: TunerPresenterConfig = { ...config, targets: [LOW, HIGH] };
+    const presenter = createTunerPresenter(octaveConfig);
+
+    const freqLow = midiToFrequency(LOW.midi);
+    const freqHigh = midiToFrequency(HIGH.midi);
+    const { t } = lockIn(presenter, freqLow, 1000, octaveConfig);
+
+    // A genuine, sustained switch to the octave-higher string - must not get stuck folded back onto
+    // the low target just because the two happen to be exactly an octave apart.
+    const switched = presenter.onReading(reading(freqHigh, t + HOP_MS));
+
+    expect(switched.target?.id).toBe('high');
+    expect(switched.cents).toBeCloseTo(0, 1);
+  });
+
+  it('corrects an octave glitch while a target is pinned, instead of showing a wild cents value', () => {
+    const presenter = createTunerPresenter(config);
+    presenter.pinTarget('a');
+
+    const state = presenter.onReading(reading(FREQ_A * 2, 1000));
+
+    expect(state.target?.id).toBe('a');
+    expect(state.cents).toBeCloseTo(0, 1);
+  });
+
+  it('does not affect a genuinely different (non-octave) pitch switch', () => {
+    const presenter = createTunerPresenter(config);
+    const { t } = lockIn(presenter, FREQ_A, 1000, config);
+
+    const switched = presenter.onReading(reading(FREQ_B, t + HOP_MS));
+
+    expect(switched.target?.id).toBe('b');
+    expect(switched.cents).toBeCloseTo(0, 1);
+  });
+
+  it('has nothing to anchor continuity to on the very first reading, so it just resolves normally', () => {
+    const presenter = createTunerPresenter(config);
+    const state = presenter.onReading(reading(FREQ_A * 2, 1000));
+
+    // No prior target to fold against yet - resolves via plain nearest-target search, same as any
+    // other first reading.
+    expect(state.target).not.toBeNull();
+    expect(Number.isFinite(state.cents)).toBe(true);
+  });
+});

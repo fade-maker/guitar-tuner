@@ -1085,3 +1085,109 @@ No changes were made to `badgeLeftPercent`/`BADGE_MAX_OFFSET_PERCENT`/`BADGE_CEN
 `SimpleTunerScreen.tsx` this pass - left exactly as they were pending this decision.
 
 Nothing in this pass was committed or pushed, per instruction - all changes staged only.
+
+### SimplePitchBadge travel range - resolved from two new Figma demo screens
+
+Follow-up to the blocked Task 1 above: the user added two demo screens to the Figma Main Screen
+page (`181:2091` "Tune up -200", `181:2216` "Tune down +200") specifically to define this, and
+edited the master component's "Tune down" variant to render label-then-circle instead of
+circle-then-label (there's no room for the label to extend right of the circle near the right
+screen edge). Re-inspected both directly (`get_design_context` + `get_screenshot`) before touching
+any code, per the Figma-source-of-truth rule.
+
+**Confirmed from Figma:** at -200 cents, the circle's own left edge sits exactly 16px from the
+screen's left edge (`181:2111`, x=16). At +200 cents, the circle is now the *last* child (label
+first), so its own right edge sits close to the screen's right edge (measured ~3.5px in the raw
+demo, not 16px - flagged to the user as a likely imprecise/illustrative placement rather than a
+deliberate spec, since only the label/circle *order* was a deliberate edit there). User confirmed:
+apply the stated 16px margin symmetrically on both sides rather than the raw right-side pixel
+value. -200/+200 is an explicit hard stop ("уже не будет двигаться"), not an asymptote.
+
+**Implementation:**
+- `SimplePitchBadge.tsx`: for `state === 'Tune down'` only, renders the label before the badge
+  column (circle+tail); every other state keeps the original circle-then-label order. Extracted
+  both into local `badgeColumn`/`label` JSX variables to swap order cleanly without duplicating
+  markup.
+- `SimpleTunerScreen.tsx`: replaced the tanh soft-saturation curve entirely with a linear clamp -
+  `badgeCircleLeftPercent()` maps cents linearly onto the circle's own left-edge percent, clamped
+  to the confirmed range (`BADGE_MAX_CENTS = 200`, `BADGE_BASE_LEFT_PERCENT = 44.527` i.e. 179/402
+  unchanged, `BADGE_MAX_OFFSET_PERCENT = 40.547` i.e. 163/402 - derived so -200 cents lands the
+  circle's left edge at 16px and +200 lands its right edge at 16px from the opposite edge, both
+  confirmed symmetric from the same 163px offset). New `pitchBadgeStyle()` switches the CSS anchor
+  between `left` (every state except Tune down) and `right` (Tune down only, since the circle is
+  now the last flex child there) - positioning via `left` for Tune down would have tracked the
+  label's edge instead of the circle's, drifting as the label text's width changes.
+- `SimpleTunerScreen.module.css`: `.pitchBadge`'s transition now covers both `left` and `right` so
+  movement glides the same way regardless of which one is active for the current state.
+- Tests: rewrote the affected `SimpleTunerScreen.test.tsx` cases for the new model - exact-value
+  assertions at the confirmed 16px-margin cap (both directions), a same-position check for two
+  different readings past the cap (hard stop, not still-approaching), and a same-side
+  distinguishability check for two readings both still under the cap. One test intentionally avoids
+  -500 cents for the tune-up/cap case: High E and the next-lowest string (B3) are a perfect fourth
+  (500 cents) apart, so beyond roughly -250 cents `findNearestTarget` retargets to B3 instead of
+  continuing to show a large deviation from E4 - used -220 instead (still past the -200 cap, still
+  closest to E4). No such retargeting risk exists on the sharp/positive side (E4 is the highest
+  string in standard tuning, nothing above it to retarget to).
+
+Verified: `tsc -b`, `vite build`, `npm run lint`, full test suite (337 tests / 47 files) all clean.
+Screenshotted `gallery.html`'s SimplePitchBadge row to confirm the Tune down label now renders to
+the left of the circle, matching the edited Figma master. Nothing committed or pushed yet.
+
+### Octave-error correction for the low-E Tune up/Tune down flicker
+
+Investigated a report of the badge flickering between Tune up/Tune down specifically on the lowest
+string. Root-caused to a known McLeod Pitch Method (the algorithm `pitchy` implements) failure mode:
+a fixed-duration analysis window (`windowDurationMs: 46`) covers relatively few wave periods for a
+low string, making the autocorrelation peak-picking more prone to occasionally reporting an octave
+multiple of the true fundamental. `stabilizer.ts`'s own confirmation logic (require a deviation to
+persist ~40ms before trusting it) means a genuinely single-frame glitch is already filtered out
+before it ever reaches the presentation layer - the readings that do get through are episodes that
+persisted just long enough to pass that gate.
+
+**First approach (built, then reverted): audio-engine-level correction.** Built a
+`signal/octaveCorrector.ts` module (comparing each candidate against its own last-plausible-frequency
+memory, folding by whole octaves when close to a match) sitting between Candidate Validation and the
+Stabilizer. Discovered a real, disqualifying bug in this project's own tuning data before shipping
+it: Drop D's Low D and D string (`guitar-drop-d`) are *exactly* one octave apart (D2/D3), and standard
+tuning's Low E/High E are exactly two octaves apart (E2/E4) - a genuine, sustained switch between
+either pair would get permanently folded back onto the old string, since the module's own
+"last-plausible" anchor kept re-confirming the wrong octave every subsequent frame. `audio-engine`
+has no knowledge of which target/string is being tuned (a deliberate boundary - `music-theory`'s
+`StringTarget`/tuning-preset types never appear there), so there was no way to resolve that
+ambiguity correctly at that layer. Reverted entirely (deleted the module, restored
+`frameProcessor.ts`) rather than ship a fix with a known permanent-lockup regression on Drop D.
+
+**Shipped instead: presentation-layer correction in `tunerPresenter.ts`**, where the real target list
+*is* known. `resolveMatch()` now tries every octave-shifted interpretation of a reading (within
++-2 octaves - `octaveFoldedCents()`) against a specific target frequency, in two places:
+- **Pinned mode**: unconditionally, since there's only one possible target while pinned - whichever
+  octave lands closest to it is simply the detector's best read of that same string, never a
+  competing hypothesis.
+- **Auto mode**: as a continuity check against `currentTarget` (the target the last reading
+  matched), but only overriding the plain nearest-target search (`findNearestTarget`) when the
+  octave-folded reading is closer by more than `OCTAVE_CONTINUITY_MARGIN_CENTS` (100). This margin
+  is exactly what protects the Drop D/standard-tuning octave-apart pairs found above: a genuine
+  switch between them ties at ~0 cents both ways (folded-toward-old vs. matched-to-new), which is
+  *below* the margin, so the plain search always wins a tie - only a clearly-worse-explained-any-
+  other-way reading gets folded back to the target already being tracked.
+- `currentTarget` is only trusted as a continuity anchor if it's still actually present in the
+  current `targets` array (re-looked-up by id, exactly like the existing pinned-target lookup) -
+  `setTargets()` doesn't clear `currentTarget` (by design, see its own comment), so an unguarded
+  reuse here would have resolved to a stale, no-longer-valid target after a tuning-preset switch.
+  Caught by an existing test (`setTargets - takes effect on the next reading`) failing before this
+  guard was added.
+
+**Explicitly not fully solved, flagged rather than silently ignored:** a string tuned significantly
+(~200+ cents) flat can, by coincidence, have its octave-doubled misread land close enough to a
+*different* real target's own zone to slip past the margin and momentarily flip targets anyway. This
+isn't fixable from frequency+clarity alone - would need additional signal (e.g. timbre/harmonic-
+profile analysis) this pipeline doesn't have. Judged an acceptable residual: it only occurs at a
+specific, fairly extreme mistuning amount, not during ordinary "close to in tune" playing, which is
+the case the original report was about.
+
+Added 6 new tests in `tunerPresenter.test.ts` (`describe('octave correction')`): suppressing a single
+octave-up glitch and a subharmonic (octave-down) glitch while sustained on one target; a genuine
+switch between two targets a full octave apart still working; pinned-mode glitch correction; a
+genuinely different (non-octave) switch being unaffected; and the very-first-reading case (nothing
+to anchor continuity to yet). Full test suite (343 tests / 47 files, up from 337/47), `tsc -b`,
+`vite build`, `npm run lint` all clean. Nothing committed or pushed yet.

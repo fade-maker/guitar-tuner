@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import { useAudioEngine } from '../../hooks';
 import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { StringTarget, TuningPreset } from '../../music-theory';
@@ -45,28 +45,45 @@ function splitStringColumns(strings: readonly StringTarget[]): {
   return { left: [...strings.slice(0, half)].reverse(), right: strings.slice(half) };
 }
 
-// SimplePitchBadge's horizontal position tracks how far off-pitch the current reading is, rather
-// than staying fixed - confirmed from Figma, which shows the badge at 3 different x-positions
-// across its In-tune/Tune-up/Tune-down demo states. Those 3 samples don't give an exact px-per-cent
-// slope (their cents values aren't known) or an exact max-travel bound for extreme readings, so the
-// ~35px max travel itself (the physical excursion Figma's demo states actually show) is kept as-is
-// - only the curve mapping cents to a fraction of that travel changed.
-const BADGE_BASE_LEFT_PERCENT = 44.527; // 179 / 402, same anchor as .currentNote
-const BADGE_MAX_OFFSET_PERCENT = 8.706; // ~35px / 402px, unchanged from Figma's demo states
+// SimplePitchBadge's horizontal position tracks how far off-pitch the current reading is.
+// Confirmed directly from Figma's Main Screen page: two demo screens were added there (below the
+// original In-tune one) specifically to show the circle's position at -200 and +200 cents. Both
+// place the circle's own outer edge exactly 16px from the corresponding screen edge (the label
+// extends toward screen center in both directions, and the master component itself reverses
+// circle/label order for Tune down specifically so the circle stays the edge-flush element - see
+// SimplePitchBadge.tsx). -200/+200 is where the badge stops moving entirely ("не будет двигаться"
+// per spec) - a hard stop, not an asymptote, so this is a straight linear clamp, replacing the
+// previous tanh soft-saturation curve (which had no Figma basis and saturated far too early).
+//
+// Derivation (402px reference width, matching every other screen-level percentage here):
+//   base (0 cents, unchanged from the original In-tune anchor): circle left edge = 179px
+//   min (-200 cents): circle left edge = 16px -> offset = 179 - 16 = 163px
+//   max (+200 cents): circle right edge = 402 - 16 = 386px -> circle left edge = 342px
+//                      -> offset = 342 - 179 = 163px (symmetric, confirming a single linear slope)
+const BADGE_BASE_LEFT_PERCENT = 44.527; // 179 / 402
+const BADGE_MAX_OFFSET_PERCENT = 40.547; // 163 / 402
+const BADGE_MAX_CENTS = 200;
+// The circle's own width - needed to convert its desired *left* edge into a *right* edge distance
+// for the Tune down case, where the badge is anchored from the screen's right edge instead (see
+// the `right`/`left` style switch below).
+const BADGE_CIRCLE_WIDTH_PERCENT = 10.945; // 44 / 402
 
-// A hard linear clamp at +-50 cents (the original approximation) meant any reading beyond +-50
-// landed on the exact same pixel - e.g. -60 and -300 cents were visually indistinguishable, which
-// is the "почти в одном месте" defect this replaces. tanh gives a smooth, monotonic soft-saturation
-// instead: near 0 it behaves close to linear (fine near-zero sensitivity is preserved), and for
-// large |cents| it keeps inching toward the same +-35px bound without ever hard-stopping at one
-// specific value, so different "very out of tune" readings stay distinguishable further out. 70 was
-// chosen so a +-50 cent reading (the old clamp point) now lands at ~61% of full travel rather than
-// 100% - deliberately leaving room for larger deviations to keep moving, per GuitarTuna's own feel.
-const BADGE_CENTS_SOFTNESS = 70;
+function badgeCircleLeftPercent(cents: number): number {
+  const clamped = Math.max(-BADGE_MAX_CENTS, Math.min(BADGE_MAX_CENTS, cents));
+  return BADGE_BASE_LEFT_PERCENT + (clamped / BADGE_MAX_CENTS) * BADGE_MAX_OFFSET_PERCENT;
+}
 
-function badgeLeftPercent(cents: number): number {
-  const normalized = Math.tanh(cents / BADGE_CENTS_SOFTNESS);
-  return BADGE_BASE_LEFT_PERCENT + normalized * BADGE_MAX_OFFSET_PERCENT;
+// Tune down renders label-then-circle (see SimplePitchBadge.tsx), so the circle sits flush with
+// the badge container's own *right* edge instead of its left - positioning via `left` there would
+// anchor the label's edge, not the circle's, and the circle would drift as the label's text width
+// changes. Every other state keeps the circle-first order, so `left` continues to anchor the
+// circle directly, unchanged from before.
+function pitchBadgeStyle(state: SimplePitchBadgeState, cents: number): CSSProperties {
+  const circleLeftPercent = badgeCircleLeftPercent(cents);
+  if (state === 'Tune down') {
+    return { left: 'auto', right: `${100 - circleLeftPercent - BADGE_CIRCLE_WIDTH_PERCENT}%` };
+  }
+  return { left: `${circleLeftPercent}%`, right: 'auto' };
 }
 
 // 1€ Filter tuning for the badge's position/number (see useSmoothedCents / oneEuroFilter.ts) -
@@ -198,7 +215,7 @@ export function SimpleTunerScreen(): ReactElement {
         {showPitchInfo && (
           <div
             className={styles.pitchBadge}
-            style={{ left: `${badgeLeftPercent(smoothedCents ?? 0)}%` }}
+            style={pitchBadgeStyle(badgeState, smoothedCents ?? 0)}
             data-testid="pitch-badge-position"
           >
             <SimplePitchBadge state={badgeState} cents={Math.abs(Math.round(smoothedCents ?? 0))} />
