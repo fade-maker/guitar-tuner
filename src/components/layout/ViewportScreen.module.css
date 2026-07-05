@@ -1,0 +1,41 @@
+@import '../../theme/tokens.css';
+
+/* Shared page shell for every full-screen view in the app - see ViewportScreen.tsx's own comment
+   for why this exists as shared infrastructure instead of being duplicated per screen, and
+   SimpleTunerScreen.module.css's history for the bug this fixes (a screen sized via aspect-ratio,
+   derived from its own width, is disconnected from the real viewport height - almost never matches
+   it on a real device, letting the page scroll and the footer drift away from the bottom edge).
+
+   Height priority, highest first (this is the CSS cascade choosing, not a JS if - each line only
+   wins when the one before it doesn't apply):
+   1. `var(--tg-viewport-height, ...)` - set inline by ViewportScreen.tsx from
+      useTelegramViewportHeight() only when running inside Telegram. Telegram's own reported usable
+      viewport height already accounts for its native chrome (header, main button, etc.) in a way a
+      CSS viewport unit alone can't know about, and updates live via Telegram's 'viewportChanged'
+      event the same way `dvh` updates live in a plain browser.
+   2. `100dvh` - wins whenever the custom property isn't set (outside Telegram) on any engine that
+      understands the `dvh` unit; tracks the *visual* viewport, so it already updates correctly for
+      mobile browser chrome/keyboard changes without any JS.
+   3. `100vh` - last-resort fallback, only relevant on an engine that understands neither `dvh` nor
+      CSS custom properties (there's essentially no realistic target that fails at custom properties
+      while parsing the rest of this file, so this line is a pure safety net, not an expected path).
+
+   Each screen composes this class onto its own `.screen` rather than duplicating it - see
+   SimpleTunerScreen.module.css / SettingsScreen.module.css for `composes: viewportScreen from
+   '../layout/ViewportScreen.module.css';`. Screen-specific rules (its own internal
+   header/main/footer sub-layout) stay in the screen's own module; only the shell (sizing, flex
+   column, no self-scroll, width cap, background) lives here. */
+.viewportScreen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 402px;
+  height: 100vh;
+  height: 100dvh;
+  height: var(--tg-viewport-height, 100dvh);
+  background: var(--color-surface-page);
+  overflow: hidden;
+  margin: 0 auto;
+}

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CSSProperties, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { useAudioEngine } from '../../hooks';
 import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { StringTarget, TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
-import { useTelegramViewportHeight } from '../../telegram';
+import { ViewportScreen } from '../layout';
 import {
   AppHeader,
   BassIllustration,
@@ -87,11 +87,6 @@ export function SimpleTunerScreen(): ReactElement {
     presentation.target?.id ?? null,
     BADGE_SMOOTHING_TAU_MS,
   );
-  // Telegram's own reported viewport height, when running inside Telegram - see
-  // SimpleTunerScreen.module.css's .screen rule for the 3-tier priority this feeds
-  // (Telegram viewport > 100dvh > 100vh). null outside Telegram, in which case the CSS custom
-  // property below is simply never set and the CSS-only fallbacks take over on their own.
-  const telegramViewportHeight = useTelegramViewportHeight();
 
   // Figma's screen has no visible Start control - the real flow is PermissionGate requesting mic
   // access upstream, then this screen just listens. PermissionGate isn't wired into the app shell
@@ -156,13 +151,8 @@ export function SimpleTunerScreen(): ReactElement {
     ? midiToNoteName(presentation.target.midi, preferences.accidental)
     : null;
 
-  const screenStyle: CSSProperties | undefined =
-    telegramViewportHeight !== null
-      ? ({ '--tg-viewport-height': `${telegramViewportHeight}px` } as CSSProperties)
-      : undefined;
-
   return (
-    <div className={styles.screen} style={screenStyle}>
+    <ViewportScreen className={styles.screen}>
       <div className={styles.header}>
         <AppHeader
           variant="Default"
@@ -237,6 +227,6 @@ export function SimpleTunerScreen(): ReactElement {
       <div className={styles.footer}>
         <FooterNavigation active="Tuner" onSelect={(tab) => tab === 'Settings' && navigateTo('settings')} />
       </div>
-    </div>
+    </ViewportScreen>
   );
 }

@@ -777,3 +777,71 @@ Answers to the review questions asked alongside this fix:
   benefit from the same Header/Main(flex:1)/Footer restructuring and the same Telegram-viewport-height
   priority. Not done here - out of scope per this task's explicit "don't touch other screens"
   instruction - but noted as a concrete, scoped follow-up rather than a vague TODO.
+
+### Two bugs found testing in real Telegram: illustration clipping + shared viewport infrastructure
+
+**Bug 1 - guitar/bass illustration clipped at the bottom on Simple Tuner.** Root cause: the previous
+pass added `overflow: hidden` to `.main` defensively, without checking whether Figma's own layout
+actually relied on something extending past that boundary - it did. `GuitarIllustration`/
+`BassIllustration`'s own `.container` is a fixed 253x474px box; at Figma's reference scale (top:
+400px in the original 874px canvas), 400 + 474 = 874 = the canvas's own total height = the footer's
+own bottom edge. In other words, the illustration was always designed to extend the full remaining
+106px *behind* the footer (this is also why an earlier UI-polish pass had to investigate "footer
+blur affecting the neck above it" - see that entry - which was never a bug, it's this exact
+intentional overlap, just not recognized as load-bearing at the time). `.main` clipping at the
+Header/Footer boundary cut the illustration off 106px early - a real regression from adding a
+defensive `overflow: hidden` that Figma's own design didn't actually allow for. Fix: removed
+`overflow: hidden` from `.main` entirely. `.screen`'s own `overflow: hidden` (inherited from
+`ViewportScreen`, see below) is already the real, sufficient boundary against page-level
+scroll/overflow - confirmed the illustration's bottom edge still lands before the screen's own
+bottom edge, never past it, and every other child in `.main` (pitch badge, string rows, tune line)
+was independently re-confirmed to sit well within bounds, so nothing else was put at risk by
+removing this. No numbers were fudged to "make it look right" - the fix is structural (stop
+clipping at a boundary the design never respected), not a margin/top adjustment.
+
+**Bug 2 - Settings still used the pre-viewport-fix `aspect-ratio` `.screen` and could scroll.**
+Extracted the "real viewport height, Telegram-aware" logic that used to live directly in
+`SimpleTunerScreen.tsx`/`.module.css` into shared infrastructure instead of copying it:
+- `src/components/layout/ViewportScreen.tsx` + `.module.css` (new) - a `<ViewportScreen>` component
+  owning the `useTelegramViewportHeight()` call and the height-priority CSS (Telegram viewport height
+  > `100dvh` > `100vh`, same cascade as before) exactly once. Lives in `components/layout/`, which
+  was already a documented-but-empty scaffold for exactly this ("page shells... land here").
+- Both `SimpleTunerScreen.module.css` and `SettingsScreen.module.css`'s own `.screen` now
+  `composes: viewportScreen from '../layout/ViewportScreen.module.css';` instead of each declaring
+  the sizing/flex/background rules themselves - CSS Modules' own `composes` feature, not a build
+  plugin. Both screens' `.tsx` now render `<ViewportScreen className={styles.screen}>` instead of a
+  plain `<div className={styles.screen}>`; `SimpleTunerScreen.tsx` no longer imports
+  `useTelegramViewportHeight`/`CSSProperties` itself at all - that responsibility moved entirely
+  into `ViewportScreen`.
+- Settings' own `.content` (its Header/Main-equivalent middle region) changed from `flex: 1 0 auto`
+  (never shrinks) to `flex: 1 1 auto; min-height: 0; overflow-y: auto` - unlike Simple Tuner's fixed,
+  precisely-positioned `.main` (which should never need to scroll internally), Settings' content
+  (profile + 3 cards) can genuinely exceed a short viewport, so *it* scrolls internally now instead
+  of the page. The outer `.screen`/`ViewportScreen` shell itself never scrolls, matching Simple
+  Tuner; only this one screen's own middle region does, and only when its content actually doesn't
+  fit.
+- Fixed unrelated but actively-misleading debug-tooling gap found while verifying this:
+  `src/debug/tuner-main.tsx` didn't import `../index.css` (unlike every other debug entry), leaving
+  the browser's default `<body>` margin active and producing a false "the page can scroll" reading
+  during verification that had nothing to do with the actual app. Debug-file-only, not shipped
+  (still excluded from the production build the same way every `debug/*.html` page is).
+
+Explicitly not touched, per instruction: Select Tuning, Advanced Tuner. Both still use the
+pre-`ViewportScreen` `aspect-ratio` pattern and very likely have the same underlying scroll bug;
+`ViewportScreen` is now proven-reusable infrastructure (used identically, unmodified, by two
+different screens) ready for them to adopt in a later pass.
+
+Verified:
+- Illustration: `illustrationBottom` (855.6px) now sits between `.main`'s own bottom edge (768px,
+  where the footer starts) and the screen's own bottom edge (874px) - it extends into the footer's
+  band as designed, without exceeding the true screen boundary. `docScrollHeight === docClientHeight`
+  (874 = 874, no scroll) confirmed via the real production entry (`index.html`), not just the
+  now-fixed debug harness.
+- Settings: checked at both a tall (874px) and an intentionally short (600px) viewport - screen top
+  is `0` and screen/footer bottom exactly equals the viewport height in both, page-level scroll is
+  impossible in both. At the short viewport, directly drove `.content`'s own `scrollTop` to confirm
+  it *does* scroll internally (`scrollHeight - clientHeight` = 190px, reached exactly) - Language/
+  Support/FAQ/version text are reachable by scrolling within the content region even when they don't
+  fit, while the footer stays pinned to the true bottom of the viewport throughout.
+- `tsc -b`, `vite build`, `npm run lint`, full test suite (328 tests / 46 files, up from 324/45 - new
+  `ViewportScreen.test.tsx`) all clean.

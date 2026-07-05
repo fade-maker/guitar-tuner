@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
+import { ViewportScreen } from '../layout';
 import { classNames } from '../ui/classNames';
 import { FooterNavigation, Icon, StepperButton, ToggleSwitch } from '../ui';
 import settingsAvatar from './assets/settings-avatar.png';
@@ -24,7 +25,7 @@ export function SettingsScreen(): ReactElement {
   }
 
   return (
-    <div className={styles.screen}>
+    <ViewportScreen className={styles.screen}>
       <div className={styles.content}>
         <div className={styles.profile}>
           <img src={settingsAvatar} alt="" className={styles.avatar} />
@@ -124,6 +125,6 @@ export function SettingsScreen(): ReactElement {
           }
         />
       </div>
-    </div>
+    </ViewportScreen>
   );
 }

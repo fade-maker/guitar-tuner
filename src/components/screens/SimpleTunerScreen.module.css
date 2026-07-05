@@ -4,39 +4,19 @@
    itself via `aspect-ratio` derived from its own WIDTH, completely disconnected from the actual
    viewport height - on any real device, viewport height almost never equals width * (874/402), so
    the rendered box was routinely taller or shorter than the visible viewport, letting the page
-   scroll and the footer drift away from the bottom edge. The screen is now sized directly from the
-   viewport and laid out as a real Header / Main(flex:1) / Footer column, matching how the app is
-   actually meant to occupy the screen instead of imitating Figma's static canvas. Header and Footer
-   are ordinary flex children sized to their own content (no more absolute top% positioning); only
-   the content that must be freely placed within the remaining space (illustration, pitch badge,
-   string rows, decorative background/tune-line) stays absolutely positioned, but now relative to
-   `.main`, not the whole screen.
+   scroll and the footer drift away from the bottom edge. The screen is now laid out as a real
+   Header / Main(flex:1) / Footer column, matching how the app is actually meant to occupy the
+   screen instead of imitating Figma's static canvas - Header and Footer are ordinary flex children
+   sized to their own content (no more absolute top% positioning); only the content that must be
+   freely placed within the remaining space (illustration, pitch badge, string rows, decorative
+   background/tune-line) stays absolutely positioned, but now relative to `.main`, not the whole
+   screen.
 
-   Height priority, highest first (each line below only wins if the one before it doesn't apply -
-   this is the CSS cascade doing the priority ordering, not JS):
-   1. `var(--tg-viewport-height, ...)` - set inline by SimpleTunerScreen.tsx from
-      useTelegramViewportHeight() only when running inside Telegram. Telegram's own reported usable
-      viewport height already accounts for its native chrome (header, main button, etc.) in a way a
-      CSS viewport unit alone can't know about, and updates live via Telegram's 'viewportChanged'
-      event the same way `dvh` updates live in a plain browser.
-   2. `100dvh` - wins whenever the custom property isn't set (outside Telegram) on any engine that
-      understands the `dvh` unit; tracks the *visual* viewport, so it already updates correctly for
-      mobile browser chrome/keyboard changes without any JS.
-   3. `100vh` - last-resort fallback, only relevant on an engine that understands neither `dvh` nor
-      CSS custom properties (there's essentially no realistic target that fails at custom properties
-      while parsing the rest of this file, so this line is a pure safety net, not an expected path). */
+   The real-viewport-height sizing itself (Telegram's own viewport API > 100dvh > 100vh) is shared
+   infrastructure, not duplicated here - see components/layout/ViewportScreen.module.css for that
+   cascade and SimpleTunerScreen.tsx for the <ViewportScreen> wrapper this class attaches to. */
 .screen {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 402px;
-  height: 100vh;
-  height: 100dvh;
-  height: var(--tg-viewport-height, 100dvh);
-  background: var(--color-surface-page);
-  overflow: hidden;
-  margin: 0 auto;
+  composes: viewportScreen from '../layout/ViewportScreen.module.css';
 }
 
 .header {
@@ -49,12 +29,26 @@
    and Footer", so every top% below is rebased to (originalTop - 121) / 647, where 121px was
    Header's Figma top offset and 647px (874 - 121 - 106) was the vertical span Figma implied for
    this region. That reference math is only used to keep the original proportions; the box itself
-   sizes to whatever space Header/Footer's real rendered heights leave, on any device. */
+   sizes to whatever space Header/Footer's real rendered heights leave, on any device.
+
+   Deliberately NOT `overflow: hidden` (a first pass at this fix had it, defensively, and it clipped
+   the bottom of the guitar/bass illustration - a real regression, not a "matches Figma at a
+   different size" issue). Figma's own layout has the illustration's bottom edge land exactly at
+   the screen's bottom edge (top 400px + GuitarIllustration/BassIllustration's own fixed 474px
+   height = 874px = the full canvas height = the footer's own bottom edge), i.e. the illustration
+   was always designed to extend the full remaining 106px *behind* the footer, which is also why an
+   earlier UI-polish pass had to investigate the footer's backdrop-blur visibly affecting the neck
+   above it (CLAUDE.md's "Footer blur affecting the neck above it" entry) - that was never a bug,
+   it's this exact intentional overlap. `.main` clipping at the Header/Footer boundary broke that
+   overlap by cutting the illustration off 106px early. `.screen`'s own `overflow: hidden` is
+   already the real, sufficient boundary against page-level scroll/overflow (verified: the
+   illustration's bottom coincides with `.screen`'s own bottom, never past it), so nothing here
+   needs a second, redundant clip - every other child (pitch badge, string rows, tune line) was
+   already confirmed to sit well within .main's own box, so removing this doesn't put them at risk. */
 .main {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
 }
 
 /* Not converted to percentages yet, on purpose - the mask/decorative-effect pass on this pattern

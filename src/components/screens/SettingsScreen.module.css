@@ -1,23 +1,25 @@
 @import '../../theme/tokens.css';
 
-/* Same mobile-first fixed-aspect-ratio approach as SimpleTunerScreen.module.css: the screen fills
-   the given viewport width but keeps every child proportional to Figma's 402x874 reference frame. */
+/* Real-viewport-height sizing (Telegram's own viewport API > 100dvh > 100vh) is shared
+   infrastructure, not duplicated here - see components/layout/ViewportScreen.module.css for that
+   cascade and SettingsScreen.tsx for the <ViewportScreen> wrapper this class attaches to. Was
+   previously sized via `aspect-ratio` (derived from width, disconnected from the real viewport
+   height - the same bug SimpleTunerScreen.module.css's own history documents: the page could
+   scroll and the footer didn't stay pinned to the bottom edge), which is why this now composes the
+   same shell Simple Tuner uses instead of re-deriving its own. */
 .screen {
-  position: relative;
-  width: 100%;
-  max-width: 402px;
-  aspect-ratio: 402 / 874;
-  background: var(--color-surface-page);
-  overflow: hidden;
-  overflow-y: auto;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  composes: viewportScreen from '../layout/ViewportScreen.module.css';
 }
 
+/* flex:1 1 auto (not the previous 1 0 auto) + min-height:0 lets this shrink below its natural
+   content height when the viewport is short, and overflow-y:auto scrolls *this* region internally
+   instead of the page - .screen itself (the shared shell) never scrolls; only Settings' own middle
+   region does, since unlike Simple Tuner's fixed-size illustration/badge layout, this screen's
+   content (profile + 3 cards) can genuinely exceed a short viewport's available height. */
 .content {
-  flex: 1 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
