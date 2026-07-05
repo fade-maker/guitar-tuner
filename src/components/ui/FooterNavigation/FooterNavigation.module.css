@@ -4,7 +4,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 402px;
+  width: 100%;
   box-sizing: border-box;
   padding: 21px var(--space-20, 20px);
   backdrop-filter: blur(2px);
@@ -16,11 +16,30 @@
   display: flex;
   align-items: center;
   width: 288px;
+  max-width: 100%;
   box-sizing: border-box;
   padding: 5px;
-  border: 1px solid var(--color-surface-inverse);
   border-radius: var(--radius-full);
   box-shadow: var(--shadow-footer);
+}
+
+/* Figma's footer border is a top-to-bottom gradient (declared as a "Footer Border" style that
+   Figma's own tooling can't resolve to a flat color - it returns empty), not the solid white a
+   plain border would give. A flat border-color can't be a gradient, so this uses the standard
+   mask-composite ring trick instead. Opacity stops are a close visual match, not exact Figma
+   values - the source gradient's precise stops aren't recoverable via MCP. */
+.pill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.05));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .glass {

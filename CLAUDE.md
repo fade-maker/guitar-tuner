@@ -368,3 +368,48 @@ Why: Figma's screen has no visible Start control, so auto-start on mount is the 
 behavior once `PermissionGate` requests mic access upstream. `PermissionGate` isn't wired into the
 app shell yet, so the screen starts the engine itself for now - that responsibility moves to
 `PermissionGate`, not duplicated, once it exists.
+
+### UI polish pass — Simple Tuner (5 named issues)
+
+Fixed exactly the 5 issues raised after Stage 8, nothing else:
+
+1. **SimplePitchBadge now moves horizontally with `presentation.cents`**, instead of sitting at a
+   fixed position. Figma shows it at 3 different x-positions across its In-tune/Tune-up/Tune-down
+   demo states, confirming it's meant to track deviation, not stay centered. Those 3 samples don't
+   give an exact px-per-cent slope (their cents values aren't recoverable from Figma), so
+   `badgeLeftPercent()` in `SimpleTunerScreen.tsx` is a bounded linear approximation: ±50 cents
+   (reusing the same bound the project's original debug harness used for its needle) mapped to
+   ±8.706% of the screen width (≈35px at the reference 402px, averaged from the 2 off-pitch
+   samples). Approximated, not exact - flagged as such in code.
+2. **SimplePitchBadge's circle was deforming into an oval.** Root cause:
+   `.indicator` sized itself via `width: 100%` + `aspect-ratio: 1`, which only sets a *preferred*
+   size - the "-11"/"+11" cents text is wider than the resulting content-box in some font
+   fallbacks, and a flex item can grow past its aspect-ratio to fit that content. Fixed by giving
+   `.indicator` explicit `width: 44px; height: 44px` instead of a percentage+ratio, plus
+   `overflow: hidden` so oversized text clips instead of reshaping the circle. It's now
+   structurally impossible for it to be anything but a circle, regardless of font/content.
+3. **Mobile-first responsive layout.** `SimpleTunerScreen`'s container was a hardcoded
+   `width: 402px` - narrower than iPhone 13 (390px CSS width) and iPhone 15 Pro (393px), so it
+   overflowed and forced horizontal scroll on exactly the target devices. Fixed: `.screen` is now
+   `width: 100%; max-width: 402px; aspect-ratio: 402 / 874`, and every absolutely-positioned
+   child's `top`/`left` was converted from a fixed px value to a percentage of that same 402×874
+   reference (e.g. `top: 13.844%` = `121 / 874`) - proportions stay identical to Figma at any
+   width, only the absolute pixel scale changes. `AppHeader`/`FooterNavigation`'s own internal
+   `width: 402px` was changed to `width: 100%` for the same reason. The BG pattern was
+   deliberately left as fixed px (see item 5). Verified via Playwright at iPhone 13 (390×844),
+   iPhone 15 Pro (393×852), Pixel 8 (412×915), and a constrained Telegram-viewport-like size
+   (400×700) - `scrollWidth === clientWidth` at all four (no horizontal overflow), screenshots
+   confirm no visual breakage. Note: at the intentionally-short 700px-tall test viewport, the
+   footer requires a normal vertical scroll to reach - that's correct responsive behavior, not a
+   defect (real Telegram viewport heights are typically taller).
+4. **Footer border is now a top-to-bottom gradient**, not flat white. Figma's own tooling can't
+   resolve the "Footer Border" style to a color (`get_variable_defs` returns it empty) - it's a
+   gradient paint that the reference-code generator had flattened to a solid white approximation,
+   which is what got transcribed originally. Re-inspected via a close-up Figma screenshot (visibly
+   bright at the top, fading by the bottom) and rebuilt using the standard `mask-composite: exclude`
+   ring technique on `.pill::after`, since a flat `border-color` can't itself be a gradient. The
+   exact opacity stops (`0.9` → `0.05`) are a close visual match, not recovered Figma values.
+5. **BG pattern intentionally untouched** - deferred to its own UI-polish pass, per instruction.
+
+Not yet done: same as Stage 8 - Advanced Tuner/Settings/Select Tuning remain stubs; `AppProviders`/
+`AppRouter` still not mounted in `main.tsx`.

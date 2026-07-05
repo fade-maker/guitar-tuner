@@ -53,6 +53,21 @@ function splitStringColumns(strings: readonly StringTarget[]): {
   return { left: [...strings.slice(0, half)].reverse(), right: strings.slice(half) };
 }
 
+// SimplePitchBadge's horizontal position tracks how far off-pitch the current reading is, rather
+// than staying fixed - confirmed from Figma, which shows the badge at 3 different x-positions
+// across its In-tune/Tune-up/Tune-down demo states. Those 3 samples don't give an exact px-per-cent
+// slope (their cents values aren't known), so this is a bounded linear approximation: ±50 cents
+// reuses the same "far off" bound the project's original debug harness used for its needle, and
+// the ~35px max travel is the average offset observed across the 2 off-pitch samples.
+const BADGE_BASE_LEFT_PERCENT = 44.527; // 179 / 402, same anchor as .currentNote
+const BADGE_MAX_OFFSET_PERCENT = 8.706; // ~35px / 402px
+const BADGE_CENTS_RANGE = 50;
+
+function badgeLeftPercent(cents: number): number {
+  const clamped = Math.max(-BADGE_CENTS_RANGE, Math.min(BADGE_CENTS_RANGE, cents));
+  return BADGE_BASE_LEFT_PERCENT + (clamped / BADGE_CENTS_RANGE) * BADGE_MAX_OFFSET_PERCENT;
+}
+
 export function SimpleTunerScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
   const { navigateTo } = useNavigation();
@@ -147,7 +162,11 @@ export function SimpleTunerScreen(): ReactElement {
       <div className={styles.illustration}>{instrument === 'bass' ? <BassIllustration /> : <GuitarIllustration />}</div>
 
       {showPitchInfo && (
-        <div className={styles.pitchBadge}>
+        <div
+          className={styles.pitchBadge}
+          style={{ left: `${badgeLeftPercent(presentation.cents ?? 0)}%` }}
+          data-testid="pitch-badge-position"
+        >
           <SimplePitchBadge state={badgeState} cents={Math.abs(Math.round(presentation.cents ?? 0))} />
         </div>
       )}

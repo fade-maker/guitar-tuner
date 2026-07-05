@@ -15,15 +15,21 @@
   position: relative;
 }
 
+/* Explicit width+height, not width:100%+aspect-ratio: the "-11"/"+11" cents text is wider than the
+   circle's content-box at some font fallbacks, and a flex item sized by aspect-ratio alone can grow
+   past it to fit that content, producing an oval instead of a circle. Fixed dimensions + overflow
+   hidden make the circle unable to deform no matter what the text does. */
 .indicator {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  aspect-ratio: 1;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
   border-radius: var(--radius-full);
   padding: var(--space-10);
   box-sizing: border-box;
+  overflow: hidden;
 }
 .indicator.inTune {
   background: var(--color-surface-inverse);

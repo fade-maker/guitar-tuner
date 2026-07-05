@@ -44,6 +44,9 @@ import { SimpleTunerScreen } from './SimpleTunerScreen';
 function emitReading(reading: PitchReading): void {
   readingListeners.forEach((fn) => fn(reading));
 }
+function shiftCents(frequency: number, cents: number): number {
+  return frequency * 2 ** (cents / 1200);
+}
 function emitStatus(status: EngineStatus): void {
   statusListeners.forEach((fn) => fn(status));
 }
@@ -105,6 +108,43 @@ describe('SimpleTunerScreen', () => {
 
     expect(screen.getByText('In tune!')).not.toBeNull();
     expect(screen.getByText('E⁴')).not.toBeNull(); // CurrentTargetNote for High E (E4)
+  });
+
+  it('centers the pitch badge when in tune', () => {
+    renderScreen();
+    act(() => emitStatus('listening'));
+    act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: 1000 }));
+
+    expect(screen.getByTestId('pitch-badge-position').style.left).toBe('44.527%');
+  });
+
+  it('shifts the pitch badge right when sharp (tune down)', () => {
+    renderScreen();
+    act(() => emitStatus('listening'));
+    act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, 20), clarity: 0.95, timestamp: 1000 }));
+
+    expect(screen.getByText('Tune down')).not.toBeNull();
+    const left = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
+    expect(left).toBeGreaterThan(44.527);
+  });
+
+  it('shifts the pitch badge left when flat (tune up)', () => {
+    renderScreen();
+    act(() => emitStatus('listening'));
+    act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, -20), clarity: 0.95, timestamp: 1000 }));
+
+    expect(screen.getByText('Tune up')).not.toBeNull();
+    const left = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
+    expect(left).toBeLessThan(44.527);
+  });
+
+  it('clamps the pitch badge offset for extreme cents', () => {
+    renderScreen();
+    act(() => emitStatus('listening'));
+    act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, 500), clarity: 0.95, timestamp: 1000 }));
+
+    const left = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
+    expect(left).toBeCloseTo(44.527 + 8.706, 2);
   });
 
   it('navigates to settings when the footer Settings tab is tapped', () => {

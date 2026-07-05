@@ -1,14 +1,22 @@
 @import '../../theme/tokens.css';
 
+/* Mobile-first: the screen fills whatever viewport it's given (iPhone 13 at 390px CSS width,
+   iPhone 15 Pro at 393px, Pixel 8 at 412px, and Telegram's own Mini App viewport all differ from
+   Figma's 402px reference frame) instead of assuming a fixed desktop-ish width. aspect-ratio keeps
+   every child's percentage-based top/left proportional to Figma's layout at any width; max-width
+   caps growth on anything wider than the reference frame. */
 .screen {
   position: relative;
-  width: 402px;
-  min-height: 874px;
+  width: 100%;
+  max-width: 402px;
+  aspect-ratio: 402 / 874;
   background: var(--color-surface-page);
   overflow: hidden;
   margin: 0 auto;
 }
 
+/* Not converted to percentages yet, on purpose - the mask/decorative-effect pass on this pattern
+   is deferred to a separate UI-polish step. */
 .bgPattern {
   position: absolute;
   left: 50%;
@@ -37,16 +45,16 @@
 .header {
   position: absolute;
   left: 0;
-  top: 121px;
-  width: 402px;
+  top: 13.844%; /* 121 / 874 */
+  width: 100%;
 }
 
 .tuneLineWrap {
   position: absolute;
   left: 50%;
-  top: 158px;
+  top: 18.078%; /* 158 / 874 */
   width: 0;
-  height: 270px;
+  height: 30.892%; /* 270 / 874 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -67,35 +75,34 @@
   display: block;
 }
 
-/* Anchored at the same left edge as .currentNote, on purpose: SimplePitchBadge's own first child
-   (the 44px indicator circle) then lands centered on the screen exactly like CurrentTargetNote and
-   the tune line, with its text label free to extend further right - matching how Figma's own
-   asymmetric calc() position resolves, without reproducing that calc(). */
+/* left is set inline per-render (see SimpleTunerScreen.tsx) - it tracks presentation.cents, not a
+   fixed position. Anchored the same way as .currentNote at rest: SimplePitchBadge's own first
+   child (the 44px indicator circle) centers on the screen's midline like CurrentTargetNote and the
+   tune line, with its text label free to extend further right. */
 .pitchBadge {
   position: absolute;
-  left: 179px;
-  top: 259px;
+  top: 29.634%; /* 259 / 874 */
 }
 
 .currentNote {
   position: absolute;
-  left: 179px;
-  top: 342px;
+  left: 44.527%; /* 179 / 402 */
+  top: 39.130%; /* 342 / 874 */
 }
 
 .illustration {
   position: absolute;
   left: 50%;
-  top: 400px;
+  top: 45.767%; /* 400 / 874 */
   transform: translateX(-50%);
 }
 
 .stringContainer {
   position: absolute;
   left: 0;
-  top: 452px;
-  width: 402px;
-  height: 204px;
+  top: 51.716%; /* 452 / 874 */
+  width: 100%;
+  height: 23.341%; /* 204 / 874 */
   padding: 0 var(--space-16);
   box-sizing: border-box;
   display: flex;
@@ -121,6 +128,6 @@
 .footer {
   position: absolute;
   left: 0;
-  top: 768px;
-  width: 402px;
+  top: 87.872%; /* 768 / 874 */
+  width: 100%;
 }
