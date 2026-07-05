@@ -5,6 +5,7 @@ import { DEFAULT_A4_FREQUENCY, getAllTunings, midiToNoteName } from '../../music
 import type { TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
+import { ViewportScreen } from '../layout';
 import {
   AdvancedStatusBadge,
   AppHeader,
@@ -58,68 +59,69 @@ export function AdvancedTunerScreen(): ReactElement {
       : 'Tune up';
 
   return (
-    <div className={styles.screen}>
-      <div
-        className={styles.bgPattern}
-        style={{ maskImage: `url(${bgPatternMask})`, WebkitMaskImage: `url(${bgPatternMask})` }}
-      >
-        <img src={bgPatternLines} alt="" className={styles.bgPatternImg} />
-      </div>
-
+    <ViewportScreen
+      className={styles.screen}
+      footer={<FooterNavigation active="Tuner" onSelect={(tab) => tab === 'Settings' && navigateTo('settings')} />}
+    >
       <div className={styles.header}>
         {/* Figma's title text reads "Advansed tunind" - a typo, not reproduced here. */}
         <AppHeader variant="Advanced" title="Advanced tuning" frequencyLabel={`${preferences.a4Frequency}Hz`} />
       </div>
 
-      <button
-        type="button"
-        className={styles.accidentalLeft}
-        onClick={() => setPreference('accidental', 'flat')}
-        aria-label="Use flat notation"
-      >
-        <Icon name="flat" size={24} />
-      </button>
-      <button
-        type="button"
-        className={styles.accidentalRight}
-        onClick={() => setPreference('accidental', 'sharp')}
-        aria-label="Use sharp notation"
-      >
-        <Icon name="sharp" size={24} />
-      </button>
+      <div className={styles.main}>
+        <div
+          className={styles.bgPattern}
+          style={{ maskImage: `url(${bgPatternMask})`, WebkitMaskImage: `url(${bgPatternMask})` }}
+        >
+          <img src={bgPatternLines} alt="" className={styles.bgPatternImg} />
+        </div>
 
-      <div className={styles.noteArea}>
-        <InTuneZone state={hasTarget ? 'Tuning started' : 'Default'} />
-        {hasTarget && currentNote && (
-          <div className={styles.noteCircleLayer}>
-            <NoteCircle note={currentNote.note} state={presentation.inTune ? 'In tune' : 'Searching'} />
+        <button
+          type="button"
+          className={styles.accidentalLeft}
+          onClick={() => setPreference('accidental', 'flat')}
+          aria-label="Use flat notation"
+        >
+          <Icon name="flat" size={24} />
+        </button>
+        <button
+          type="button"
+          className={styles.accidentalRight}
+          onClick={() => setPreference('accidental', 'sharp')}
+          aria-label="Use sharp notation"
+        >
+          <Icon name="sharp" size={24} />
+        </button>
+
+        <div className={styles.noteArea}>
+          <InTuneZone state={hasTarget ? 'Tuning started' : 'Default'} />
+          {hasTarget && currentNote && (
+            <div className={styles.noteCircleLayer}>
+              <NoteCircle note={currentNote.note} state={presentation.inTune ? 'In tune' : 'Searching'} />
+            </div>
+          )}
+        </div>
+
+        {hasTarget && (
+          <div className={styles.statusBadge}>
+            <AdvancedStatusBadge state={badgeState} />
           </div>
         )}
-      </div>
 
-      {hasTarget && (
-        <div className={styles.statusBadge}>
-          <AdvancedStatusBadge state={badgeState} />
-        </div>
-      )}
-
-      <div className={styles.calibrateBlock}>
-        <div className={styles.stepperRow}>
-          <StepperButton type="-" size="large" onClick={() => handleA4Change(-1)} />
-          <div className={styles.freqText}>
-            <span className={styles.freqValue}>{preferences.a4Frequency}</span>
-            <span className={styles.freqUnit}>Hz</span>
+        <div className={styles.calibrateBlock}>
+          <div className={styles.stepperRow}>
+            <StepperButton type="-" size="large" onClick={() => handleA4Change(-1)} />
+            <div className={styles.freqText}>
+              <span className={styles.freqValue}>{preferences.a4Frequency}</span>
+              <span className={styles.freqUnit}>Hz</span>
+            </div>
+            <StepperButton type="+" size="large" onClick={() => handleA4Change(1)} />
           </div>
-          <StepperButton type="+" size="large" onClick={() => handleA4Change(1)} />
+          <Button variant="secondary" size="large" onClick={handleReset}>
+            Reset
+          </Button>
         </div>
-        <Button variant="secondary" size="large" onClick={handleReset}>
-          Reset
-        </Button>
       </div>
-
-      <div className={styles.footer}>
-        <FooterNavigation active="Tuner" onSelect={(tab) => tab === 'Settings' && navigateTo('settings')} />
-      </div>
-    </div>
+    </ViewportScreen>
   );
 }

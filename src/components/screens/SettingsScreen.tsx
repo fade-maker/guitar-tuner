@@ -25,7 +25,17 @@ export function SettingsScreen(): ReactElement {
   }
 
   return (
-    <ViewportScreen className={styles.screen}>
+    <ViewportScreen
+      className={styles.screen}
+      footer={
+        <FooterNavigation
+          active="Settings"
+          onSelect={(tab) =>
+            tab === 'Tuner' && navigateTo(preferences.tunerMode === 'advanced' ? 'advanced-tuner' : 'simple-tuner')
+          }
+        />
+      }
+    >
       <div className={styles.content}>
         <div className={styles.profile}>
           <img src={settingsAvatar} alt="" className={styles.avatar} />
@@ -115,15 +125,6 @@ export function SettingsScreen(): ReactElement {
 
           <span className={styles.version}>TunerApp v.1.0.0</span>
         </div>
-      </div>
-
-      <div className={styles.footer}>
-        <FooterNavigation
-          active="Settings"
-          onSelect={(tab) =>
-            tab === 'Tuner' && navigateTo(preferences.tunerMode === 'advanced' ? 'advanced-tuner' : 'simple-tuner')
-          }
-        />
       </div>
     </ViewportScreen>
   );

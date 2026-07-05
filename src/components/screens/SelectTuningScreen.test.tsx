@@ -70,22 +70,12 @@ describe('SelectTuningScreen', () => {
     expect(screen.getByTestId('current-screen').textContent).toBe('simple-tuner');
   });
 
-  it('navigates to settings when the footer Settings tab is tapped', () => {
-    function ScreenProbe() {
-      const { screen: current } = useNavigation();
-      return <span data-testid="current-screen">{current}</span>;
-    }
-
-    render(
-      <PreferencesProvider>
-        <NavigationProvider initialScreen="select-tuning">
-          <SelectTuningScreen />
-          <ScreenProbe />
-        </NavigationProvider>
-      </PreferencesProvider>,
-    );
-
-    fireEvent.click(screen.getByText('Settings'));
-    expect(screen.getByTestId('current-screen').textContent).toBe('settings');
+  // No Bottom Navigation on this screen at all (removed from Figma) - one of the two documented
+  // exceptions to "every main screen has the footer in the same place" (the other being
+  // Permission's single button).
+  it('renders no footer/Bottom Navigation', () => {
+    renderScreen();
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(screen.queryByText('Settings')).toBeNull();
   });
 });

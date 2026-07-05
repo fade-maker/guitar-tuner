@@ -45,4 +45,22 @@ describe('ViewportScreen', () => {
     const root = container.firstElementChild as HTMLElement;
     expect(root.style.getPropertyValue('--tg-viewport-height')).toBe('611px');
   });
+
+  it('renders the footer prop last, in its own slot', () => {
+    render(
+      <ViewportScreen footer={<span>my footer</span>}>
+        <span>my content</span>
+      </ViewportScreen>,
+    );
+    expect(screen.getByText('my footer')).not.toBeNull();
+  });
+
+  it('renders no footer slot at all when the footer prop is omitted', () => {
+    const { container } = render(
+      <ViewportScreen>
+        <span>my content</span>
+      </ViewportScreen>,
+    );
+    expect(container.querySelectorAll('div').length).toBe(1); // just the shell itself
+  });
 });

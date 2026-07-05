@@ -18,11 +18,17 @@
   overflow: hidden;
 }
 
-/* Figma's "Effects/BottomNavigation/Background Blur + Shadow" style is 3 effects in one: a drop
-   shadow (--shadow-footer), a *uniform* background blur (--backdrop-blur-footer, 6px - applied
-   directly here, not just on the .glass tint layer below), and an inner shadow (.innerShadow).
-   This uniform 6px blur was already defined as a token but never actually wired to backdrop-filter
-   here - a real gap this pass closes, not a new value. */
+/* Figma's "Effects/BottomNavigation/Background Blur + Shadow" named style lists 3 sub-effects
+   (drop shadow, a 6px background blur, inner shadow), which an earlier pass read as "apply all 3
+   directly to this node" - including a backdrop-filter here. Re-checked against Figma's own
+   get_design_context codegen output for this exact node (66:3224, "Frame 5"): it emits only the
+   border + the two box-shadows (--shadow-footer / .innerShadow's --shadow-footer-inner) - no
+   backdrop-blur class anywhere on this element. The 6px blur was never real on this node; adding
+   it stacked a third blur layer (this + .glass's own blur below + .footer's outer 2px) whose
+   combined soft edge visibly bled past this pill's own 288px box - reported as "blur wider than
+   the capsule". Removed; this box now only gets its background from whatever sits behind it
+   through .glass. --backdrop-blur-footer stays defined in theme/tokens.css (the named Figma style
+   still exists), it's just not applied as a backdrop-filter on this element. */
 .pill {
   position: relative;
   display: flex;
@@ -33,7 +39,6 @@
   padding: 5px;
   border-radius: var(--radius-full);
   box-shadow: var(--shadow-footer);
-  backdrop-filter: blur(var(--backdrop-blur-footer));
 }
 
 /* Figma's footer border is a top-to-bottom gradient (declared as a "border/bottomnavigaion" style
@@ -42,15 +47,19 @@
    attempt), not the solid white a plain border would give (codegen's own fallback for this style
    is flat white, which is the *base* color, not the gradient - background/Surface/overlay, #FFFFFF,
    confirmed exact). A flat border-color can't be a gradient, so this uses the standard
-   mask-composite ring trick instead. Opacity stops are a close visual match, not exact Figma
-   values - the source gradient's precise stops still aren't recoverable via MCP. */
+   mask-composite ring trick instead. Stops are a close visual match, not exact Figma values - the
+   source gradient's precise stops still aren't recoverable via MCP. Toned down from an earlier,
+   much higher-contrast guess (0.9 -> 0.05): a side-by-side against Figma's own screenshot of this
+   component (isolated, not over the guitar photo) showed Figma's real border reading as thin and
+   fairly even in brightness top-to-bottom, not blazing bright at the top and nearly invisible by
+   the bottom - this range is visually much closer to that. */
 .pill::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.05));
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -70,11 +79,16 @@
    evenly across the whole footer band, which is what read as "excess uniform blur" - a graduated
    blur that's weaker right where the neck meets the footer (the top edge) reads as a much more
    natural falloff, matching Figma's screenshot. */
+/* Background fill is a top-to-bottom gradient, not the flat rgba(44,44,44,0.6) this used to be -
+   "background/Surface/gradioent" in Figma (also unresolvable to exact stops via MCP, same as the
+   border), confirmed via the same side-by-side to be a real, if subtle, gradient rather than a
+   solid tint. Approximated with the same base tone (#2c2c2c / --color-surface-elevated), lighter
+   at the top and darker at the bottom. */
 .glass {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(44, 44, 44, 0.6);
+  background: linear-gradient(to bottom, rgba(60, 60, 60, 0.6), rgba(30, 30, 30, 0.6));
   backdrop-filter: blur(var(--progressive-blur-footer));
   mask-image: linear-gradient(to bottom, transparent, black);
   -webkit-mask-image: linear-gradient(to bottom, transparent, black);

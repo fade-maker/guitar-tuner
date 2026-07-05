@@ -47,3 +47,11 @@
   overflow: hidden;
   margin: 0 auto;
 }
+
+/* The one shared "where does the footer sit" rule - every screen passing a `footer` prop gets the
+   exact same position (last in the column, natural height, full width), instead of each screen
+   redeclaring an identical `.footer { flex-shrink: 0; width: 100%; }` rule itself. */
+.footerSlot {
+  flex-shrink: 0;
+  width: 100%;
+}

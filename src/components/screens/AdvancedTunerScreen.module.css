@@ -1,24 +1,35 @@
 @import '../../theme/tokens.css';
 
-/* Same mobile-first fixed-aspect-ratio approach as SimpleTunerScreen.module.css. */
+/* Same architecture as SimpleTunerScreen.module.css (see its own history for the root-cause
+   writeup this fixes): sizing/scroll/background come from the shared ViewportScreen shell
+   (`composes: viewportScreen from '../layout/ViewportScreen.module.css'` below); Header is an
+   ordinary flex child; everything else freely positioned lives in `.main`, rebased from the
+   original 874px-canvas percentages to (originalTopPx - 132) / 636, where 132px was Header's
+   Figma top offset and 636px (874 - 132 - 106) was the vertical span Figma implied for this
+   region. Footer is no longer rendered here at all - it's passed as ViewportScreen's `footer`
+   prop from AdvancedTunerScreen.tsx, same slot every other main screen uses. */
 .screen {
-  position: relative;
+  composes: viewportScreen from '../layout/ViewportScreen.module.css';
+}
+
+.header {
+  flex-shrink: 0;
   width: 100%;
-  max-width: 402px;
-  aspect-ratio: 402 / 874;
-  background: var(--color-surface-page);
-  overflow: hidden;
-  margin: 0 auto;
+}
+
+.main {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* Identical values to SimpleTunerScreen's own BG PATTERN node - Figma places this pattern at the
-   same absolute position on both screens. Not converted to percentages yet, on purpose, for the
-   same reason as Simple Tuner's copy of this pattern. */
+   same absolute position on both screens. Rebased to .main's origin (179.79 - 132 = 47.79). */
 .bgPattern {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  top: 179.79px;
+  top: 47.79px;
   width: 434px;
   height: 284.417px;
   opacity: 0.08;
@@ -39,17 +50,10 @@
   display: block;
 }
 
-.header {
-  position: absolute;
-  left: 0;
-  top: 15.103%; /* 132 / 874 */
-  width: 100%;
-}
-
 .noteArea {
   position: absolute;
   left: 50%;
-  top: 27.918%; /* 244 / 874 */
+  top: 17.610%; /* (244 - 132) / 636 */
   transform: translateX(-50%);
   width: 184px;
   height: 184px;
@@ -66,7 +70,7 @@
 .accidentalLeft,
 .accidentalRight {
   position: absolute;
-  top: 37.072%; /* 324 / 874 */
+  top: 30.189%; /* (324 - 132) / 636 */
   width: 24px;
   height: 24px;
   border: none;
@@ -85,14 +89,14 @@
 .statusBadge {
   position: absolute;
   left: 50%;
-  top: 54.005%; /* 472 / 874 */
+  top: 53.459%; /* (472 - 132) / 636 */
   transform: translateX(-50%);
 }
 
 .calibrateBlock {
   position: absolute;
   left: 50%;
-  top: 64.325%; /* 562 / 874 */
+  top: 67.610%; /* (562 - 132) / 636 */
   transform: translateX(-50%);
   width: 221px;
   display: flex;
@@ -130,11 +134,4 @@
   font-size: 20px;
   color: var(--color-text-primary);
   text-align: center;
-}
-
-.footer {
-  position: absolute;
-  left: 0;
-  top: 87.872%; /* 768 / 874 */
-  width: 100%;
 }

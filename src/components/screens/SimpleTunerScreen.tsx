@@ -69,10 +69,16 @@ function badgeLeftPercent(cents: number): number {
   return BADGE_BASE_LEFT_PERCENT + normalized * BADGE_MAX_OFFSET_PERCENT;
 }
 
-// Smoothing time constant for the badge's position/number (see useSmoothedCents) - large enough to
-// average out the pitch pipeline's frame-to-frame noise near In Tune (the "дрожание" this fixes),
-// small enough that a real, sustained pitch change still reads as prompt rather than sluggish.
-const BADGE_SMOOTHING_TAU_MS = 120;
+// 1€ Filter tuning for the badge's position/number (see useSmoothedCents / oneEuroFilter.ts) -
+// engineering/motion-feel choices, not Figma values (Figma has no motion/animation spec anywhere in
+// this project - see the Stage 6 motion-architecture log entry). minCutoffHz is the smoothing
+// strength while the reading is ~still (lower = more stable, less micro-jitter around In Tune);
+// beta controls how quickly the filter opens up (less lag) once the reading is genuinely moving
+// fast, so a real pitch change still reads as prompt rather than sluggish; derivativeCutoffHz is the
+// standard default from the original 1€ Filter paper for smoothing the speed estimate itself.
+const BADGE_SMOOTHING_MIN_CUTOFF_HZ = 1.0;
+const BADGE_SMOOTHING_BETA = 0.01;
+const BADGE_SMOOTHING_DERIVATIVE_CUTOFF_HZ = 1.0;
 
 export function SimpleTunerScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
@@ -85,7 +91,9 @@ export function SimpleTunerScreen(): ReactElement {
   const smoothedCents = useSmoothedCents(
     presentation.cents,
     presentation.target?.id ?? null,
-    BADGE_SMOOTHING_TAU_MS,
+    BADGE_SMOOTHING_MIN_CUTOFF_HZ,
+    BADGE_SMOOTHING_BETA,
+    BADGE_SMOOTHING_DERIVATIVE_CUTOFF_HZ,
   );
 
   // Figma's screen has no visible Start control - the real flow is PermissionGate requesting mic
@@ -152,7 +160,10 @@ export function SimpleTunerScreen(): ReactElement {
     : null;
 
   return (
-    <ViewportScreen className={styles.screen}>
+    <ViewportScreen
+      className={styles.screen}
+      footer={<FooterNavigation active="Tuner" onSelect={(tab) => tab === 'Settings' && navigateTo('settings')} />}
+    >
       <div className={styles.header}>
         <AppHeader
           variant="Default"
@@ -222,10 +233,6 @@ export function SimpleTunerScreen(): ReactElement {
             ))}
           </div>
         </div>
-      </div>
-
-      <div className={styles.footer}>
-        <FooterNavigation active="Tuner" onSelect={(tab) => tab === 'Settings' && navigateTo('settings')} />
       </div>
     </ViewportScreen>
   );

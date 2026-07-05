@@ -25,15 +25,15 @@ describe('SimplePitchBadge', () => {
     expect(screen.getByText('+11')).not.toBeNull();
   });
 
-  it('uses the normal type size for 2-digit magnitudes', () => {
+  it('uses the same single type size for both 2-digit and 3-digit magnitudes', () => {
     render(<SimplePitchBadge state="Tune down" cents={99} />);
-    const text = screen.getByText('+99');
-    expect(text.className).not.toMatch(/centsTextCompact/);
-  });
+    const twoDigit = screen.getByText('+99');
 
-  it('uses a compact type size for 3-digit magnitudes so they fit the fixed-size circle', () => {
+    cleanup();
+
     render(<SimplePitchBadge state="Tune down" cents={120} />);
-    const text = screen.getByText('+120');
-    expect(text.className).toMatch(/centsTextCompact/);
+    const threeDigit = screen.getByText('+120');
+
+    expect(threeDigit.className).toBe(twoDigit.className);
   });
 });

@@ -1,14 +1,12 @@
 @import '../../theme/tokens.css';
 
-/* Same mobile-first fixed-aspect-ratio approach as SimpleTunerScreen.module.css. */
+/* Real-viewport-height sizing (Telegram's own viewport API > 100dvh > 100vh) is shared
+   infrastructure, not duplicated here - see components/layout/ViewportScreen.module.css. This
+   screen has no footer (removed from Figma) and no separate Header flex child - everything below
+   is absolutely positioned relative to the whole screen, same percentages as before, since without
+   a footer there's no sibling competing for space at the bottom. */
 .screen {
-  position: relative;
-  width: 100%;
-  max-width: 402px;
-  aspect-ratio: 402 / 874;
-  background: var(--color-surface-page);
-  overflow: hidden;
-  margin: 0 auto;
+  composes: viewportScreen from '../layout/ViewportScreen.module.css';
 }
 
 /* Identical box (137px top / 325px tall / same mask-size+position) to SimpleTunerScreen's own BG
@@ -133,11 +131,4 @@
   margin: 0 16px;
   border: none;
   border-top: 1px solid rgba(225, 224, 217, 0.08);
-}
-
-.footer {
-  position: absolute;
-  left: 0;
-  top: 87.872%; /* 768 / 874 */
-  width: 100%;
 }

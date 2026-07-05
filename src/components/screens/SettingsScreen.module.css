@@ -177,7 +177,5 @@
   width: 100%;
 }
 
-.footer {
-  flex-shrink: 0;
-  width: 100%;
-}
+/* No .footer rule here - see SimpleTunerScreen.module.css's identical note: FooterNavigation is
+   passed as ViewportScreen's `footer` prop now, which owns this positioning itself. */

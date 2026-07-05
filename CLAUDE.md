@@ -71,6 +71,24 @@ Treat every frame named:
 
 as non-exportable reference material.
 
+Figma is the single source of truth for every UI component.
+
+- Never recreate or approximate a component from memory - always inspect Figma directly.
+- Before modifying any UI component, inspect the master component in Figma, not only the instance
+  placed on a screen.
+- Never "improve" the design unilaterally.
+- If the master component is inconsistent, incomplete, missing states, missing tokens, has
+  conflicting values, or appears incorrectly built in Figma, stop and report it instead of
+  implementing your own version.
+- If MCP cannot extract a value, or Figma does not specify one, do not guess - report exactly what
+  is missing.
+- If a Figma-side change is what's actually needed, explain exactly which component, which
+  property, and why, then wait for that change instead of compensating for it in code.
+- Never compensate for a design issue with CSS tricks, invented spacing, gradients, blur values,
+  animations, or any other visual behavior not defined in Figma.
+- Never claim a component matches Figma until re-checking the current master component after
+  implementing.
+
 ## Architecture log
 
 ### Stage 1 — AppPreferences (`src/preferences/`)
@@ -899,3 +917,171 @@ by this pass) all clean. Screenshotted the live component over the real guitar n
 project's established static-build + Playwright + `file://` technique) at 2x zoom - the neck is now
 sharp right where it meets the pill's top edge and fades smoothly toward the bottom, matching the
 graduated look instead of the previous uniform haze.
+
+### FooterNavigation border/gradient corrected after a real side-by-side comparison
+
+The previous pass's border/fill values were both self-consistent approximations, but a direct
+side-by-side against Figma's own screenshot of the isolated component (not over the guitar photo,
+to remove that as a confound) showed a real, visible mismatch: this project's border gradient
+(`rgba(255,255,255,0.9)` -> `rgba(255,255,255,0.05)`) was far higher-contrast than Figma's actual
+border, which reads as thin and fairly *even* in brightness top-to-bottom, not blazing bright at
+the top and nearly gone by the bottom. Retuned to `rgba(255,255,255,0.24)` -> `rgba(255,255,255,0.08)`
+- still an approximation (the named `border/bottomnavigaion` style is still unresolvable via
+`get_variable_defs`, re-confirmed yet again this pass), but now visually matched by direct
+comparison rather than guessed. Also changed `.glass`'s fill from a flat `rgba(44,44,44,0.6)` to a
+subtle top-to-bottom gradient (`rgba(60,60,60,0.6)` -> `rgba(30,30,30,0.6)`), per the same
+"background gradient, not a solid fill" note - `background/Surface/gradioent` is likewise
+unresolvable to exact stops. Progressive Background Blur was explicitly left untouched/deprioritized
+this pass, per instruction, while this comparison focused specifically on border + fill gradient.
+
+Verified via an isolated throwaway harness (`FooterNavigation` rendered alone on a plain dark
+background, matching Figma's own Components-page presentation context) screenshotted and compared
+directly against Figma's screenshot of the same node - then re-checked in its real context (over
+the guitar neck) to confirm no regression there. `tsc -b`, `vite build`, `npm run lint`, full test
+suite all clean.
+
+### Bottom Navigation unified across all main screens via ViewportScreen's new `footer` prop
+
+Per request: the footer should sit in the exact same position on every main screen, without each
+screen configuring it separately, with two named exceptions (Permission: a single button instead;
+Select Tuning: no footer at all, removed from Figma).
+
+`ViewportScreen` gained an optional `footer` prop - when provided, it's rendered last inside the
+shell's own flex column, wrapped in a new shared `.footerSlot` class (`flex-shrink: 0; width: 100%`)
+that now lives exactly once instead of being redeclared as an identical `.footer` rule in every
+screen's own CSS module. `SimpleTunerScreen` and `SettingsScreen` (already on `ViewportScreen`) were
+updated to pass `footer={<FooterNavigation .../>}` instead of wrapping it in their own `<div
+className={styles.footer}>`; their own now-redundant `.footer` CSS rules were deleted.
+
+`AdvancedTunerScreen` was migrated onto `ViewportScreen` for the first time (previously still on the
+pre-fix `aspect-ratio` pattern, with the same underlying scroll bug as Simple Tuner had) - Header
+is now an ordinary flex child, everything else lives in a new `.main` region, rebased from the
+original 874px-canvas percentages the same way SimpleTunerScreen's history documents:
+`(originalTopPx - 132) / 636`, where 132px was Header's Figma top offset and 636px
+(`874 - 132 - 106`) was the vertical span Figma implied for this region. Its footer is now passed
+via the same `footer` prop, landing in the identical position as every other main screen.
+
+`SelectTuningScreen` was also migrated onto `ViewportScreen`, but with **no** `footer` prop at all
+- its `FooterNavigation` usage and `.footer` CSS rule were removed entirely, per the user's own
+Figma update. Since nothing else on this screen was flex-based to begin with (title/illustration/
+picker block were already all absolutely positioned relative to the whole screen, not split into a
+Header/Main/Footer column), no rebasing was needed elsewhere - removing the footer just means
+there's no longer a sibling reserving space at the bottom, so the existing percentages (still
+expressed as fractions of the real, now-viewport-height-driven `.screen`) continue to work
+unchanged.
+
+`PermissionScreen` was deliberately **not** touched - it remains the pre-existing placeholder stub
+with no Figma reference at all (see its own file comment, unchanged since Stage 5). It already has
+no `FooterNavigation` (trivially satisfying the "button only, no Bottom Navigation" exception), but
+building its real "single button" design would mean inventing UI with no Figma source to transcribe
+- flagged here rather than guessed at.
+
+Verified: full test suite (330 tests / 46 files, up from 328/46 - two tests updated: `ViewportScreen`
+gained footer-slot coverage, `SelectTuningScreen` swapped its "navigates via footer" test for a
+"renders no footer at all" one). Screenshotted Select Tuning (`hasFooter: false`, no scroll) and
+Advanced Tuner (footer's own bottom edge exactly equal to the screen's own bottom edge, matching
+every other main screen pixel-for-pixel, no scroll) via the real app (`index.html` -> `AppRouter`),
+not an isolated debug page. `tsc -b`, `vite build`, `npm run lint` all clean.
+
+### FooterNavigation: removed an unfounded 6px backdrop-filter on `.pill` (Frame 5)
+
+Reported: the footer's background blur looked noticeably wider than the `FooterNavigation` pill
+itself - several dozen px of soft haze bleeding out to each side, well past the capsule's own edge.
+
+Root cause, found by re-running `get_design_context` directly on the pill's own node (`66:3224`,
+named "Frame 5" in Figma) rather than trusting the named-effect-style listing: Figma's own codegen
+for that exact node emits only a border + two box-shadows (drop shadow, inner shadow) - **no**
+`backdrop-blur` class anywhere on it. The previous pass had read Figma's
+`Effects/BottomNavigation/Background Blur + Shadow` style (bundling all 3 sub-effects: drop shadow,
+a 6px background blur, inner shadow) as "apply all 3 directly to this node" and wired the 6px blur
+in as `backdrop-filter` on `.pill` - a real gap in evidence, not a transcription. That 6px blur
+doesn't exist on this node in Figma at all; the pill's only real blur is `.glass`'s own (an inset-0
+child sized to match Frame 5's 288px exactly). Stacking a third, wider-reading blur directly on
+`.pill` - on top of `.glass`'s own blur and `.footer`'s separate, legitimate 402px-wide 2px outer
+blur (confirmed real and unchanged, also straight from this node's own codegen) - is what produced
+the visibly-wider-than-the-capsule haze.
+
+Fix: removed `backdrop-filter: blur(var(--backdrop-blur-footer))` from `.pill` entirely - nothing
+else changed. `--backdrop-blur-footer` stays defined in `theme/tokens.css` (the named Figma style
+is still real, just not applied as a `backdrop-filter` on this element). Progressive Blur (`.glass`)
+was deliberately left untouched, per the user's own explicit scoping in this same request.
+
+Verified via the same isolated-gallery-vs-in-context technique as the prior border/gradient pass:
+built a temporary static bundle (`vite.config.ts` multi-page input, reverted after), screenshotted
+`FooterNavigation` alone (`gallery.html`) and the full assembled screen over the guitar neck
+(`tuner.html`) via Playwright at a `file://` URL. Blur now reads as confined to the pill's own
+rounded-rect boundary in both. Full test suite (330/46) and lint clean; `vite.config.ts` diffed back
+to zero before finishing.
+
+### SimplePitchBadge re-evaluation - travel range, smoothing filter, font size (3 tasks, 1 blocked)
+
+Re-read the Figma master component (`66:3594`, "SimplePitchBadge") directly before touching
+anything, per the new "Figma is the single source of truth" rule - not from memory of earlier
+sessions' notes.
+
+**Task 3 - single text size for all cents values (done).** Re-fetched `get_design_context` on
+`66:3594`: the master's own "Tune down" demo now reads `+110` (3 digits) at the exact same
+`text-[16px]` class as "Tune up"'s 2-digit `-11` - one size, no separate treatment, confirmed by a
+direct screenshot of the master (checkmark/badges render "+110" at the same visual size as "-11").
+Removed the `isCompact`/`centsTextCompact` logic from `SimplePitchBadge.tsx`/`.module.css` entirely
+and corrected `.centsText` from the previous `20px` to Figma's actual `16px` (the old 20px was
+itself never re-verified against real codegen, it was carried over from the original transcription).
+Verified visually: temporarily added a `cents={120}` demo to `ComponentGallery.tsx`, screenshotted
+`gallery.html`, confirmed "+120" renders at the identical size as "-11"/"+11", then reverted the
+gallery change (zero diff after).
+
+**Task 2 - replaced the fixed-time-constant smoothing with a 1€ Filter (done).** The prior
+`useSmoothedCents` used a single fixed `tau` (exponential moving average) - investigated per
+instruction whether the algorithm itself, not just its constant, was the source of visible
+micro-jitter near In Tune: a fixed tau applies identical smoothing whether the raw signal is
+genuinely still or genuinely moving, so any per-frame sensor noise always gets the same nonzero
+pass-through, no matter how the constant is tuned. Replaced it with a hand-implemented 1€ Filter
+(Casiez, Roussel & Vogel 2012 - `src/components/screens/oneEuroFilter.ts`, no new dependency): it
+estimates the signal's own rate of change and adapts its cutoff frequency accordingly - heavy
+smoothing while ~still (kills the jitter), opening up toward near-instant response once a real,
+fast change starts (no added latency for genuine deviations). `useSmoothedCents.ts` now drives this
+filter instead of the old EMA math, keeping its existing identity-snap/null-snap behavior
+unchanged. This is a motion-feel/engineering choice, not a Figma value - Figma has no motion or
+animation spec anywhere in this project (see the Stage 6 motion-architecture log entry), so the
+filter's `minCutoffHz`/`beta`/`derivativeCutoffHz` constants are tuned by reasoning about the
+domain (cents/second), not extracted from Figma. Found and fixed a real `react-hooks/refs`
+violation while implementing (a ref's `.current` was being read/written directly in the render
+body to reset the filter on a snap) - moved that reset into its own effect, keyed on the same
+`shouldSnap`/`cents` that trigger the snap in the render-time state adjustment. New
+`oneEuroFilter.test.ts` covers the filter class directly (single-frame partial convergence,
+multi-frame convergence toward a sustained target, jitter damping, `reset()`); `useSmoothedCents.test.ts`
+was rewritten for the new filter's actual convergence shape - the old "fully converges after several
+time constants" test no longer applies as written to a speed-adaptive filter (a single very-large-dt
+frame doesn't imply full convergence the way it does for a fixed-tau EMA, since the estimated speed
+for that same frame can still read as low) - replaced with a multi-frame sustained-approach test and
+a dedicated alternating-jitter-damping test. 336 tests passing across 47 files (up from 330/46);
+`tsc -b`, `vite build`, `npm run lint` all clean.
+
+**Task 1 - horizontal travel range: blocked, reporting instead of guessing.** Re-inspected the
+master component directly (`get_metadata` on `66:3594` then `get_design_context`/`get_screenshot`
+on it) specifically to verify the "3 different x-positions" claim an earlier session's CLAUDE.md
+entry made about this badge's demo states. That claim does not hold up: all 3 state
+swatches (In tune/Tune up/Tune down) sit at the **same x** inside their parent frame - they differ
+only in overall pill *width*, because each state's label text ("In tune!"/"Tune up"/"Tune down")
+and cents digits are different lengths and the pill hugs its own content. Confirmed by direct
+screenshot: the tail/pin of all 3 states lines up at the same horizontal position. Separately, the
+actual assembled screen (`Main Screen - Default`, node `74:4342`) places exactly **one** static
+`SimplePitchBadge` instance (`108:554`, In-tune state) at a fixed `x`/`y` - no second or third
+instance anywhere demonstrating an off-pitch position. There is no cents-to-X mapping, no travel
+distance, and no saturation curve defined anywhere in Figma - the entire "badge moves horizontally
+with pitch deviation" behavior, including its existing ~35px/8.706% max-travel bound and the
+`tanh`-based softness curve, was originated in an earlier session by misreading these same-x,
+different-width demo swatches as evidence of intentional horizontal motion. Per the new "Figma is
+the single source of truth" rule, this is not something to approximate further by feel - it needs
+one of:
+1. An explicit travel/max-distance value (and ideally an off-pitch demo instance actually
+   positioned off-center) added to the Figma file, so a real mapping can be transcribed; or
+2. Explicit confirmation that this is intentionally an engineering/product-feel decision outside
+   Figma's scope (like the motion constants in Task 2), in which case tell me the desired feel
+   (e.g. "should keep moving noticeably out to +-300 cents, roughly linear/roughly log, cap around
+   N% of screen width") so a real, deliberate curve can be chosen instead of retuning an
+   already-flagged approximation blind.
+No changes were made to `badgeLeftPercent`/`BADGE_MAX_OFFSET_PERCENT`/`BADGE_CENTS_SOFTNESS` in
+`SimpleTunerScreen.tsx` this pass - left exactly as they were pending this decision.
+
+Nothing in this pass was committed or pushed, per instruction - all changes staged only.

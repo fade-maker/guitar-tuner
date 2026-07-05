@@ -5,14 +5,8 @@ import type { TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
 import type { InstrumentId } from '../../preferences';
-import {
-  BassIllustration,
-  CheckIndicator,
-  FooterNavigation,
-  GuitarIllustration,
-  SegmentedControl,
-  StringNoteChip,
-} from '../ui';
+import { ViewportScreen } from '../layout';
+import { BassIllustration, CheckIndicator, GuitarIllustration, SegmentedControl, StringNoteChip } from '../ui';
 import bgPatternLines from './assets/bg-pattern-lines.svg';
 import bgPatternMask from './assets/bg-pattern-mask.svg';
 import styles from './SelectTuningScreen.module.css';
@@ -66,7 +60,10 @@ export function SelectTuningScreen(): ReactElement {
   }
 
   return (
-    <div className={styles.screen}>
+    // No `footer` prop - Select Tuning has no Bottom Navigation (removed from Figma, per the
+    // screens-that-are-exceptions list: Permission shows a single button instead, Select Tuning
+    // shows nothing at all at the bottom).
+    <ViewportScreen className={styles.screen}>
       <div
         className={styles.bgPattern}
         style={{ maskImage: `url(${bgPatternMask})`, WebkitMaskImage: `url(${bgPatternMask})` }}
@@ -105,13 +102,6 @@ export function SelectTuningScreen(): ReactElement {
           ))}
         </div>
       </div>
-
-      <div className={styles.footer}>
-        <FooterNavigation
-          active="Tuner"
-          onSelect={(tab) => tab === 'Settings' && navigateTo('settings')}
-        />
-      </div>
-    </div>
+    </ViewportScreen>
   );
 }

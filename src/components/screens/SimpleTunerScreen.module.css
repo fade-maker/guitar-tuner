@@ -158,7 +158,6 @@
   height: 100%;
 }
 
-.footer {
-  flex-shrink: 0;
-  width: 100%;
-}
+/* No .footer rule here - FooterNavigation is passed as ViewportScreen's `footer` prop, which owns
+   the shared "flex-shrink:0; width:100%" positioning itself (see ViewportScreen.module.css's
+   .footerSlot) so every screen gets the exact same footer position without redeclaring it. */
