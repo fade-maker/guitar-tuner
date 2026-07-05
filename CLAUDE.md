@@ -845,3 +845,57 @@ Verified:
   fit, while the footer stays pinned to the true bottom of the viewport throughout.
 - `tsc -b`, `vite build`, `npm run lint`, full test suite (328 tests / 46 files, up from 324/45 - new
   `ViewportScreen.test.tsx`) all clean.
+
+### FooterNavigation re-synced against an updated Figma BottomNavigation component
+
+The user updated the Figma component itself and added named styles for the top border, the
+background gradient, and the effects (including a "Progressive Background Blur"), then asked for
+another pass against it. Re-fetched `get_variable_defs`/`get_design_context` on the component
+(node 66:3223/66:3224) rather than assuming the old approximations still held.
+
+**Confirmed already exactly correct, no change needed:** the outer `.footer`'s gradient
+(`rgba(18,18,18,0)` -> `#121212` at `78.302%`) and its own `2px` backdrop-blur - codegen's own
+Tailwind output for the whole component matches this project's implementation byte-for-byte.
+
+**Real gap found and closed:** `theme/shadows.ts` already documented Figma's "Background Blur +
+Shadow" effect *including* `backgroundBlur: 6`, and `tokens.css` already had
+`--backdrop-blur-footer: 6px` defined - but `FooterNavigation.module.css`'s `.pill` never actually
+had `backdrop-filter: var(--backdrop-blur-footer)` applied. The token existed and was documented;
+it just was never wired up. Fixed by adding it directly to `.pill`.
+
+**Root cause of the long-standing "footer blur smears the neck more than Figma's screenshot"
+mystery, finally identified:** Figma's component has a *second*, separate named effect,
+"Progressive Blur" (`BACKGROUND_BLUR radius 4`) - "progressive" is Figma's own word for a blur
+whose *strength varies spatially*, not a flat, uniform one. The previous implementation's `.glass`
+layer used a flat `backdrop-filter: blur(3px)` (an ad-hoc guess, not tied to any named Figma value)
+across its whole area, which is precisely why it read as excess, uniform haze over the neck's
+fret/binding detail - it was structurally the wrong kind of blur, not a rendering-engine difference
+(an earlier pass's best guess at the time, now confirmed wrong and corrected, not just re-guessed).
+A single CSS `backdrop-filter: blur()` value is inherently uniform by construction, so reproducing
+"progressive" required an actual different technique, per the user's own anticipation of this:
+`.glass` now uses the exact Progressive Blur radius (`--progressive-blur-footer`, 4px) *masked* with
+`mask-image: linear-gradient(to bottom, transparent, black)`, so it contributes ~0 extra blur at the
+pill's top edge (where the neck meets the footer) and its full 4px at the bottom - stacking with
+`.pill`'s own uniform 6px to produce a true graduated ~6px -> ~10px top-to-bottom blur, instead of
+one flat number applied everywhere.
+
+**Still not resolvable, re-confirmed:** the border (now named `border/bottomnavigaion` in Figma,
+previously unnamed) still resolves empty via `get_variable_defs` - re-checked this pass, consistent
+with every earlier attempt. Codegen's own fallback renders it as flat `border-white`, but that's
+the gradient's *base color* (confirmed exact: `background/Surface/overlay`, `#FFFFFF`), not proof
+the border itself is flat - a named style that resolves empty in every other case here has
+consistently turned out to be a gradient/paint Figma's tooling can't flatten to one color. The
+existing `mask-composite: exclude` gradient-ring technique (white fading top-to-bottom) is kept as
+the best-available structural match; only its exact opacity stops remain an approximation.
+
+Files changed: `src/theme/shadows.ts` (added `progressiveBlur`, refined the drop-shadow/inner-shadow
+alpha values to their exact byte-to-fraction conversions - `0.0784`/`0.251`, not the earlier
+rounded `0.08`/`0.25`), `src/theme/tokens.css` (`--progressive-blur-footer: 4px`, same alpha
+refinement), `src/components/ui/FooterNavigation/FooterNavigation.module.css` (the two fixes above).
+No changes to `FooterNavigation.tsx` - purely a styling fix, the DOM structure was already correct.
+
+Verified: `tsc -b`, `vite build`, `npm run lint`, full test suite (328 tests / 46 files, unchanged
+by this pass) all clean. Screenshotted the live component over the real guitar neck (via the
+project's established static-build + Playwright + `file://` technique) at 2x zoom - the neck is now
+sharp right where it meets the pill's top edge and fades smoothly toward the bottom, matching the
+graduated look instead of the previous uniform haze.
