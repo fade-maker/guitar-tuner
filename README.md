@@ -73,3 +73,9 @@ export default defineConfig([
 ])
 
 ```
+
+## Deployment
+
+Production is hosted on Vercel and connected to this repository's `master` branch via the
+Vercel GitHub Integration: every push to `master` triggers an automatic production deployment
+(no manual `vercel --prod` needed). Production URL: https://guitar-tuner-snowy.vercel.app
