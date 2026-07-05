@@ -1,6 +1,14 @@
-@import '../../theme/tokens.css';
+/* No `@import '../../theme/tokens.css';` here on purpose, even though `var(--color-surface-page)`
+   below needs it: every screen that `composes` this class already imports tokens.css itself
+   (SimpleTunerScreen.module.css / SettingsScreen.module.css both start with it), and :root custom
+   properties apply document-wide once defined anywhere in the final bundled stylesheet - they
+   don't need to be "in scope" per source file. Importing it here too produced two literal,
+   unresolved `@import "../../theme/tokens.css";` statements in the shipped CSS (one per composing
+   screen) instead of being inlined - a real Vite/CSS-Modules `composes`+`@import` interaction bug,
+   confirmed in production: the browser tried to fetch `/theme/tokens.css` from the site root and
+   got a 404. Removing the redundant import here fixes it with no loss of functionality.
 
-/* Shared page shell for every full-screen view in the app - see ViewportScreen.tsx's own comment
+   Shared page shell for every full-screen view in the app - see ViewportScreen.tsx's own comment
    for why this exists as shared infrastructure instead of being duplicated per screen, and
    SimpleTunerScreen.module.css's history for the bug this fixes (a screen sized via aspect-ratio,
    derived from its own width, is disconnected from the real viewport height - almost never matches
