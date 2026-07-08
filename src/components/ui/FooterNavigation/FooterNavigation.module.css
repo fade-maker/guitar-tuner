@@ -85,31 +85,25 @@
   pointer-events: none;
 }
 
-/* "Effects/BottomNavigation/Progressive Blur" (Figma's own name) - a *graduated* blur, not a flat
-   one: a single backdrop-filter: blur() value is uniform across the whole element by construction,
-   so a second, stronger blur can't "be progressive" just by picking a number - it has to actually
-   vary spatially. This layer applies the exact Progressive Blur radius (--progressive-blur-footer,
-   4px) but masks its own visibility with a top-to-bottom gradient, so it contributes ~0 extra blur
-   near the pill's top edge and its full 4px near the bottom - stacking with .pill's own uniform 6px
-   backdrop-filter above to produce a true top-to-bottom gradient of ~6px -> ~10px, instead of one
-   flat number. This is the fix for the neck-blur-too-uniform complaint: the previous flat blur(3px)
-   here (an ad-hoc guess, not tied to any named Figma value) blurred the guitar neck showing through
-   evenly across the whole footer band, which is what read as "excess uniform blur" - a graduated
-   blur that's weaker right where the neck meets the footer (the top edge) reads as a much more
-   natural falloff, matching Figma's screenshot. */
-/* Background fill is a top-to-bottom gradient, not the flat rgba(44,44,44,0.6) this used to be -
-   "background/Surface/gradioent" in Figma (also unresolvable to exact stops via MCP, same as the
-   border), confirmed via the same side-by-side to be a real, if subtle, gradient rather than a
-   solid tint. Approximated with the same base tone (#2c2c2c / --color-surface-elevated), lighter
-   at the top and darker at the bottom. */
+/* Fill only - no blur of its own anymore. This used to carry a second, masked "Progressive Blur"
+   layer (graduated 0px at the top -> 4px at the bottom) from back when `.pill` had no blur of its
+   own at all, which was the only way to make the blur look spatially graduated. Now that `.pill`
+   itself has a real, Figma-dev-mode-sourced `backdrop-filter: blur(3px)` (see `.pill` above), a
+   second blur here only ever stacked on top of that uniform one - not graduated from a sharp edge
+   anymore, just uniformly blurrier everywhere, which read as "solid blur" instead of "progressive"
+   (the exact regression this removal fixes). `.pill`'s own blur is now the one and only blur source
+   for the whole capsule; this layer is fill-only.
+
+   Background fill is a top-to-bottom gradient, not the flat rgba(44,44,44,0.6) this used to be -
+   "background/Surface/gradioent" in Figma (unresolvable to exact stops via MCP), confirmed via a
+   side-by-side to be a real, if subtle, gradient rather than a solid tint. Approximated with the
+   same base tone (#2c2c2c / --color-surface-elevated), lighter at the top and darker at the
+   bottom. */
 .glass {
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background: linear-gradient(to bottom, rgba(60, 60, 60, 0.6), rgba(30, 30, 30, 0.6));
-  backdrop-filter: blur(var(--progressive-blur-footer));
-  mask-image: linear-gradient(to bottom, transparent, black);
-  -webkit-mask-image: linear-gradient(to bottom, transparent, black);
   pointer-events: none;
 }
 

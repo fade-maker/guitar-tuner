@@ -72,11 +72,10 @@
   --type-heading-line-height: 25px;
 
   /* shadows - see src/theme/shadows.ts for where these exact values come from
-     (Figma's "Effects/BottomNavigation/Background Blur + Shadow" and ".../Progressive Blur") */
+     (Figma's "Effects/BottomNavigation/Background Blur + Shadow") */
   --shadow-footer: 0px 0px 40px 0px rgba(22, 22, 23, 0.0784);
   --shadow-footer-inner: inset 0px 0px 12.6px 0px rgba(0, 0, 0, 0.251);
   --backdrop-blur-footer: 6px;
-  --progressive-blur-footer: 4px;
 
   /* Figma: "background/Surface/gradioent" (typo is Figma's own, kept only here for traceability -
      get_variable_defs couldn't resolve this style to a value; confirmed directly from Figma's own
