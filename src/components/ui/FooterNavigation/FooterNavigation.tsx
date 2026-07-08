@@ -43,7 +43,6 @@ export function FooterNavigation({ active, onSelect }: FooterNavigationProps): R
             Settings
           </span>
         </button>
-        <span className={styles.innerShadow} aria-hidden="true" />
       </div>
     </nav>
   );

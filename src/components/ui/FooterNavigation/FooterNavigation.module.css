@@ -1,11 +1,17 @@
 @import '../../../theme/tokens.css';
 
-/* Structure transcribed exactly from Figma (2px backdrop-blur, gradient 0% -> #121212 at
-   78.302%) - verified against the raw guitar-photo.png asset and the mask/position math, both
-   match. An earlier pass hypothesized the extra blur-haze over the neck's fret/binding detail was
-   a Figma-previewer-vs-real-backdrop-filter rendering difference - it wasn't: Figma's own component
-   defines a separate, *graduated* "Progressive Blur" effect (see .glass below), and this
-   implementation was applying a flat, uniform blur instead. That's the real, now-fixed cause. */
+/* Structure transcribed exactly from Figma. The 2px backdrop-filter here is Figma's own
+   "Effects/BottomNavigation/Progressive Blur" on this outer node (confirmed directly from Figma's
+   dev-mode inspector) - a separate, weaker blur than `.glass`'s own 4px Progressive Blur layer
+   nested inside the pill, not a duplicate of it. Background gradient likewise confirmed the same
+   way (--gradient-footer, defined in theme/tokens.css) - matches what was already approximated
+   here almost exactly before (78.3% vs the previous 78.302%), now backed by a real named token
+   instead of an inline guess. Verified against the raw guitar-photo.png asset and the
+   mask/position math, both match. An earlier pass hypothesized the extra blur-haze over the neck's
+   fret/binding detail was a Figma-previewer-vs-real-backdrop-filter rendering difference - it
+   wasn't: Figma's own component defines a separate, *graduated* "Progressive Blur" effect (see
+   .glass below), and this implementation was applying a flat, uniform blur instead. That's the
+   real, now-fixed cause. */
 .footer {
   display: flex;
   align-items: center;
@@ -13,22 +19,26 @@
   width: 100%;
   box-sizing: border-box;
   padding: 21px var(--space-20, 20px);
+  background: var(--gradient-footer, linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, #121212 78.3%));
+  /* Effects/BottomNavigation/Progressive Blur */
   backdrop-filter: blur(2px);
-  background: linear-gradient(to bottom, rgba(18, 18, 18, 0), var(--color-surface-page) 78.302%);
   overflow: hidden;
 }
 
-/* Figma's "Effects/BottomNavigation/Background Blur + Shadow" named style lists 3 sub-effects
-   (drop shadow, a 6px background blur, inner shadow), which an earlier pass read as "apply all 3
-   directly to this node" - including a backdrop-filter here. Re-checked against Figma's own
-   get_design_context codegen output for this exact node (66:3224, "Frame 5"): it emits only the
-   border + the two box-shadows (--shadow-footer / .innerShadow's --shadow-footer-inner) - no
-   backdrop-blur class anywhere on this element. The 6px blur was never real on this node; adding
-   it stacked a third blur layer (this + .glass's own blur below + .footer's outer 2px) whose
-   combined soft edge visibly bled past this pill's own 288px box - reported as "blur wider than
-   the capsule". Removed; this box now only gets its background from whatever sits behind it
-   through .glass. --backdrop-blur-footer stays defined in theme/tokens.css (the named Figma style
-   still exists), it's just not applied as a backdrop-filter on this element. */
+/* Figma's "Effects/BottomNavigation/Background Blur + Shadow" named style bundles 3 sub-effects:
+   drop shadow (--shadow-footer), a background blur, and inner shadow (--shadow-footer-inner) - all
+   three genuinely belong on this one node (confirmed directly from Figma's dev-mode CSS panel for
+   this exact node, which combines drop shadow + inner shadow into a single `box-shadow` here and
+   sets `backdrop-filter: blur(3px)` alongside it under this same effect name).
+
+   An earlier pass added a 6px backdrop-filter here instead, read off this same named style's own
+   *definition* (`get_variable_defs`, which still reports this style's background-blur sub-effect as
+   radius 6) rather than this node's own dev-mode CSS - stacked with .glass's own blur below and
+   .footer's outer 2px, it produced a soft edge visibly wider than the 288px capsule ("blur wider
+   than the capsule") and was removed. This 3px value comes from the node's own dev-mode panel, not
+   the style definition - if it still looks wrong side-by-side with Figma, that 3-vs-6 mismatch
+   between the node's own panel and the named style's bundled definition is the first thing to
+   re-check (not another guess at a third number). */
 .pill {
   position: relative;
   display: flex;
@@ -38,28 +48,36 @@
   box-sizing: border-box;
   padding: 5px;
   border-radius: var(--radius-full);
-  box-shadow: var(--shadow-footer);
+  box-shadow: var(--shadow-footer), var(--shadow-footer-inner);
+  backdrop-filter: blur(3px);
 }
 
-/* Figma's footer border is a top-to-bottom gradient (declared as a "border/bottomnavigaion" style
-   that Figma's own tooling still can't resolve to a flat color even after being given a proper
-   name - get_variable_defs returns it empty; re-confirmed this pass, consistent with every earlier
-   attempt), not the solid white a plain border would give (codegen's own fallback for this style
-   is flat white, which is the *base* color, not the gradient - background/Surface/overlay, #FFFFFF,
-   confirmed exact). A flat border-color can't be a gradient, so this uses the standard
-   mask-composite ring trick instead. Stops are a close visual match, not exact Figma values - the
-   source gradient's precise stops still aren't recoverable via MCP. Toned down from an earlier,
-   much higher-contrast guess (0.9 -> 0.05): a side-by-side against Figma's own screenshot of this
-   component (isolated, not over the guitar photo) showed Figma's real border reading as thin and
-   fairly even in brightness top-to-bottom, not blazing bright at the top and nearly invisible by
-   the bottom - this range is visually much closer to that. */
+/* Figma's footer border is a gradient (declared as a "border/bottomnavigaion" style that Figma's
+   own tooling still can't resolve to a flat color via get_variable_defs/dev-mode CSS - see the
+   AppShell-era discussion for why: it's a Variable, and Variables can't hold gradients, so any CSS
+   export of it is structurally stuck at the variable's own flat fallback). Stops/color below are
+   read directly from the layer's own Fill/Stroke gradient editor in Figma (not dev-mode CSS, which
+   can't see this): base color #373737 at 3 stops - 0% at full opacity, 50% (center) at 0% opacity,
+   100% back at full opacity - i.e. the border reads solid-ish at both ends and fades out through
+   the middle, not a simple two-stop fade top-to-bottom like the previous approximation had it.
+
+   Angle is the one value still not confirmed: "diagonal" was given without a degree number, and
+   guessing a second time (after the top-to-bottom guess this replaces) isn't something to do
+   silently - 135deg below is a placeholder (top-left -> bottom-right), not a transcribed value.
+   Confirm the real angle from the gradient handle/rotation readout in Figma's Fill/Stroke panel and
+   this one number is the only thing left to correct. */
 .pill::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08));
+  background: linear-gradient(
+    135deg,
+    rgba(55, 55, 55, 1) 0%,
+    rgba(55, 55, 55, 0) 50%,
+    rgba(55, 55, 55, 1) 100%
+  );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -92,14 +110,6 @@
   backdrop-filter: blur(var(--progressive-blur-footer));
   mask-image: linear-gradient(to bottom, transparent, black);
   -webkit-mask-image: linear-gradient(to bottom, transparent, black);
-  pointer-events: none;
-}
-
-.innerShadow {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: var(--shadow-footer-inner);
   pointer-events: none;
 }
 

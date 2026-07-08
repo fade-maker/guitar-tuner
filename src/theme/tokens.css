@@ -77,4 +77,10 @@
   --shadow-footer-inner: inset 0px 0px 12.6px 0px rgba(0, 0, 0, 0.251);
   --backdrop-blur-footer: 6px;
   --progressive-blur-footer: 4px;
+
+  /* Figma: "background/Surface/gradioent" (typo is Figma's own, kept only here for traceability -
+     get_variable_defs couldn't resolve this style to a value; confirmed directly from Figma's own
+     dev-mode inspector instead). Renamed to a plain, codebase-consistent token name rather than
+     reusing Figma's raw slashed/typo'd path, same treatment every other token here already gets. */
+  --gradient-footer: linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, #121212 78.3%);
 }
