@@ -11,4 +11,5 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   leftHanded: false,
   haptics: true,
   animations: true,
+  soundEffectsEnabled: true,
 };

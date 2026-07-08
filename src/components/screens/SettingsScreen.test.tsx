@@ -1,13 +1,20 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NavigationProvider, useNavigation } from '../../navigation';
 import { PreferencesProvider, usePreferences } from '../../preferences';
 import { SettingsScreen } from './SettingsScreen';
 
+const { openExternalLink } = vi.hoisted(() => ({ openExternalLink: vi.fn() }));
+vi.mock('../../telegram', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../telegram')>();
+  return { ...actual, openExternalLink };
+});
+
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  openExternalLink.mockClear();
 });
 
 function renderScreen() {
@@ -71,6 +78,31 @@ describe('SettingsScreen', () => {
     expect(screen.getByTestId('left-handed').textContent).toBe('false');
     fireEvent.click(screen.getByRole('switch', { name: 'Left-handed mode' }));
     expect(screen.getByTestId('left-handed').textContent).toBe('true');
+  });
+
+  it('toggles preferences.soundEffectsEnabled via the Sound effect switch', () => {
+    function SoundProbe() {
+      const { preferences } = usePreferences();
+      return <span data-testid="sound-effects">{String(preferences.soundEffectsEnabled)}</span>;
+    }
+    render(
+      <PreferencesProvider>
+        <NavigationProvider initialScreen="settings">
+          <SettingsScreen />
+          <SoundProbe />
+        </NavigationProvider>
+      </PreferencesProvider>,
+    );
+
+    expect(screen.getByTestId('sound-effects').textContent).toBe('true');
+    fireEvent.click(screen.getByRole('switch', { name: 'Sound effect' }));
+    expect(screen.getByTestId('sound-effects').textContent).toBe('false');
+  });
+
+  it('opens the Telegram support URL when the Support row is tapped', () => {
+    renderScreen();
+    fireEvent.click(screen.getByText('Support'));
+    expect(openExternalLink).toHaveBeenCalledWith('https://t.me/vrwrxx');
   });
 
   it('increments and decrements preferences.a4Frequency via the Calibrate stepper', () => {

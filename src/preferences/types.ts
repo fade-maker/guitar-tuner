@@ -18,4 +18,5 @@ export interface AppPreferences {
   readonly leftHanded: boolean;
   readonly haptics: boolean;
   readonly animations: boolean;
+  readonly soundEffectsEnabled: boolean;
 }

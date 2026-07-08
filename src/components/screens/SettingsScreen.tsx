@@ -1,22 +1,18 @@
-import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
+import { openExternalLink } from '../../telegram';
 import { ViewportScreen } from '../layout';
 import { classNames } from '../ui/classNames';
 import { FooterNavigation, Icon, StepperButton, ToggleSwitch } from '../ui';
 import settingsAvatar from './assets/settings-avatar.png';
 import styles from './SettingsScreen.module.css';
 
+const SUPPORT_URL = 'https://t.me/vrwrxx';
+
 export function SettingsScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
   const { navigateTo } = useNavigation();
-
-  // Figma's "Sound effect" row has no backing field in AppPreferences, and no sound-effect
-  // playback exists anywhere in audio-engine - there's nothing to wire this to without inventing a
-  // new preference and a new feature, so it's local, unpersisted UI state. Flagged in the Stage 2
-  // report rather than silently deciding what this toggle should control.
-  const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(true);
 
   function handleCalibrateChange(delta: number): void {
     const next = preferences.a4Frequency + delta;
@@ -69,7 +65,13 @@ export function SettingsScreen(): ReactElement {
                 <Icon name="volume-low" size={24} />
               </span>
               <span className={styles.rowLabel}>Sound effect</span>
-              <ToggleSwitch checked={soundEffectsEnabled} onChange={setSoundEffectsEnabled} aria-label="Sound effect" />
+              {/* Persists to AppPreferences now, but nothing reads it yet - no sound-effect playback
+                  exists anywhere in audio-engine. Wiring an actual sound is a separate feature. */}
+              <ToggleSwitch
+                checked={preferences.soundEffectsEnabled}
+                onChange={(checked) => setPreference('soundEffectsEnabled', checked)}
+                aria-label="Sound effect"
+              />
             </div>
             <hr className={styles.divider} />
             <div className={styles.row}>
@@ -84,6 +86,10 @@ export function SettingsScreen(): ReactElement {
               />
             </div>
             <hr className={styles.divider} />
+            {/* Persists a4Frequency only - does not call a live TunerPresenter.setA4(), since Settings
+                has no running audio engine and there's no shared engine instance across screens to
+                reach into. Deferred: fixing this for real means deciding how/where a single engine
+                instance should live app-wide, which is an architecture question, not a quick fix. */}
             <div className={styles.row}>
               <span className={styles.iconSlot}>
                 <Icon name="musicnote" size={24} />
@@ -105,8 +111,11 @@ export function SettingsScreen(): ReactElement {
           </div>
 
           <div className={styles.card}>
-            {/* No support/FAQ destination (screen or external URL) exists yet - no-op per Figma. */}
-            <button type="button" className={classNames(styles.row, styles.navRow)} onClick={() => {}}>
+            <button
+              type="button"
+              className={classNames(styles.row, styles.navRow)}
+              onClick={() => openExternalLink(SUPPORT_URL)}
+            >
               <span className={styles.iconSlot}>
                 <Icon name="messages-2" size={20} />
               </span>
@@ -114,6 +123,7 @@ export function SettingsScreen(): ReactElement {
               <Icon name="arrow-right" size={16} color="#c2c0b6" />
             </button>
             <hr className={styles.divider} />
+            {/* No FAQ destination decided yet (deliberately, not just unfinished) - stays a no-op. */}
             <button type="button" className={classNames(styles.row, styles.navRow)} onClick={() => {}}>
               <span className={styles.iconSlot}>
                 <Icon name="book" size={20} />
