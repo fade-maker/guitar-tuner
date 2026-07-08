@@ -3,18 +3,11 @@
 /* Structure transcribed exactly from Figma. Background gradient confirmed from Figma's dev-mode
    inspector (--gradient-footer, defined in theme/tokens.css).
 
-   Blur removed entirely (was `backdrop-filter: blur(2px)` here, "Effects/BottomNavigation/
-   Progressive Blur") as a deliberate diagnostic step: after two rounds of re-syncing exact blur
-   values from Figma's dev-mode panel (this file's own git history has the full back-and-forth -
-   6px vs 3px vs 4px vs 2px, on `.footer`/`.pill`/`.glass` in various combinations) produced no
-   visible change on the actual device, the working hypothesis shifted from "wrong blur value" to
-   "blur may not be doing anything visible here at all" - either genuinely unsupported/degraded in
-   this Telegram client's WebView, or masked by something else entirely. Going to zero blur
-   everywhere on this component isolates that: if the capsule now visibly looks different (flatter,
-   sharper edge against the background) than it did with blur values in place, blur was rendering
-   and this is a real regression to compare against; if it looks *identical* to every previous blur
-   attempt, that's strong evidence backdrop-filter itself isn't taking effect in this environment,
-   which is a different problem than tuning more numbers. */
+   No blur on this outer node - confirmed on-device (via the all-blur-removed diagnostic pass) that
+   backdrop-filter does render in this Telegram client, so blur is being restored deliberately, one
+   layer at a time, starting with `.pill` below - not all at once - to see each layer's actual
+   on-device contribution individually instead of guessing at a combined result again. This node's
+   own 2px ("Effects/BottomNavigation/Progressive Blur") is still off pending its own turn. */
 .footer {
   display: flex;
   align-items: center;
@@ -27,8 +20,9 @@
 }
 
 /* box-shadow unchanged (drop + inner shadow, confirmed from Figma's dev-mode panel for this node -
-   see git history for the full sourcing). backdrop-filter removed - see `.footer`'s comment above
-   for why (same diagnostic pass, same node's blur removed for the same reason). */
+   see git history for the full sourcing). backdrop-filter restored - 3px, the value from this
+   node's own dev-mode CSS panel (see `.footer`'s comment above for why blur is being brought back
+   one layer at a time rather than all at once). */
 .pill {
   position: relative;
   display: flex;
@@ -39,6 +33,7 @@
   padding: 5px;
   border-radius: var(--radius-full);
   box-shadow: var(--shadow-footer), var(--shadow-footer-inner);
+  backdrop-filter: blur(3px);
 }
 
 /* Figma's footer border is a gradient (declared as a "border/bottomnavigaion" style that Figma's
