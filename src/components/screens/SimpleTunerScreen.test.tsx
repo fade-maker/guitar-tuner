@@ -144,7 +144,7 @@ describe('SimpleTunerScreen', () => {
     act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, 500), clarity: 0.95, timestamp: 1000 }));
 
     const left = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
-    expect(left).toBeCloseTo(44.527 + 8.706, 2);
+    expect(left).toBeCloseTo(44.527 + 40.547, 2);
   });
 
   it('navigates to settings when the footer Settings tab is tapped', () => {

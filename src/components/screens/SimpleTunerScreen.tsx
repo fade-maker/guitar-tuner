@@ -47,11 +47,17 @@ function splitStringColumns(strings: readonly StringTarget[]): {
 // SimplePitchBadge's horizontal position tracks how far off-pitch the current reading is, rather
 // than staying fixed - confirmed from Figma, which shows the badge at 3 different x-positions
 // across its In-tune/Tune-up/Tune-down demo states. Those 3 samples don't give an exact px-per-cent
-// slope (their cents values aren't known), so this is a bounded linear approximation: ±50 cents
-// reuses the same "far off" bound the project's original debug harness used for its needle, and
-// the ~35px max travel is the average offset observed across the 2 off-pitch samples.
+// slope (their cents values aren't known), so this is a bounded linear approximation over ±50 cents,
+// unchanged - only BADGE_MAX_OFFSET_PERCENT (how far that same ±50-cent range travels) changed.
 const BADGE_BASE_LEFT_PERCENT = 44.527; // 179 / 402, same anchor as .currentNote
-const BADGE_MAX_OFFSET_PERCENT = 8.706; // ~35px / 402px
+// 163 / 402 = the circle's own left edge reaching 16px from the screen's left edge (and,
+// symmetrically, its right edge reaching 16px from the right edge) - the same 16px margin this
+// screen already uses elsewhere (.stringContainer's padding is var(--space-16)), not a new number
+// invented for this badge. This is the physical maximum this badge can travel before running past
+// that established margin; ±50 cents (unchanged) now reaches that maximum instead of stopping at a
+// small fraction of it, per an explicit request to make the same cents range travel further without
+// touching the clamp bound, the linear formula, or anything else about the mechanic.
+const BADGE_MAX_OFFSET_PERCENT = 40.547; // 163 / 402
 const BADGE_CENTS_RANGE = 50;
 
 function badgeLeftPercent(cents: number): number {
