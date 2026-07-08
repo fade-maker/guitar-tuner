@@ -55,3 +55,22 @@
   flex-shrink: 0;
   width: 100%;
 }
+
+/* The box the currently-routed screen (AppRouter's output, rendered as AppShell's single
+   ViewportScreen child) fills. ViewportScreen itself is now mounted exactly once, by AppShell -
+   not per screen - so each screen no longer composes the full `.viewportScreen` recipe (which
+   would double-size/double-background/double-subscribe-to-viewport-height if every screen still
+   pulled it in directly). Each screen's own `.screen` class composes this instead.
+
+   `position: relative` matters even though most screens position everything through their own
+   intermediate `.main`/`.content` child: SelectTuningScreen positions its children as `position:
+   absolute` directly off `.screen`, with no intermediate wrapper. Losing this here would silently
+   re-anchor those children to ViewportScreen's own box instead of the individual screen's box. */
+.routedScreen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}

@@ -37,7 +37,7 @@ vi.mock('../../telegram/haptics', () => ({
 }));
 
 import { getStandardTuning, midiToFrequency } from '../../music-theory';
-import { NavigationProvider, useNavigation } from '../../navigation';
+import { NavigationProvider } from '../../navigation';
 import { PreferencesProvider } from '../../preferences';
 import { AdvancedTunerScreen } from './AdvancedTunerScreen';
 
@@ -109,24 +109,5 @@ describe('AdvancedTunerScreen', () => {
     expect(screen.getByText('441')).not.toBeNull();
     fireEvent.click(screen.getByText('Reset'));
     expect(screen.getByText('440')).not.toBeNull();
-  });
-
-  it('navigates to settings when the footer Settings tab is tapped', () => {
-    function ScreenProbe() {
-      const { screen: current } = useNavigation();
-      return <span data-testid="current-screen">{current}</span>;
-    }
-
-    render(
-      <PreferencesProvider>
-        <NavigationProvider initialScreen="advanced-tuner">
-          <AdvancedTunerScreen />
-          <ScreenProbe />
-        </NavigationProvider>
-      </PreferencesProvider>,
-    );
-
-    fireEvent.click(screen.getByText('Settings'));
-    expect(screen.getByTestId('current-screen').textContent).toBe('settings');
   });
 });

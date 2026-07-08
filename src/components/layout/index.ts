@@ -2,3 +2,4 @@
 // footer nav chrome) land here.
 export type { ViewportScreenProps } from './ViewportScreen';
 export { ViewportScreen } from './ViewportScreen';
+export { AppShell } from './AppShell';

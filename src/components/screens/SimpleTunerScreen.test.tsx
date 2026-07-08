@@ -147,26 +147,6 @@ describe('SimpleTunerScreen', () => {
     expect(left).toBeCloseTo(44.527 + 40.547, 2);
   });
 
-  it('navigates to settings when the footer Settings tab is tapped', () => {
-    function ScreenProbe() {
-      const { screen: current } = useNavigation();
-      return <span data-testid="current-screen">{current}</span>;
-    }
-
-    render(
-      <PreferencesProvider>
-        <NavigationProvider initialScreen="simple-tuner">
-          <SimpleTunerScreen />
-          <ScreenProbe />
-        </NavigationProvider>
-      </PreferencesProvider>,
-    );
-
-    fireEvent.click(screen.getByText('Settings'));
-
-    expect(screen.getByTestId('current-screen').textContent).toBe('settings');
-  });
-
   it('navigates to select-tuning when the header title is tapped', () => {
     function ScreenProbe() {
       const { screen: current } = useNavigation();

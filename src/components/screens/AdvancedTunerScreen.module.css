@@ -1,15 +1,17 @@
 @import '../../theme/tokens.css';
 
 /* Same architecture as SimpleTunerScreen.module.css (see its own history for the root-cause
-   writeup this fixes): sizing/scroll/background come from the shared ViewportScreen shell
-   (`composes: viewportScreen from '../layout/ViewportScreen.module.css'` below); Header is an
-   ordinary flex child; everything else freely positioned lives in `.main`, rebased from the
-   original 874px-canvas percentages to (originalTopPx - 132) / 636, where 132px was Header's
-   Figma top offset and 636px (874 - 132 - 106) was the vertical span Figma implied for this
-   region. Footer is no longer rendered here at all - it's passed as ViewportScreen's `footer`
-   prop from AdvancedTunerScreen.tsx, same slot every other main screen uses. */
+   writeup this fixes): Header is an ordinary flex child; everything else freely positioned lives
+   in `.main`, rebased from the original 874px-canvas percentages to (originalTopPx - 132) / 636,
+   where 132px was Header's Figma top offset and 636px (874 - 132 - 106) was the vertical span
+   Figma implied for this region.
+
+   Real-viewport-height sizing and the Bottom Navigation slot both live exactly once now, in
+   components/layout/AppShell.tsx's single ViewportScreen instance - this `.screen` class is just
+   the box AppShell hands this screen to fill (see `.routedScreen` in
+   components/layout/ViewportScreen.module.css). */
 .screen {
-  composes: viewportScreen from '../layout/ViewportScreen.module.css';
+  composes: routedScreen from '../layout/ViewportScreen.module.css';
 }
 
 .header {

@@ -1318,3 +1318,98 @@ this completely - only real calibration data (does this actually happen for long
 `OCTAVE_CONFIRM_FRAMES` values in practice) narrows how often it matters.
 
 Nothing committed, pushed, or deployed - awaiting local verification.
+
+### Bottom Navigation architecture - single AppShell-owned instance, no longer created per screen
+
+Full architecture audit (via Figma MCP on the `BottomNavigation` component set, `66:3222`/`66:3223`/
+`66:3232`, and every screen instance using it) plus a codebase audit, then implementation, spanning
+three passes: (1) Figma-only analysis, no code, (2) a second architecture review of the proposed
+React design before writing anything, (3) the implementation itself.
+
+**What Figma confirmed, engineering-only (not visual):** `BottomNavigation` is one component set with
+a single `property1: "Tuner" | "Settings"` variant axis (not two components, not independently
+togglable per-tab state) - `FooterNavigation.tsx`'s existing `active` prop already matched this
+correctly. Every screen instance (Simple/Advanced Tuner, Settings) sits at an identical
+`x:0, y:768, width:402, height:106` - flush to the canvas's own bottom edge, no Figma-side safe-area
+inset anywhere (the only bottom-safe-area-shaped node, Home Indicator, lives inside the
+non-exportable `system(ios) - don't copy` layer). Select Tuning has no footer instance on either of
+its two frames - a deliberate Figma removal, not an oversight. `get_metadata`/`get_design_context`
+don't expose Figma's own `constraints` field (only x/y/width/height + generated CSS), so the
+literal Figma-side pin behavior (vs. `bottom-pinned` inferred from the numbers) is unconfirmed and
+was flagged as such, not guessed past.
+
+**Why this changed:** every screen that wanted Bottom Navigation (`SimpleTunerScreen`,
+`AdvancedTunerScreen`, `SettingsScreen`) previously created its own `<FooterNavigation>` and passed
+it into its own `<ViewportScreen footer={...}>` - three duplicated `onSelect` handlers, only one of
+which (`SettingsScreen`'s) correctly accounted for `preferences.tunerMode` when routing the Tuner tab
+back. Because `AppRouter` is a plain `switch` that fully unmounts the outgoing screen's subtree,
+Footer was destroyed and recreated from scratch on every navigation - the reported flicker - and each
+screen's own `ViewportScreen` mount meant `useTelegramViewportHeight()` re-subscribed to Telegram's
+`viewportChanged` event on every navigation too, an inefficiency nobody had asked about directly but
+that the same audit surfaced.
+
+**Architecture chosen, and why not simpler alternatives:** considered (and rejected) two other
+shapes before landing here - passing `footer` down from a new outer component while every screen
+kept its own `<ViewportScreen>` (doesn't work: produces `ViewportScreen` nested inside
+`ViewportScreen`, double height/background/overflow, double Telegram-viewport subscriptions); and a
+`position: fixed` footer left entirely outside any `ViewportScreen`, screens unchanged otherwise
+(simpler diff, but inherits mobile Safari/WebView's known `position:fixed`-during-viewport-resize
+jitter - directly the scenario `useTelegramViewportHeight` exists to handle correctly - and leaves
+the N-times-duplicated Telegram-viewport-subscription cost in place). Landed on: `ViewportScreen` is
+now mounted **exactly once**, by a new `components/layout/AppShell.tsx`, wrapping `<AppRouter />` as
+its `children` and a single `<FooterNavigation>` as its `footer` prop (unchanged prop, unchanged
+`.footerSlot` mechanism - only its one mount point moved). Individual screens no longer size
+themselves against the real viewport or know `FooterNavigation` exists at all.
+
+**What this required changing in every screen** (`SimpleTunerScreen`, `AdvancedTunerScreen`,
+`SettingsScreen`, `SelectTuningScreen`): each screen's own `.screen` root is no longer a
+`<ViewportScreen>` - it's a plain `<div>` that composes a new `.routedScreen` class (in
+`ViewportScreen.module.css`, alongside the unchanged `.viewportScreen`/`.footerSlot`) instead of the
+full `.viewportScreen` recipe. `.routedScreen` reproduces exactly what `.viewportScreen` used to give
+every screen for free - `position: relative`, `display:flex; flex-direction:column`, `flex:1 1 auto;
+min-height:0`, `width:100%` - as the one flex item AppShell's own `ViewportScreen` hands each routed
+screen to fill, alongside Footer's own `.footerSlot` sibling. `position: relative` specifically
+matters for `SelectTuningScreen`, whose children position as `absolute` directly off `.screen` with
+no intermediate `.main` wrapper - losing it silently would have re-anchored them to AppShell's own
+box instead. `SimpleTunerScreen`/`AdvancedTunerScreen`/`SettingsScreen` also each lost their
+now-unused `useNavigation()` call (it existed solely to feed the screen's own `onSelect` handler,
+which no longer exists) - `SimpleTunerScreen` keeps it (still needed for `onTitlePress` ->
+`select-tuning`); `SelectTuningScreen` keeps it too (`handleSelectTuning`'s own navigation is
+unrelated to the footer and was never footer-driven). `ViewportScreen`'s own `className` prop was
+removed as dead API surface once AppShell became its only caller (no per-instance styling is needed
+across a component now mounted exactly once).
+
+**`SCREENS_WITHOUT_FOOTER`** (`AppShell.tsx`, a plain `ReadonlySet<ScreenId>` - `select-tuning`,
+`permission`) is a static, declarative exclusion list, not a registration API a screen calls to hide
+itself - screens cannot create or suppress Footer, only end up listed. Deliberately not built as a
+dynamic `useFooterVisibility().hide()`-style hook: today's `ScreenId` is a flat, closed 5-value enum
+with no per-instance/sub-state fullscreen concept, so a static table is the correctly-sized
+abstraction per this project's architecture-freeze stance - flagged the concrete trigger for
+upgrading it (a future fullscreen mode needed *within* an already-mounted screen, without a route
+change) rather than building that capability preemptively.
+
+**Deliberately kept out of AppShell's responsibility:** future modals. Modals should use a portal
+(`document.body` or a dedicated root), which stacks above Footer automatically without AppShell
+needing any modal-awareness at all - considered and rejected making AppShell a general overlay
+manager for exactly this reason.
+
+**Verification: new `AppShell.test.tsx`** (6 tests: Tuner-active on Simple Tuner, Settings-active on
+Settings, no navigation landmark on Select Tuning, footer DOM-node identity survives a Simple Tuner
+-> Settings -> Simple Tuner round trip, tunerMode-aware back-navigation for both `simple`/`advanced`)
+plus removal of the now-structurally-impossible-to-trigger "navigates via footer" tests from the 3
+screens' own test files (a screen rendered standalone no longer has a footer to click) and the
+"renders no footer" test from `SelectTuningScreen.test.tsx` (trivially true unconditionally now, not
+a meaningful assertion). Also verified, via the project's established static-build +
+`--disable-web-security` Playwright + `file://` technique (the plain `crossorigin` module-script
+technique alone started failing under a newer bundled Chromium's stricter `file://` CORS enforcement
+- worked around, not a regression in this app's own output) at a real 390x844 viewport: zero page
+scroll at every navigation step, Footer's own bounding box flush to the true viewport bottom edge,
+Footer's DOM node (tagged with a throwaway attribute) provably identical across a full Simple Tuner
+-> Settings -> Simple Tuner round trip (no remount), Simple Tuner's guitar illustration still bleeds
+under Footer's translucent band exactly as before (the specific regression this project's own history
+already flagged as a real, previously-hit failure mode), and Select Tuning renders with no
+`navigation` landmark and fills the full viewport height with zero scroll. Zero console
+errors/warnings across the entire click-through. 341 tests / 48 files, `tsc -b`, `vite build`,
+`npm run lint` all clean.
+
+Nothing committed or pushed yet, per instruction.

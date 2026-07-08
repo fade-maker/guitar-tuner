@@ -1,14 +1,15 @@
 @import '../../theme/tokens.css';
 
-/* Real-viewport-height sizing (Telegram's own viewport API > 100dvh > 100vh) is shared
-   infrastructure, not duplicated here - see components/layout/ViewportScreen.module.css for that
-   cascade and SettingsScreen.tsx for the <ViewportScreen> wrapper this class attaches to. Was
-   previously sized via `aspect-ratio` (derived from width, disconnected from the real viewport
-   height - the same bug SimpleTunerScreen.module.css's own history documents: the page could
-   scroll and the footer didn't stay pinned to the bottom edge), which is why this now composes the
-   same shell Simple Tuner uses instead of re-deriving its own. */
+/* Real-viewport-height sizing and the Bottom Navigation slot both live exactly once now, in
+   components/layout/AppShell.tsx's single ViewportScreen instance - this `.screen` class is just
+   the box AppShell hands this screen to fill (see `.routedScreen` in
+   components/layout/ViewportScreen.module.css). Was previously sized via `aspect-ratio` (derived
+   from width, disconnected from the real viewport height - the same bug SimpleTunerScreen.module
+   .css's own history documents: the page could scroll and the footer didn't stay pinned to the
+   bottom edge), which is why this composes the same shared recipe Simple Tuner uses instead of
+   re-deriving its own. */
 .screen {
-  composes: viewportScreen from '../layout/ViewportScreen.module.css';
+  composes: routedScreen from '../layout/ViewportScreen.module.css';
 }
 
 /* flex:1 1 auto (not the previous 1 0 auto) + min-height:0 lets this shrink below its natural
@@ -177,5 +178,5 @@
   width: 100%;
 }
 
-/* No .footer rule here - see SimpleTunerScreen.module.css's identical note: FooterNavigation is
-   passed as ViewportScreen's `footer` prop now, which owns this positioning itself. */
+/* No .footer rule here - this screen no longer renders Bottom Navigation at all. It lives in
+   AppShell now (see components/layout/AppShell.tsx), one level above every routed screen. */

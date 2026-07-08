@@ -69,13 +69,4 @@ describe('SelectTuningScreen', () => {
     expect(screen.getByTestId('selected-instrument').textContent).toBe('guitar');
     expect(screen.getByTestId('current-screen').textContent).toBe('simple-tuner');
   });
-
-  // No Bottom Navigation on this screen at all (removed from Figma) - one of the two documented
-  // exceptions to "every main screen has the footer in the same place" (the other being
-  // Permission's single button).
-  it('renders no footer/Bottom Navigation', () => {
-    renderScreen();
-    expect(screen.queryByRole('navigation')).toBeNull();
-    expect(screen.queryByText('Settings')).toBeNull();
-  });
 });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NavigationProvider, useNavigation } from '../../navigation';
+import { NavigationProvider } from '../../navigation';
 import { PreferencesProvider, usePreferences } from '../../preferences';
 import { SettingsScreen } from './SettingsScreen';
 
@@ -114,24 +114,5 @@ describe('SettingsScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Decrease' }));
     expect(screen.getByText('440Hz')).not.toBeNull();
-  });
-
-  it('navigates back to the tuner when the footer Tuner tab is tapped', () => {
-    function ScreenProbe() {
-      const { screen: current } = useNavigation();
-      return <span data-testid="current-screen">{current}</span>;
-    }
-
-    render(
-      <PreferencesProvider>
-        <NavigationProvider initialScreen="settings">
-          <SettingsScreen />
-          <ScreenProbe />
-        </NavigationProvider>
-      </PreferencesProvider>,
-    );
-
-    fireEvent.click(screen.getByText('Tuner'));
-    expect(screen.getByTestId('current-screen').textContent).toBe('simple-tuner');
   });
 });

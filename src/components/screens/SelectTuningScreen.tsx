@@ -5,7 +5,6 @@ import type { TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
 import type { InstrumentId } from '../../preferences';
-import { ViewportScreen } from '../layout';
 import { BassIllustration, CheckIndicator, GuitarIllustration, SegmentedControl, StringNoteChip } from '../ui';
 import bgPatternLines from './assets/bg-pattern-lines.svg';
 import bgPatternMask from './assets/bg-pattern-mask.svg';
@@ -60,10 +59,9 @@ export function SelectTuningScreen(): ReactElement {
   }
 
   return (
-    // No `footer` prop - Select Tuning has no Bottom Navigation (removed from Figma, per the
-    // screens-that-are-exceptions list: Permission shows a single button instead, Select Tuning
-    // shows nothing at all at the bottom).
-    <ViewportScreen className={styles.screen}>
+    // Select Tuning has no Bottom Navigation (removed from Figma) - it's simply absent from
+    // AppShell.tsx's SCREENS_WITHOUT_FOOTER exceptions, not something this screen decides itself.
+    <div className={styles.screen}>
       <div
         className={styles.bgPattern}
         style={{ maskImage: `url(${bgPatternMask})`, WebkitMaskImage: `url(${bgPatternMask})` }}
@@ -102,6 +100,6 @@ export function SelectTuningScreen(): ReactElement {
           ))}
         </div>
       </div>
-    </ViewportScreen>
+    </div>
   );
 }

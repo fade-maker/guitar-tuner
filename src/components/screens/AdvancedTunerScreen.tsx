@@ -3,19 +3,8 @@ import type { ReactElement } from 'react';
 import { useAudioEngine } from '../../hooks';
 import { DEFAULT_A4_FREQUENCY, getAllTunings, midiToNoteName } from '../../music-theory';
 import type { TuningPreset } from '../../music-theory';
-import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
-import { ViewportScreen } from '../layout';
-import {
-  AdvancedStatusBadge,
-  AppHeader,
-  Button,
-  FooterNavigation,
-  Icon,
-  InTuneZone,
-  NoteCircle,
-  StepperButton,
-} from '../ui';
+import { AdvancedStatusBadge, AppHeader, Button, Icon, InTuneZone, NoteCircle, StepperButton } from '../ui';
 import type { AdvancedStatusBadgeState } from '../ui';
 import bgPatternLines from './assets/bg-pattern-lines.svg';
 import bgPatternMask from './assets/bg-pattern-mask.svg';
@@ -23,7 +12,6 @@ import styles from './AdvancedTunerScreen.module.css';
 
 export function AdvancedTunerScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
-  const { navigateTo } = useNavigation();
   const allTunings = useMemo(() => getAllTunings(), []);
   const activeTuning: TuningPreset = allTunings.find((t) => t.id === preferences.selectedTuning) ?? allTunings[0];
 
@@ -59,10 +47,7 @@ export function AdvancedTunerScreen(): ReactElement {
       : 'Tune up';
 
   return (
-    <ViewportScreen
-      className={styles.screen}
-      footer={<FooterNavigation active="Tuner" onSelect={(tab) => tab === 'Settings' && navigateTo('settings')} />}
-    >
+    <div className={styles.screen}>
       <div className={styles.header}>
         {/* Figma's title text reads "Advansed tunind" - a typo, not reproduced here. */}
         <AppHeader variant="Advanced" title="Advanced tuning" frequencyLabel={`${preferences.a4Frequency}Hz`} />
@@ -122,6 +107,6 @@ export function AdvancedTunerScreen(): ReactElement {
           </Button>
         </div>
       </div>
-    </ViewportScreen>
+    </div>
   );
 }

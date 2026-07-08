@@ -5,18 +5,18 @@
    viewport height - on any real device, viewport height almost never equals width * (874/402), so
    the rendered box was routinely taller or shorter than the visible viewport, letting the page
    scroll and the footer drift away from the bottom edge. The screen is now laid out as a real
-   Header / Main(flex:1) / Footer column, matching how the app is actually meant to occupy the
-   screen instead of imitating Figma's static canvas - Header and Footer are ordinary flex children
-   sized to their own content (no more absolute top% positioning); only the content that must be
-   freely placed within the remaining space (illustration, pitch badge, string rows, decorative
-   background/tune-line) stays absolutely positioned, but now relative to `.main`, not the whole
-   screen.
+   Header / Main(flex:1) column, matching how the app is actually meant to occupy the screen
+   instead of imitating Figma's static canvas - Header is an ordinary flex child sized to its own
+   content (no more absolute top% positioning); only the content that must be freely placed within
+   the remaining space (illustration, pitch badge, string rows, decorative background/tune-line)
+   stays absolutely positioned, but now relative to `.main`, not the whole screen.
 
-   The real-viewport-height sizing itself (Telegram's own viewport API > 100dvh > 100vh) is shared
-   infrastructure, not duplicated here - see components/layout/ViewportScreen.module.css for that
-   cascade and SimpleTunerScreen.tsx for the <ViewportScreen> wrapper this class attaches to. */
+   This screen no longer owns the real-viewport-height sizing or the Bottom Navigation slot itself -
+   both live exactly once, in components/layout/AppShell.tsx's single ViewportScreen instance. This
+   `.screen` class is just the box AppShell hands this screen to fill (see `.routedScreen` in
+   components/layout/ViewportScreen.module.css) - Header/Main split into it exactly as before. */
 .screen {
-  composes: viewportScreen from '../layout/ViewportScreen.module.css';
+  composes: routedScreen from '../layout/ViewportScreen.module.css';
 }
 
 .header {
@@ -154,6 +154,5 @@
   height: 100%;
 }
 
-/* No .footer rule here - FooterNavigation is passed as ViewportScreen's `footer` prop, which owns
-   the shared "flex-shrink:0; width:100%" positioning itself (see ViewportScreen.module.css's
-   .footerSlot) so every screen gets the exact same footer position without redeclaring it. */
+/* No .footer rule here - this screen no longer renders Bottom Navigation at all. It lives in
+   AppShell now (see components/layout/AppShell.tsx), one level above every routed screen. */

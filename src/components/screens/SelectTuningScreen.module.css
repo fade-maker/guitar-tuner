@@ -1,12 +1,16 @@
 @import '../../theme/tokens.css';
 
-/* Real-viewport-height sizing (Telegram's own viewport API > 100dvh > 100vh) is shared
-   infrastructure, not duplicated here - see components/layout/ViewportScreen.module.css. This
-   screen has no footer (removed from Figma) and no separate Header flex child - everything below
-   is absolutely positioned relative to the whole screen, same percentages as before, since without
-   a footer there's no sibling competing for space at the bottom. */
+/* Real-viewport-height sizing and the Bottom Navigation slot both live exactly once now, in
+   components/layout/AppShell.tsx's single ViewportScreen instance - this `.screen` class is just
+   the box AppShell hands this screen to fill (see `.routedScreen` in
+   components/layout/ViewportScreen.module.css, which is also where `position: relative` comes
+   from - load-bearing here since every child below is positioned absolute directly off `.screen`,
+   with no intermediate `.main`). This screen has no footer (removed from Figma) and no separate
+   Header flex child - everything below is absolutely positioned relative to the whole screen, same
+   percentages as before, since without a footer there's no sibling competing for space at the
+   bottom. */
 .screen {
-  composes: viewportScreen from '../layout/ViewportScreen.module.css';
+  composes: routedScreen from '../layout/ViewportScreen.module.css';
 }
 
 /* Identical box (137px top / 325px tall / same mask-size+position) to SimpleTunerScreen's own BG

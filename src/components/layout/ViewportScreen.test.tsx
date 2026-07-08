@@ -18,17 +18,6 @@ describe('ViewportScreen', () => {
     expect(screen.getByText('content')).not.toBeNull();
   });
 
-  it('merges a caller-provided className alongside the shell class', () => {
-    const { container } = render(
-      <ViewportScreen className="my-screen">
-        <span>content</span>
-      </ViewportScreen>,
-    );
-    const root = container.firstElementChild as HTMLElement;
-    expect(root.className).toMatch(/viewportScreen/);
-    expect(root.className).toMatch(/my-screen/);
-  });
-
   it('does not set the Telegram viewport height custom property outside Telegram', () => {
     const { container } = render(<ViewportScreen>content</ViewportScreen>);
     const root = container.firstElementChild as HTMLElement;

@@ -1,10 +1,8 @@
 import type { ReactElement } from 'react';
-import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
 import { openExternalLink } from '../../telegram';
-import { ViewportScreen } from '../layout';
 import { classNames } from '../ui/classNames';
-import { FooterNavigation, Icon, StepperButton, ToggleSwitch } from '../ui';
+import { Icon, StepperButton, ToggleSwitch } from '../ui';
 import settingsAvatar from './assets/settings-avatar.png';
 import styles from './SettingsScreen.module.css';
 
@@ -12,7 +10,6 @@ const SUPPORT_URL = 'https://t.me/vrwrxx';
 
 export function SettingsScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
-  const { navigateTo } = useNavigation();
 
   function handleCalibrateChange(delta: number): void {
     const next = preferences.a4Frequency + delta;
@@ -21,17 +18,7 @@ export function SettingsScreen(): ReactElement {
   }
 
   return (
-    <ViewportScreen
-      className={styles.screen}
-      footer={
-        <FooterNavigation
-          active="Settings"
-          onSelect={(tab) =>
-            tab === 'Tuner' && navigateTo(preferences.tunerMode === 'advanced' ? 'advanced-tuner' : 'simple-tuner')
-          }
-        />
-      }
-    >
+    <div className={styles.screen}>
       <div className={styles.content}>
         <div className={styles.profile}>
           <img src={settingsAvatar} alt="" className={styles.avatar} />
@@ -136,6 +123,6 @@ export function SettingsScreen(): ReactElement {
           <span className={styles.version}>TunerApp v.1.0.0</span>
         </div>
       </div>
-    </ViewportScreen>
+    </div>
   );
 }

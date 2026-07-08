@@ -5,12 +5,10 @@ import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { StringTarget, TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
-import { ViewportScreen } from '../layout';
 import {
   AppHeader,
   BassIllustration,
   CurrentTargetNote,
-  FooterNavigation,
   GuitarIllustration,
   SimplePitchBadge,
   StringControl,
@@ -135,10 +133,7 @@ export function SimpleTunerScreen(): ReactElement {
     : null;
 
   return (
-    <ViewportScreen
-      className={styles.screen}
-      footer={<FooterNavigation active="Tuner" onSelect={(tab) => tab === 'Settings' && navigateTo('settings')} />}
-    >
+    <div className={styles.screen}>
       <div className={styles.header}>
         <AppHeader
           variant="Default"
@@ -209,6 +204,6 @@ export function SimpleTunerScreen(): ReactElement {
           </div>
         </div>
       </div>
-    </ViewportScreen>
+    </div>
   );
 }
