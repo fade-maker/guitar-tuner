@@ -47,6 +47,15 @@ const MAX_OCTAVE_OFFSET = 2;
 // second, unrelated glitch accidentally inherit an unrelated pending counter).
 const PENDING_ALTERNATE_AGREEMENT_CENTS = 15;
 
+// How long a gap since the last accepted candidate is tolerated before referenceFrequency/
+// pendingAlternate are treated as stale and cleared. Independently defined (not imported from
+// stabilizer.ts, per this module's own no-cross-module-state-coupling design), but intentionally the
+// same order of magnitude as stabilizer.ts's DEBOUNCE_TOLERANCE_MS: by the time Stabilizer itself has
+// already forgotten its own track, there's no basis for this module's octave memory to outlive it
+// either. A short gap (a frame or two of low clarity mid-note) deliberately does NOT reset - only a
+// genuinely sustained silence does.
+const GAP_RESET_MS = 30;
+
 interface PendingAlternate {
   readonly frequency: number; // the raw, unfolded frequency first suggesting this alternate octave
   consecutiveFrames: number;
@@ -62,7 +71,18 @@ interface OctaveFold {
 // the unshifted candidate itself at offset 0) against a single reference frequency and returns
 // whichever lands closest.
 function bestOctaveFold(frequency: number, reference: number): OctaveFold {
-  let best: OctaveFold = { offset: 0, frequency, cents: centsBetween(frequency, reference) };
+  const unshifted: OctaveFold = { offset: 0, frequency, cents: centsBetween(frequency, reference) };
+
+  // centsBetween(frequency * 2**n, reference) === centsBetween(frequency, reference) + 1200*n exactly
+  // (an octave shift is a pure log2 shift), so once the unshifted candidate is already within half an
+  // octave (|cents| < 600), no octave-shifted alternative can possibly land closer - skip the loop
+  // entirely rather than re-deriving that same conclusion via 4 wasted centsBetween calls on what is
+  // the dominant, ordinary-tracking case on every accepted frame in this hot audio path.
+  if (Math.abs(unshifted.cents) < 600) {
+    return unshifted;
+  }
+
+  let best = unshifted;
   for (let offset = -MAX_OCTAVE_OFFSET; offset <= MAX_OCTAVE_OFFSET; offset++) {
     if (offset === 0) continue;
     const folded = frequency * 2 ** offset;
@@ -77,19 +97,31 @@ function bestOctaveFold(frequency: number, reference: number): OctaveFold {
 export const createOctaveCorrector: CreateOctaveCorrector = (config) => {
   let referenceFrequency: number | null = null;
   let pendingAlternate: PendingAlternate | undefined;
+  let lastAcceptedAt: number | undefined;
+
+  function acceptAsFresh(frequency: number): void {
+    referenceFrequency = frequency;
+    pendingAlternate = undefined;
+  }
 
   return {
     correct(result) {
       if (!result.accepted) {
+        // See GAP_RESET_MS: only a sustained gap clears the stale reference/pending state, not a
+        // single dropped frame mid-note.
+        if (lastAcceptedAt !== undefined && result.timestamp - lastAcceptedAt > GAP_RESET_MS) {
+          referenceFrequency = null;
+          pendingAlternate = undefined;
+        }
         return result;
       }
 
-      const { frequency } = result.candidate;
+      const { frequency, timestamp } = result.candidate;
+      lastAcceptedAt = timestamp;
 
       if (referenceFrequency === null) {
         // Nothing established yet - nothing to fold against, take this candidate at face value.
-        referenceFrequency = frequency;
-        pendingAlternate = undefined;
+        acceptAsFresh(frequency);
         return result;
       }
 
@@ -99,36 +131,38 @@ export const createOctaveCorrector: CreateOctaveCorrector = (config) => {
         // The raw candidate is already the best explanation relative to what was just being
         // tracked - ordinary continued tracking (holding steady or genuinely drifting in pitch),
         // not an octave question at all.
-        referenceFrequency = frequency;
-        pendingAlternate = undefined;
+        acceptAsFresh(frequency);
         return result;
       }
 
       // An octave-shifted interpretation explains this candidate better than the raw value does.
-      const reinforcesPending =
+      if (
         pendingAlternate !== undefined &&
-        Math.abs(centsBetween(frequency, pendingAlternate.frequency)) < PENDING_ALTERNATE_AGREEMENT_CENTS;
+        Math.abs(centsBetween(frequency, pendingAlternate.frequency)) < PENDING_ALTERNATE_AGREEMENT_CENTS
+      ) {
+        pendingAlternate = { frequency: pendingAlternate.frequency, consecutiveFrames: pendingAlternate.consecutiveFrames + 1 };
+      } else {
+        pendingAlternate = { frequency, consecutiveFrames: 1 };
+      }
 
-      const current: PendingAlternate = reinforcesPending
-        ? { frequency: pendingAlternate!.frequency, consecutiveFrames: pendingAlternate!.consecutiveFrames + 1 }
-        : { frequency, consecutiveFrames: 1 };
-      pendingAlternate = current;
-
-      if (current.consecutiveFrames >= config.octaveConfirmFrames) {
+      if (pendingAlternate.consecutiveFrames >= config.octaveConfirmFrames) {
         // Consistently suggested for long enough - stop treating it as an error and accept it as
         // the new reality.
-        referenceFrequency = frequency;
-        pendingAlternate = undefined;
+        acceptAsFresh(frequency);
         return result;
       }
 
       // Not yet confirmed - keep explaining this candidate as the octave already trusted.
-      return { ...result, candidate: { ...result.candidate, frequency: fold.frequency } };
+      return {
+        accepted: true,
+        candidate: { frequency: fold.frequency, clarity: result.candidate.clarity, timestamp: result.candidate.timestamp },
+      };
     },
 
     reset() {
       referenceFrequency = null;
       pendingAlternate = undefined;
+      lastAcceptedAt = undefined;
     },
   };
 };

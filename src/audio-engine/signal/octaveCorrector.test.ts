@@ -151,6 +151,45 @@ describe('accepting a genuine octave-apart change', () => {
   });
 });
 
+describe('signal-loss gap handling', () => {
+  it('a brief rejected-frame gap does not clear in-progress pending-octave confirmation', () => {
+    const corrector = createOctaveCorrector(TEST_CONFIG);
+    corrector.correct(accepted(BASE_FREQUENCY, 0.95, 0));
+
+    // 2 of the 5 needed confirmations for the octave-up glitch.
+    corrector.correct(accepted(BASE_FREQUENCY * 2, 0.95, 1));
+    corrector.correct(accepted(BASE_FREQUENCY * 2, 0.95, 2));
+
+    // A short gap (well under GAP_RESET_MS) - a brief dip below the clarity/RMS gate mid-note.
+    corrector.correct(rejected(22));
+
+    // Confirmation must continue from where it left off (2 -> 3), not restart - still folding.
+    const stillFolding = corrector.correct(accepted(BASE_FREQUENCY * 2, 0.95, 23));
+    expect(frequencyOf(stillFolding)).toBeCloseTo(BASE_FREQUENCY, 5);
+  });
+
+  it('a sustained gap clears the reference so the next candidate is a fresh bootstrap', () => {
+    const corrector = createOctaveCorrector(TEST_CONFIG);
+    corrector.correct(accepted(BASE_FREQUENCY, 0.95, 0));
+    corrector.correct(accepted(BASE_FREQUENCY * 2, 0.95, 1)); // 1 of 5 confirmations, still folding
+
+    // A real pause (well over GAP_RESET_MS) - the guitarist stopped playing.
+    corrector.correct(rejected(60));
+
+    // Treated as a fresh bootstrap: passed through unfolded, not "1 more confirmation toward 5".
+    const afterGap = corrector.correct(accepted(BASE_FREQUENCY * 2, 0.95, 61));
+    expect(frequencyOf(afterGap)).toBeCloseTo(BASE_FREQUENCY * 2, 5);
+  });
+
+  it('does not clear anything on a rejection before any candidate has ever been accepted', () => {
+    const corrector = createOctaveCorrector(TEST_CONFIG);
+    expect(() => corrector.correct(rejected(1000))).not.toThrow();
+
+    const result = corrector.correct(accepted(BASE_FREQUENCY, 0.95, 1001));
+    expect(frequencyOf(result)).toBe(BASE_FREQUENCY);
+  });
+});
+
 describe('reset', () => {
   it('clears the reference so the next candidate is treated as a fresh bootstrap', () => {
     const corrector = createOctaveCorrector(TEST_CONFIG);
