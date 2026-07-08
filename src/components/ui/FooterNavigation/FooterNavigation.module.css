@@ -1,17 +1,20 @@
 @import '../../../theme/tokens.css';
 
-/* Structure transcribed exactly from Figma. The 2px backdrop-filter here is Figma's own
-   "Effects/BottomNavigation/Progressive Blur" on this outer node (confirmed directly from Figma's
-   dev-mode inspector) - a separate, weaker blur than `.glass`'s own 4px Progressive Blur layer
-   nested inside the pill, not a duplicate of it. Background gradient likewise confirmed the same
-   way (--gradient-footer, defined in theme/tokens.css) - matches what was already approximated
-   here almost exactly before (78.3% vs the previous 78.302%), now backed by a real named token
-   instead of an inline guess. Verified against the raw guitar-photo.png asset and the
-   mask/position math, both match. An earlier pass hypothesized the extra blur-haze over the neck's
-   fret/binding detail was a Figma-previewer-vs-real-backdrop-filter rendering difference - it
-   wasn't: Figma's own component defines a separate, *graduated* "Progressive Blur" effect (see
-   .glass below), and this implementation was applying a flat, uniform blur instead. That's the
-   real, now-fixed cause. */
+/* Structure transcribed exactly from Figma. Background gradient confirmed from Figma's dev-mode
+   inspector (--gradient-footer, defined in theme/tokens.css).
+
+   Blur removed entirely (was `backdrop-filter: blur(2px)` here, "Effects/BottomNavigation/
+   Progressive Blur") as a deliberate diagnostic step: after two rounds of re-syncing exact blur
+   values from Figma's dev-mode panel (this file's own git history has the full back-and-forth -
+   6px vs 3px vs 4px vs 2px, on `.footer`/`.pill`/`.glass` in various combinations) produced no
+   visible change on the actual device, the working hypothesis shifted from "wrong blur value" to
+   "blur may not be doing anything visible here at all" - either genuinely unsupported/degraded in
+   this Telegram client's WebView, or masked by something else entirely. Going to zero blur
+   everywhere on this component isolates that: if the capsule now visibly looks different (flatter,
+   sharper edge against the background) than it did with blur values in place, blur was rendering
+   and this is a real regression to compare against; if it looks *identical* to every previous blur
+   attempt, that's strong evidence backdrop-filter itself isn't taking effect in this environment,
+   which is a different problem than tuning more numbers. */
 .footer {
   display: flex;
   align-items: center;
@@ -20,25 +23,12 @@
   box-sizing: border-box;
   padding: 21px var(--space-20, 20px);
   background: var(--gradient-footer, linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, #121212 78.3%));
-  /* Effects/BottomNavigation/Progressive Blur */
-  backdrop-filter: blur(2px);
   overflow: hidden;
 }
 
-/* Figma's "Effects/BottomNavigation/Background Blur + Shadow" named style bundles 3 sub-effects:
-   drop shadow (--shadow-footer), a background blur, and inner shadow (--shadow-footer-inner) - all
-   three genuinely belong on this one node (confirmed directly from Figma's dev-mode CSS panel for
-   this exact node, which combines drop shadow + inner shadow into a single `box-shadow` here and
-   sets `backdrop-filter: blur(3px)` alongside it under this same effect name).
-
-   An earlier pass added a 6px backdrop-filter here instead, read off this same named style's own
-   *definition* (`get_variable_defs`, which still reports this style's background-blur sub-effect as
-   radius 6) rather than this node's own dev-mode CSS - stacked with .glass's own blur below and
-   .footer's outer 2px, it produced a soft edge visibly wider than the 288px capsule ("blur wider
-   than the capsule") and was removed. This 3px value comes from the node's own dev-mode panel, not
-   the style definition - if it still looks wrong side-by-side with Figma, that 3-vs-6 mismatch
-   between the node's own panel and the named style's bundled definition is the first thing to
-   re-check (not another guess at a third number). */
+/* box-shadow unchanged (drop + inner shadow, confirmed from Figma's dev-mode panel for this node -
+   see git history for the full sourcing). backdrop-filter removed - see `.footer`'s comment above
+   for why (same diagnostic pass, same node's blur removed for the same reason). */
 .pill {
   position: relative;
   display: flex;
@@ -49,7 +39,6 @@
   padding: 5px;
   border-radius: var(--radius-full);
   box-shadow: var(--shadow-footer), var(--shadow-footer-inner);
-  backdrop-filter: blur(3px);
 }
 
 /* Figma's footer border is a gradient (declared as a "border/bottomnavigaion" style that Figma's
@@ -85,14 +74,10 @@
   pointer-events: none;
 }
 
-/* Fill only - no blur of its own anymore. This used to carry a second, masked "Progressive Blur"
-   layer (graduated 0px at the top -> 4px at the bottom) from back when `.pill` had no blur of its
-   own at all, which was the only way to make the blur look spatially graduated. Now that `.pill`
-   itself has a real, Figma-dev-mode-sourced `backdrop-filter: blur(3px)` (see `.pill` above), a
-   second blur here only ever stacked on top of that uniform one - not graduated from a sharp edge
-   anymore, just uniformly blurrier everywhere, which read as "solid blur" instead of "progressive"
-   (the exact regression this removal fixes). `.pill`'s own blur is now the one and only blur source
-   for the whole capsule; this layer is fill-only.
+/* Fill only, no blur - see `.footer`'s comment above for why every blur on this component was
+   removed (diagnostic step: repeated exact-value re-syncs from Figma's dev-mode panel produced no
+   visible on-device change, so isolating whether backdrop-filter renders at all here took priority
+   over tuning more numbers).
 
    Background fill is a top-to-bottom gradient, not the flat rgba(44,44,44,0.6) this used to be -
    "background/Surface/gradioent" in Figma (unresolvable to exact stops via MCP), confirmed via a
