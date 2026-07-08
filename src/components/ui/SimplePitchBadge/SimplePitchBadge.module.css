@@ -39,15 +39,10 @@
   border: 2px solid var(--color-accent-danger);
 }
 
-/* font-size transcribed exactly from Figma's current master component (66:3594) - re-checked this
-   pass: even Figma's own 3-digit demo value ("+110") renders at this same 16px, no separate/smaller
-   size for longer numbers. A previous pass invented a smaller "compact" size for 100+ cents because
-   Figma only had 2-digit demo states at the time; the master has since been updated by the user to
-   remove that ambiguity, so that compensation is removed entirely - one size for every value. */
 .centsText {
   font-family: var(--font-family-display);
   font-weight: 500;
-  font-size: 16px;
+  font-size: 20px;
   color: var(--color-text-primary);
   white-space: nowrap;
 }

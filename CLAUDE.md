@@ -1190,4 +1190,131 @@ octave-up glitch and a subharmonic (octave-down) glitch while sustained on one t
 switch between two targets a full octave apart still working; pinned-mode glitch correction; a
 genuinely different (non-octave) switch being unaffected; and the very-first-reading case (nothing
 to anchor continuity to yet). Full test suite (343 tests / 47 files, up from 337/47), `tsc -b`,
+`vite build`, `npm run lint` all clean.
+
+### Identity-switch hysteresis - the octave-fold margin's real-world gap
+
+Confirmed working in real Telegram testing (flicker gone), but a follow-up report reproduced the
+exact residual limitation flagged above: detuning the Low E string down to (roughly) D2 made the
+tuner jump to showing D3. Root cause: D3 sits exactly 2 semitones above E2, so E2 detuned exactly 2
+semitones flat has its octave-doubled misread land *exactly* on D3 - not a coincidence, a structural
+property of octaves/note-naming. `OCTAVE_CONTINUITY_MARGIN_CENTS` only protects a *tie* (folded and
+naive both near 0 cents); here the naive match is a perfect 0-cents "match" against D3, so no margin
+value can prefer continuity without also breaking legitimate target switches elsewhere.
+
+Added a second, independent line of defense: `onReading()` no longer commits to a differing target
+instantly. A new `pendingTargetSwitch` (target + first-observed timestamp) requires the *same*
+differing target to be suggested consistently for `IDENTITY_SWITCH_CONFIRM_MS` (120ms - several
+times the Stabilizer's own ~40ms confirmation window) before `currentTarget` actually updates; until
+then, the reading is redisplayed against the still-current target (trying every octave
+interpretation via the same `octaveFoldedCents()` helper). A brief, Stabilizer-confirmed-but-still-
+wrong octave episode (a few frames) doesn't clear this second window; a genuine string change
+(sustained for as long as the user keeps playing it) does.
+
+`setTargets()` is deliberately exempt: it now also clears `currentTarget`/`pendingTargetSwitch` (not
+just `pinnedTargetId`/`tunedTargetIds` as before) so the next reading commits immediately via the
+existing `currentTarget === undefined` fresh-start path, preserving its own documented "takes effect
+on the next reading, not retroactively" contract - a preset switch is an explicit configuration
+change, not signal ambiguity, so the confirmation delay doesn't apply to it. `clearIdentity()` also
+now resets `pendingTargetSwitch`, consistent with the other per-identity fields it already clears.
+
+This intentionally changes an existing, previously-tested contract (target switches were instant on
+a single differing reading) - updated the 3 existing tests that assumed that via a new `switchTo()`
+test helper (mirrors `lockIn()`'s own loop-with-safety-valve shape: feeds the new frequency
+repeatedly until the presenter actually commits). Added 5 new tests in a
+`describe('identity switch hysteresis')` block: a single differing reading doesn't switch; a brief
+run that reverts before the window elapses recovers cleanly; a direct model of the exact reported bug
+(Low E detuned 2 semitones flat, a brief octave-doubled glitch landing exactly on the other target,
+does not flicker); the same setup *does* switch when the reading at that target genuinely persists;
+and `setTargets()` remains exempt from the delay. 348 tests / 47 files (up from 343/47), `tsc -b`,
 `vite build`, `npm run lint` all clean. Nothing committed or pushed yet.
+
+### Pitch pipeline redesign - octave correction moved into audio-engine, TunerPresenter reverted to plain
+
+The identity-switch-hysteresis entry directly above is **superseded and reverted in full** -
+`tunerPresenter.ts`/`.test.ts` are back to their pre-octave-anything state (the version before
+commit `a0bc6a7`). This followed a full architecture review (not implemented until agreed): letting
+`TunerPresenter` reach for octave-folding, a continuity margin, *and* its own switch-confirmation
+timer was exactly the "Presenter becomes a second DSP state machine" anti-pattern it should never
+have become - a presentation-layer component receiving an already-correct signal and deciding only
+how to display it should never need any of that.
+
+**Investigated first, per instruction, and abandoned quickly since it didn't pan out:** whether
+tuning `pitchy`'s own internal `clarityThreshold` (the MPM paper's "k", confirmed via source read to
+control exactly this decision - which autocorrelation peak wins when a shorter-lag/higher-frequency
+one is comparably tall to the true fundamental's) would reduce octave errors as a first line of
+defense. Built a synthetic reproduction (decaying fundamental + a second harmonic with realistic
+decay/inharmonicity/noise, swept across guitar/Drop-D/bass low-string frequencies) and varied `k`
+from 0.9 to 0.999: **zero measurable effect on the outcome in any trial**, and the octave error
+itself couldn't even be reliably reproduced synthetically short of unrealistically extreme harmonic
+dominance (5x the fundamental's amplitude). Conclusion: `clarityThreshold` is not a working lever
+within any reasonably-constructed test, so the Octave Corrector below is the primary defense, not a
+secondary one sitting behind detector tuning. Per instruction, this did not become its own
+investigation branch - one script, one clear negative result, move on.
+
+**New pipeline** (`frameProcessor.ts`): Window Accumulator -> RMS Gate -> Pitch Detector -> Candidate
+Validator -> **Octave Corrector** (new) -> Stabilizer -> `PitchReading`. `signal/octaveCorrector.ts`
+sits strictly before the Stabilizer, deliberately: feeding a wrong-octave candidate into Stabilizer's
+median/EMA first would corrupt its temporal state before correctness has even been decided.
+
+Design, per the agreed document:
+- **Target-agnostic on principle, not just by convention.** Compares each candidate only against its
+  own small internal `referenceFrequency` (the last frequency it considers plausible) - never a
+  `StringTarget`, never touches `music-theory`'s tuning-preset types. Re-derived (not just asserted)
+  why this is right, not merely boundary-clean: in a future chromatic mode, *every* frequency has an
+  octave-sibling that's *also* a valid note, always - a target-aware check would have nothing to
+  discriminate on in that mode, so frequency-only correction is the only version of this that keeps
+  meaning something once chromatic mode exists.
+- **Owns a narrow, independent slice of temporal confidence - not Stabilizer's.** Explored making it
+  fully stateless (just fold toward Stabilizer's current EMA every frame, no memory of its own) and
+  traced through why it fails concretely: on a genuine sustained switch between two targets an exact
+  octave apart (Drop D's Low D/D string; standard tuning's Low E/High E), a fully stateless version
+  re-folds the incoming reading *every single frame*, forever - Stabilizer never even sees the real
+  value to start building its own case. That's the exact permanent-lockup bug from the first
+  abandoned `audio-engine` attempt, just re-derived from a different angle. Also considered reading
+  Stabilizer's own `pendingDeviation` state instead of keeping separate memory (avoids two
+  persistence mechanisms existing at all) - rejected: it means reaching into Stabilizer's internals,
+  the exact cross-module coupling neither of us wanted. Landed on: a small, independent counter -
+  `pendingAlternate` (the first-observed alternate frequency + how many *consecutive* candidates have
+  reinforced it) - answering only "which octave," never "how much do I trust the resulting pitch's
+  absolute accuracy over time" (still entirely Stabilizer's job, unchanged). Confirmed via
+  `OCTAVE_CONFIRM_FRAMES` reached: accepts the new octave as reality; not yet reached: keeps folding.
+  Frame-count, not wall-clock ms, specifically because this module lives right next to the pipeline's
+  own fixed hop cadence - the one place in this whole investigation where "confidence via consecutive
+  observations" is the correct framing (it was the wrong framing at the Presenter layer, which is why
+  that attempt was reverted).
+- **`OCTAVE_CONFIRM_FRAMES = 5` is a starting estimate, explicitly flagged as such** - real
+  octave-glitch episode duration hasn't been measured against real playing yet (see the investigation
+  list below). Same treatment as `minRmsAmplitude`'s own history: ship a reasoned starting value,
+  revisit once real calibration data exists.
+- **Pinned-mode target hint deliberately deferred, not built.** Presenter could, in principle, supply
+  the exact expected frequency while a string is pinned (strictly more information than
+  frequency-continuity alone), but this needs new live-config plumbing between `TunerPresenter` and a
+  running `AudioEngine` that doesn't exist in any form today (confirmed: `AudioEngine`'s public
+  interface has no live-updatable config channel at all - `a4`/pin currently live entirely inside
+  `TunerPresenter`). Not built without evidence it's needed for pinned mode specifically, and it's
+  actively unhelpful in a future chromatic mode besides (no single "the pinned target's frequency"
+  concept once not choosing from a small discrete set). Flagged, not implemented.
+
+**`TunerPresenter` is back to exactly its pre-`a0bc6a7` shape**: `resolveMatch()` is the plain
+pinned-target-or-`findNearestTarget()` function it always was. No octave folding, no continuity
+margin, no switch-confirmation timer. It now only ever receives an already octave-safe, already
+temporally-stable frequency - every remaining thing it does (in-tune hysteresis, lock duration/rapid-
+adjustment, haptic cooldown, tuned-target bookkeeping) is a genuine presentation-layer decision, not
+a disguised DSP one.
+
+**Tests**: `octaveCorrector.test.ts` (new, 11 tests) covers bootstrap, ordinary continued
+tracking/drift passing through unchanged, single-frame glitches (both directions) being folded and
+recovering cleanly if they don't persist, the confirm-count boundary itself, a direct model of the
+reported bug (Low-E-detuned-exactly-onto-D3 - brief glitch doesn't stick, sustained switch does), and
+`reset()`. `tunerPresenter.test.ts` is back to its original 27 tests, unchanged from before any of
+this. Full suite: 348 tests / 48 files, `tsc -b`, `vite build`, `npm run lint` all clean.
+
+**Known limitation, unchanged from before and inherent to the problem, not this design specifically**:
+a string tuned significantly (~200+ cents) flat can still, by coincidence, have its octave-doubled
+misread persist long enough (past `OCTAVE_CONFIRM_FRAMES`) to be accepted as genuine if it happens to
+land very close to another real target's frequency. No frequency-only mechanism, in any layer, closes
+this completely - only real calibration data (does this actually happen for long enough at real
+`OCTAVE_CONFIRM_FRAMES` values in practice) narrows how often it matters.
+
+Nothing committed, pushed, or deployed - awaiting local verification.

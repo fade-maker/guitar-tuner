@@ -15,6 +15,7 @@ const config: FrameProcessorConfig = {
   maxFrequency: 5000,
   clarityThreshold: 0.9,
   minRmsAmplitude: 0.0012,
+  octaveConfirmFrames: 5,
 };
 
 function sineWave(frequency: number, length: number, startSample = 0, amplitude = 0.8): Float32Array {

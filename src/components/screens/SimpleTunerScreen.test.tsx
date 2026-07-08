@@ -118,21 +118,14 @@ describe('SimpleTunerScreen', () => {
     expect(screen.getByTestId('pitch-badge-position').style.left).toBe('44.527%');
   });
 
-  // Tune down renders label-then-circle (see SimplePitchBadge.tsx), so the badge is anchored via
-  // `right` instead of `left` - positioning via `left` there would track the label's edge, not the
-  // circle's. `left` is explicitly 'auto' in that case so it can't fight the `right` transition.
-  it('shifts the pitch badge toward the right edge when sharp (tune down)', () => {
+  it('shifts the pitch badge right when sharp (tune down)', () => {
     renderScreen();
     act(() => emitStatus('listening'));
     act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, 20), clarity: 0.95, timestamp: 1000 }));
 
     expect(screen.getByText('Tune down')).not.toBeNull();
-    const style = screen.getByTestId('pitch-badge-position').style;
-    expect(style.left).toBe('auto');
-    // The circle's own right-edge margin shrinks as the reading moves further sharp - confirmed
-    // against the base (in-tune) left-edge margin (44.527%), which is ~symmetric with the base
-    // right-edge margin since the badge sits close to screen center at rest.
-    expect(parseFloat(style.right)).toBeLessThan(44.527);
+    const left = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
+    expect(left).toBeGreaterThan(44.527);
   });
 
   it('shifts the pitch badge left when flat (tune up)', () => {
@@ -145,61 +138,13 @@ describe('SimpleTunerScreen', () => {
     expect(left).toBeLessThan(44.527);
   });
 
-  // -200/+200 cents is where Figma's own demo screens show the circle stopping (16px from the
-  // screen edge on each side) - confirmed as a hard stop, not an asymptote, so any reading at or
-  // beyond that magnitude must land on the exact same position, not just approach it.
-  it('reaches exactly the confirmed 16px-from-edge position at -200 cents and beyond (tune up)', () => {
-    renderScreen();
-    act(() => emitStatus('listening'));
-    act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, -200), clarity: 0.95, timestamp: 1000 }));
-    const leftAt200 = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
-
-    expect(leftAt200).toBeCloseTo(16 / 4.02, 1); // 16px / 402px reference width, as a percent
-
-    cleanup();
-    renderScreen();
-    act(() => emitStatus('listening'));
-    // -220, not something further out like -500: High E (E4) and the next-lowest string (B3) are a
-    // perfect fourth apart (500 cents) - anything past roughly -250 cents stops being closer to E4
-    // than to B3 and auto-detection retargets to B3 instead, which would show a small deviation
-    // from B3, not a large clamped one from E4. -220 stays safely within E4's own nearest-target
-    // range while still being past the -200 cap.
-    act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, -220), clarity: 0.95, timestamp: 1000 }));
-    const leftAt220 = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
-
-    expect(leftAt220).toBeCloseTo(leftAt200, 5);
-  });
-
-  it('reaches exactly the confirmed 16px-from-edge position at +200 cents and beyond (tune down)', () => {
-    renderScreen();
-    act(() => emitStatus('listening'));
-    act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, 200), clarity: 0.95, timestamp: 1000 }));
-    const rightAt200 = parseFloat(screen.getByTestId('pitch-badge-position').style.right);
-
-    expect(rightAt200).toBeCloseTo(16 / 4.02, 1);
-
-    cleanup();
+  it('clamps the pitch badge offset for extreme cents', () => {
     renderScreen();
     act(() => emitStatus('listening'));
     act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, 500), clarity: 0.95, timestamp: 1000 }));
-    const rightAt500 = parseFloat(screen.getByTestId('pitch-badge-position').style.right);
 
-    expect(rightAt500).toBeCloseTo(rightAt200, 5);
-  });
-
-  it('keeps a moderate and a near-cap deviation visually distinguishable, not yet collapsed', () => {
-    const { unmount } = renderScreen();
-    act(() => emitStatus('listening'));
-    act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, -60), clarity: 0.95, timestamp: 1000 }));
-    const leftAt60 = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
-    unmount();
-
-    renderScreen();
-    act(() => emitStatus('listening'));
-    act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, -150), clarity: 0.95, timestamp: 1000 }));
-    const leftAt150 = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
-
-    expect(Math.abs(leftAt150 - leftAt60)).toBeGreaterThan(1);
+    const left = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
+    expect(left).toBeCloseTo(44.527 + 8.706, 2);
   });
 
   it('navigates to settings when the footer Settings tab is tapped', () => {

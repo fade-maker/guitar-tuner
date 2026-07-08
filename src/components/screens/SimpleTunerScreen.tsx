@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CSSProperties, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { useAudioEngine } from '../../hooks';
 import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { StringTarget, TuningPreset } from '../../music-theory';
@@ -21,7 +21,6 @@ import bgPatternMask from './assets/bg-pattern-mask.svg';
 import tuneLineAsset from './assets/tune-line.svg';
 import styles from './SimpleTunerScreen.module.css';
 import { TUNING_INSTRUMENT } from './tuningInstrument';
-import { useSmoothedCents } from './useSmoothedCents';
 
 // Screen-level formatting only: Figma's header splits a tuning into an "instrument + string count"
 // title and a variant subtitle, but TuningPreset.name is one combined descriptive string - this maps
@@ -45,57 +44,20 @@ function splitStringColumns(strings: readonly StringTarget[]): {
   return { left: [...strings.slice(0, half)].reverse(), right: strings.slice(half) };
 }
 
-// SimplePitchBadge's horizontal position tracks how far off-pitch the current reading is.
-// Confirmed directly from Figma's Main Screen page: two demo screens were added there (below the
-// original In-tune one) specifically to show the circle's position at -200 and +200 cents. Both
-// place the circle's own outer edge exactly 16px from the corresponding screen edge (the label
-// extends toward screen center in both directions, and the master component itself reverses
-// circle/label order for Tune down specifically so the circle stays the edge-flush element - see
-// SimplePitchBadge.tsx). -200/+200 is where the badge stops moving entirely ("не будет двигаться"
-// per spec) - a hard stop, not an asymptote, so this is a straight linear clamp, replacing the
-// previous tanh soft-saturation curve (which had no Figma basis and saturated far too early).
-//
-// Derivation (402px reference width, matching every other screen-level percentage here):
-//   base (0 cents, unchanged from the original In-tune anchor): circle left edge = 179px
-//   min (-200 cents): circle left edge = 16px -> offset = 179 - 16 = 163px
-//   max (+200 cents): circle right edge = 402 - 16 = 386px -> circle left edge = 342px
-//                      -> offset = 342 - 179 = 163px (symmetric, confirming a single linear slope)
-const BADGE_BASE_LEFT_PERCENT = 44.527; // 179 / 402
-const BADGE_MAX_OFFSET_PERCENT = 40.547; // 163 / 402
-const BADGE_MAX_CENTS = 200;
-// The circle's own width - needed to convert its desired *left* edge into a *right* edge distance
-// for the Tune down case, where the badge is anchored from the screen's right edge instead (see
-// the `right`/`left` style switch below).
-const BADGE_CIRCLE_WIDTH_PERCENT = 10.945; // 44 / 402
+// SimplePitchBadge's horizontal position tracks how far off-pitch the current reading is, rather
+// than staying fixed - confirmed from Figma, which shows the badge at 3 different x-positions
+// across its In-tune/Tune-up/Tune-down demo states. Those 3 samples don't give an exact px-per-cent
+// slope (their cents values aren't known), so this is a bounded linear approximation: ±50 cents
+// reuses the same "far off" bound the project's original debug harness used for its needle, and
+// the ~35px max travel is the average offset observed across the 2 off-pitch samples.
+const BADGE_BASE_LEFT_PERCENT = 44.527; // 179 / 402, same anchor as .currentNote
+const BADGE_MAX_OFFSET_PERCENT = 8.706; // ~35px / 402px
+const BADGE_CENTS_RANGE = 50;
 
-function badgeCircleLeftPercent(cents: number): number {
-  const clamped = Math.max(-BADGE_MAX_CENTS, Math.min(BADGE_MAX_CENTS, cents));
-  return BADGE_BASE_LEFT_PERCENT + (clamped / BADGE_MAX_CENTS) * BADGE_MAX_OFFSET_PERCENT;
+function badgeLeftPercent(cents: number): number {
+  const clamped = Math.max(-BADGE_CENTS_RANGE, Math.min(BADGE_CENTS_RANGE, cents));
+  return BADGE_BASE_LEFT_PERCENT + (clamped / BADGE_CENTS_RANGE) * BADGE_MAX_OFFSET_PERCENT;
 }
-
-// Tune down renders label-then-circle (see SimplePitchBadge.tsx), so the circle sits flush with
-// the badge container's own *right* edge instead of its left - positioning via `left` there would
-// anchor the label's edge, not the circle's, and the circle would drift as the label's text width
-// changes. Every other state keeps the circle-first order, so `left` continues to anchor the
-// circle directly, unchanged from before.
-function pitchBadgeStyle(state: SimplePitchBadgeState, cents: number): CSSProperties {
-  const circleLeftPercent = badgeCircleLeftPercent(cents);
-  if (state === 'Tune down') {
-    return { left: 'auto', right: `${100 - circleLeftPercent - BADGE_CIRCLE_WIDTH_PERCENT}%` };
-  }
-  return { left: `${circleLeftPercent}%`, right: 'auto' };
-}
-
-// 1€ Filter tuning for the badge's position/number (see useSmoothedCents / oneEuroFilter.ts) -
-// engineering/motion-feel choices, not Figma values (Figma has no motion/animation spec anywhere in
-// this project - see the Stage 6 motion-architecture log entry). minCutoffHz is the smoothing
-// strength while the reading is ~still (lower = more stable, less micro-jitter around In Tune);
-// beta controls how quickly the filter opens up (less lag) once the reading is genuinely moving
-// fast, so a real pitch change still reads as prompt rather than sluggish; derivativeCutoffHz is the
-// standard default from the original 1€ Filter paper for smoothing the speed estimate itself.
-const BADGE_SMOOTHING_MIN_CUTOFF_HZ = 1.0;
-const BADGE_SMOOTHING_BETA = 0.01;
-const BADGE_SMOOTHING_DERIVATIVE_CUTOFF_HZ = 1.0;
 
 export function SimpleTunerScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
@@ -105,13 +67,6 @@ export function SimpleTunerScreen(): ReactElement {
 
   const { presentation, pinTarget, unpinTarget, reset, start, stop } = useAudioEngine(activeTuning);
   const [manualStringId, setManualStringId] = useState<string | null>(null);
-  const smoothedCents = useSmoothedCents(
-    presentation.cents,
-    presentation.target?.id ?? null,
-    BADGE_SMOOTHING_MIN_CUTOFF_HZ,
-    BADGE_SMOOTHING_BETA,
-    BADGE_SMOOTHING_DERIVATIVE_CUTOFF_HZ,
-  );
 
   // Figma's screen has no visible Start control - the real flow is PermissionGate requesting mic
   // access upstream, then this screen just listens. PermissionGate isn't wired into the app shell
@@ -164,9 +119,6 @@ export function SimpleTunerScreen(): ReactElement {
   const columnClassName = activeTuning.strings.length > 4 ? styles.column : `${styles.column} ${styles.columnCentered}`;
 
   const showPitchInfo = presentation.cents !== null && presentation.target !== null;
-  // Tune-direction state is deliberately read from the raw (unsmoothed) presentation values, not
-  // smoothedCents - correctness of "which way to turn" must never lag behind the real signal, only
-  // the badge's continuous position/number are smoothed for visual weight.
   const badgeState: SimplePitchBadgeState = presentation.inTune
     ? 'In tune'
     : (presentation.cents ?? 0) > 0
@@ -215,10 +167,10 @@ export function SimpleTunerScreen(): ReactElement {
         {showPitchInfo && (
           <div
             className={styles.pitchBadge}
-            style={pitchBadgeStyle(badgeState, smoothedCents ?? 0)}
+            style={{ left: `${badgeLeftPercent(presentation.cents ?? 0)}%` }}
             data-testid="pitch-badge-position"
           >
-            <SimplePitchBadge state={badgeState} cents={Math.abs(Math.round(smoothedCents ?? 0))} />
+            <SimplePitchBadge state={badgeState} cents={Math.abs(Math.round(presentation.cents ?? 0))} />
           </div>
         )}
 

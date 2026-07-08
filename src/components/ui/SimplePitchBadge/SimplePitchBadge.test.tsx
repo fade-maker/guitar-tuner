@@ -24,16 +24,4 @@ describe('SimplePitchBadge', () => {
     expect(screen.getByText('Tune down')).not.toBeNull();
     expect(screen.getByText('+11')).not.toBeNull();
   });
-
-  it('uses the same single type size for both 2-digit and 3-digit magnitudes', () => {
-    render(<SimplePitchBadge state="Tune down" cents={99} />);
-    const twoDigit = screen.getByText('+99');
-
-    cleanup();
-
-    render(<SimplePitchBadge state="Tune down" cents={120} />);
-    const threeDigit = screen.getByText('+120');
-
-    expect(threeDigit.className).toBe(twoDigit.className);
-  });
 });

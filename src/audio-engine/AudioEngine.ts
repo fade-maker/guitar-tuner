@@ -187,6 +187,7 @@ export const createAudioEngine: CreateAudioEngine = () => {
       maxFrequency: DEFAULT_AUDIO_ENGINE_CONFIG.maxFrequency,
       clarityThreshold: DEFAULT_AUDIO_ENGINE_CONFIG.clarityThreshold,
       minRmsAmplitude: DEFAULT_AUDIO_ENGINE_CONFIG.minRmsAmplitude,
+      octaveConfirmFrames: DEFAULT_AUDIO_ENGINE_CONFIG.octaveConfirmFrames,
     });
 
     const sourceNode = context.createMediaStreamSource(stream.stream);

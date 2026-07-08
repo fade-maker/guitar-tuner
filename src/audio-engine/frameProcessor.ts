@@ -1,6 +1,7 @@
 import { createPitchyDetector } from './pitchDetection/pitchyDetector';
 import { validateCandidate } from './signal/candidateValidator';
 import type { CandidateValidationConfig } from './signal/candidateValidator';
+import { createOctaveCorrector } from './signal/octaveCorrector';
 import { createRmsGate } from './signal/rmsGate';
 import { createPitchStabilizer } from './signal/stabilizer';
 import { createWindowAccumulator } from './windowAccumulator';
@@ -11,6 +12,7 @@ export interface FrameProcessorConfig extends CandidateValidationConfig {
   readonly windowSize: number;
   readonly hopSize: number;
   readonly minRmsAmplitude: number;
+  readonly octaveConfirmFrames: number;
 }
 
 export interface FrameProcessor {
@@ -27,6 +29,7 @@ export const createFrameProcessor: CreateFrameProcessor = (config) => {
   const accumulator = createWindowAccumulator(config.windowSize, config.hopSize);
   const signalGate = createRmsGate(config.minRmsAmplitude);
   const detector = createPitchyDetector(config.windowSize);
+  const octaveCorrector = createOctaveCorrector({ octaveConfirmFrames: config.octaveConfirmFrames });
   const stabilizer = createPitchStabilizer();
 
   return {
@@ -44,7 +47,8 @@ export const createFrameProcessor: CreateFrameProcessor = (config) => {
       const raw = signalGate.isAboveThreshold(ready.samples) ? detector.detect(ready.samples, config.sampleRate) : null;
 
       const validated = validateCandidate(raw, { sampleRate: config.sampleRate, timestamp: ready.timestamp }, config);
-      const stabilized = stabilizer.push(validated);
+      const corrected = octaveCorrector.correct(validated);
+      const stabilized = stabilizer.push(corrected);
 
       return stabilized
         ? { frequency: stabilized.frequency, clarity: stabilized.clarity, timestamp: ready.timestamp }
@@ -52,6 +56,7 @@ export const createFrameProcessor: CreateFrameProcessor = (config) => {
     },
     reset() {
       accumulator.reset();
+      octaveCorrector.reset();
       stabilizer.reset();
     },
   };
