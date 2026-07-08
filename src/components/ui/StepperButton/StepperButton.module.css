@@ -1,5 +1,10 @@
 @import '../../../theme/tokens.css';
 
+/* 4 states transcribed from Figma's "+/- buttons" master (66:3252: Default/Hover/Pressed/Disabled
+   x Large/Small x +/-) - only Default (--color-surface-card, #1e1e1e) was previously implemented;
+   Hover/Pressed were missing entirely (no :hover/:active rules at all), and Disabled used a blanket
+   `opacity: 0.4` on the whole button (dimming background+border+icon together) instead of Figma's
+   actual per-state background-only change (`rgba(30, 30, 30, 0.4)`, border/icon color unchanged). */
 .stepper {
   display: flex;
   align-items: center;
@@ -14,9 +19,17 @@
   cursor: pointer;
 }
 
+.stepper:hover:not(:disabled) {
+  background: #333333;
+}
+
+.stepper:active:not(:disabled) {
+  background: #4d4d4d;
+}
+
 .stepper:disabled {
   cursor: not-allowed;
-  opacity: 0.4;
+  background: rgba(30, 30, 30, 0.4);
 }
 
 .large {
