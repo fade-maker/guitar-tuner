@@ -46,14 +46,14 @@
   display: block;
 }
 
-/* The two earlier "raise it" passes (+50px, then +30px more) were based on a stale/incomplete
-   metadata read that showed this frame with no title node at all - re-checked via the dedicated
-   "Select Tuning" Figma page (144:2178, distinct from the page this screen was first read from),
-   which does have both frames (Guitar 74:4405, Bass 140:1289) with a real title node at y=123 on
-   both - matches the original transcription exactly. Reverted back to the real value. */
+/* Real Figma value is y=123 (14.076%, see the illustration comment below for how that was
+   confirmed). Raised 80px above it anyway (123-80=43, 43/874=4.920%) by explicit follow-up request
+   - a deliberate feel adjustment on top of a now-confirmed-correct transcription, the same 80px
+   total as the two passes this screen already had before the Figma re-check, re-applied together
+   with .illustration/.illustrationBass below. */
 .title {
   position: absolute;
-  top: 14.076%; /* 123 / 874 */
+  top: 4.920%; /* (123 - 80) / 874 */
   left: 0;
   width: 100%;
   text-align: center;
@@ -71,20 +71,23 @@
    Re-checked via the dedicated "Select Tuning" Figma page (144:2178) - both instruments' frames
    (Guitar 74:4405, Bass 140:1289) really do exist with real content (the earlier "no title/
    illustration at all" read was a stale/incomplete metadata call against a different page context,
-   not a real Figma-side removal). Confirmed this pass: the two instruments do NOT actually share
-   one top position as previously assumed when GuitarIllustrationSmall/BassIllustrationSmall were
-   built - Guitar's illustration sits at y=180 (180/874=20.595%, unchanged), Bass's sits 16px
-   higher at y=164 (164/874=18.764%) - a real, small but confirmed difference, not a rounding
-   artifact (both frames' title/BG pattern/picker positions otherwise match exactly). */
+   not a real Figma-side removal). Confirmed: the two instruments do NOT actually share one top
+   position as previously assumed when GuitarIllustrationSmall/BassIllustrationSmall were built -
+   Guitar's real Figma value is y=180 (20.595%), Bass sits 16px higher at y=164 (18.764%) - a real,
+   confirmed difference, not a rounding artifact.
+
+   Raised 80px above those real values anyway (same follow-up request as .title above, applied
+   together so the title/illustration relationship stays the same): Guitar 180-80=100
+   (100/874=11.442%), Bass 164-80=84 (84/874=9.611%) - the 16px gap between the two is preserved. */
 .illustration {
   position: absolute;
-  top: 20.595%; /* 180 / 874 - Guitar */
+  top: 11.442%; /* (180 - 80) / 874 - Guitar */
   left: 50%;
   transform: translateX(-50%);
 }
 
 .illustrationBass {
-  top: 18.764%; /* 164 / 874 - Bass sits 16px higher than Guitar */
+  top: 9.611%; /* (164 - 80) / 874 - Bass sits 16px higher than Guitar */
 }
 
 /* Reverted back to the real Figma-transcribed value (448/874) - same stale-read root cause as
