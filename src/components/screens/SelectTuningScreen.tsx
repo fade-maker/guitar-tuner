@@ -5,7 +5,14 @@ import type { TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
 import type { InstrumentId } from '../../preferences';
-import { BassIllustrationSmall, CheckIndicator, GuitarIllustrationSmall, SegmentedControl, StringNoteChip } from '../ui';
+import {
+  BassIllustrationSmall,
+  Button,
+  CheckIndicator,
+  GuitarIllustrationSmall,
+  SegmentedControl,
+  StringNoteChip,
+} from '../ui';
 import bgPatternLines from './assets/bg-pattern-lines.svg';
 import bgPatternMask from './assets/bg-pattern-mask.svg';
 import styles from './SelectTuningScreen.module.css';
@@ -86,6 +93,20 @@ export function SelectTuningScreen(): ReactElement {
               </button>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Figma: "Frame 1" (174:1392), added after this screen's earlier stages shipped - a Save
+          button in the same gradient/blur band treatment as Bottom Navigation's own footer, sitting
+          at the very bottom of the screen. Visual only for now, per instruction: rows still apply
+          + navigate immediately on tap (handleSelectTuning, unchanged above) - this button doesn't
+          gate that yet. Wiring it to actually hold a pending selection until Save is pressed is
+          deferred to its own pass. */}
+      <div className={styles.saveBar}>
+        <div className={styles.saveButton}>
+          <Button variant="primary" size="large" onClick={() => {}}>
+            Save
+          </Button>
         </div>
       </div>
     </div>

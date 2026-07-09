@@ -69,4 +69,12 @@ describe('SelectTuningScreen', () => {
     expect(screen.getByTestId('selected-instrument').textContent).toBe('guitar');
     expect(screen.getByTestId('current-screen').textContent).toBe('simple-tuner');
   });
+
+  // Visual-only per instruction (Figma: "Frame 1", 174:1392) - rows still apply + navigate
+  // immediately on tap, unchanged above. This just confirms the button itself renders; wiring it
+  // to actually gate the selection is a separate, not-yet-done pass.
+  it('renders the Save button', () => {
+    renderScreen();
+    expect(screen.getByRole('button', { name: 'Save' })).not.toBeNull();
+  });
 });

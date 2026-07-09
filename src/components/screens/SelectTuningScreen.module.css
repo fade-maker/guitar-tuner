@@ -136,3 +136,31 @@
   border: none;
   border-top: 1px solid rgba(225, 224, 217, 0.08);
 }
+
+/* Figma's "Frame 1" (174:1392) - same gradient/blur band treatment as FooterNavigation's own
+   .footer (transparent -> #121212), but this is a screen-specific Save-button bar, not the shared
+   Bottom Navigation component, so it's not reused from there. Value transcribed directly from this
+   node's own codegen (78.302%) rather than reusing --gradient-footer's tuned-for-visibility 20%
+   stop - that adjustment was specific to Bottom Navigation's own, much tighter (106px, mostly
+   covered by the pill) geometry; this bar is 146px with a 44px visible band before the button
+   starts, a different enough shape that carrying over the same fix without re-checking would be a
+   guess, not a transcription. Revisit if this one also turns out too subtle on a real device. */
+.saveBar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 44px;
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, #121212 78.302%);
+  backdrop-filter: blur(2px);
+}
+
+/* Button doesn't expose a className prop (by design, see its own props type) - this targets the
+   one <button> it renders instead of adding one just for this single, screen-specific override.
+   Figma's button is 58px tall and spans the full available width; Button's own "large" size is a
+   fixed 44px, inline-width - both genuinely differ here, not just a missed prop. */
+.saveButton button {
+  width: 100%;
+  height: 58px;
+}
