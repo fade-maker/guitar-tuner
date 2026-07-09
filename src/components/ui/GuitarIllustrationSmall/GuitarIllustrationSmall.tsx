@@ -14,7 +14,7 @@ export function GuitarIllustrationSmall(): ReactElement {
     <div className={styles.container}>
       <div
         className={styles.masked}
-        style={{ maskImage: `url(${guitarMaskSmall})`, WebkitMaskImage: `url(${guitarMaskSmall})` }}
+        style={{ maskImage: `url("${guitarMaskSmall}")`, WebkitMaskImage: `url("${guitarMaskSmall}")` }}
       >
         <img src={guitarPhoto} alt="" className={styles.photo} />
       </div>

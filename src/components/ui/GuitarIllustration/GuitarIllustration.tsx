@@ -8,7 +8,7 @@ export function GuitarIllustration(): ReactElement {
     <div className={styles.container}>
       <div
         className={styles.masked}
-        style={{ maskImage: `url(${guitarMask})`, WebkitMaskImage: `url(${guitarMask})` }}
+        style={{ maskImage: `url("${guitarMask}")`, WebkitMaskImage: `url("${guitarMask}")` }}
       >
         <img src={guitarPhoto} alt="" className={styles.photo} />
       </div>

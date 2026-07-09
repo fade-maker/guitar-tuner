@@ -56,7 +56,7 @@ export function AdvancedTunerScreen(): ReactElement {
       <div className={styles.main}>
         <div
           className={styles.bgPattern}
-          style={{ maskImage: `url(${bgPatternMask})`, WebkitMaskImage: `url(${bgPatternMask})` }}
+          style={{ maskImage: `url("${bgPatternMask}")`, WebkitMaskImage: `url("${bgPatternMask}")` }}
         >
           <img src={bgPatternLines} alt="" className={styles.bgPatternImg} />
         </div>

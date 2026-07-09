@@ -69,7 +69,7 @@ export function SelectTuningScreen(): ReactElement {
     <div className={styles.screen}>
       <div
         className={styles.bgPattern}
-        style={{ maskImage: `url(${bgPatternMask})`, WebkitMaskImage: `url(${bgPatternMask})` }}
+        style={{ maskImage: `url("${bgPatternMask}")`, WebkitMaskImage: `url("${bgPatternMask}")` }}
       >
         <img src={bgPatternLines} alt="" className={styles.bgPatternImg} />
       </div>

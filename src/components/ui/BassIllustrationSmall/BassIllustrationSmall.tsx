@@ -14,7 +14,7 @@ export function BassIllustrationSmall(): ReactElement {
     <div className={styles.container}>
       <div
         className={styles.masked}
-        style={{ maskImage: `url(${bassMaskSmall})`, WebkitMaskImage: `url(${bassMaskSmall})` }}
+        style={{ maskImage: `url("${bassMaskSmall}")`, WebkitMaskImage: `url("${bassMaskSmall}")` }}
       >
         <div className={styles.crop}>
           <img src={bassPhoto} alt="" className={styles.photo} />
