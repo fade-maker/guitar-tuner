@@ -184,9 +184,14 @@
    4-string column (256px of content: 4*52 + 3*16 gaps) doesn't fit in guitar's 204px band at all -
    that mismatch, not a CSS bug alone, was the other half of why the buttons rendered as ovals
    (flexbox shrinking them to fit too little space); .control's own flex-shrink:0 now makes that
-   failure mode structurally impossible, and this is what gives it the real room it needs instead. */
+   failure mode structurally impossible, and this is what gives it the real room it needs instead.
+
+   top nudged +4px (432+4=436) past the Figma-transcribed value, by explicit follow-up request once
+   the now-bigger Bass illustration (see BassIllustration's own re-sync) made the buttons sit
+   slightly too high above the tuning pegs - a deliberate feel adjustment, not a further Figma
+   correction. */
 .stringContainerBass {
-  top: 39.785%; /* (432 - 210) / 558 */
+  top: 40.502%; /* (432 + 4 - 210) / 558 */
   height: 49.462%; /* 276 / 558 */
 }
 
@@ -205,10 +210,12 @@
   height: 100%;
 }
 
-/* Bass's own gap, confirmed from 144:1976: 68px between string button centers - 52px button height
-   = 16px, not guitar's 24px (var(--space-24) on .column above). */
+/* Figma-transcribed gap is 16px (68px between string button centers - 52px button height, see
+   144:1976). Tightened to 12px by explicit follow-up request, to sit closer to the tuning pegs on
+   the now-bigger Bass illustration - a deliberate feel adjustment on top of the transcribed value,
+   not a further Figma correction. */
 .columnBass {
-  gap: 16px;
+  gap: 12px;
 }
 
 /* No .footer rule here - this screen no longer renders Bottom Navigation at all. It lives in
