@@ -5,16 +5,20 @@ import { NavigationProvider } from '../../navigation';
 import { PreferencesProvider, usePreferences } from '../../preferences';
 import { SettingsScreen } from './SettingsScreen';
 
-const { openExternalLink } = vi.hoisted(() => ({ openExternalLink: vi.fn() }));
+const { openExternalLink, useTelegramUser } = vi.hoisted(() => ({
+  openExternalLink: vi.fn(),
+  useTelegramUser: vi.fn(() => null as null | { displayName: string; username: string | null; photoUrl: string | null }),
+}));
 vi.mock('../../telegram', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../telegram')>();
-  return { ...actual, openExternalLink };
+  return { ...actual, openExternalLink, useTelegramUser };
 });
 
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
   openExternalLink.mockClear();
+  useTelegramUser.mockReturnValue(null);
 });
 
 function renderScreen() {
@@ -40,6 +44,23 @@ describe('SettingsScreen', () => {
     expect(screen.getByText('Support')).not.toBeNull();
     expect(screen.getByText('FAQ')).not.toBeNull();
     expect(screen.getByText('TunerApp v.1.0.0')).not.toBeNull();
+  });
+
+  it('shows the real Telegram display name and username when available', () => {
+    useTelegramUser.mockReturnValue({ displayName: 'Ada Lovelace', username: 'ada', photoUrl: 'https://t.me/ada.jpg' });
+    renderScreen();
+    expect(screen.getByText('Ada Lovelace')).not.toBeNull();
+    expect(screen.getByText('@ada')).not.toBeNull();
+    expect(screen.queryByText('Nickname')).toBeNull();
+    expect(screen.queryByText('@username')).toBeNull();
+  });
+
+  it('omits the username line when the real Telegram user has no username', () => {
+    useTelegramUser.mockReturnValue({ displayName: 'Ada Lovelace', username: null, photoUrl: null });
+    renderScreen();
+    expect(screen.getByText('Ada Lovelace')).not.toBeNull();
+    expect(screen.queryByText('@username')).toBeNull();
+    expect(screen.queryByText(/^@/)).toBeNull();
   });
 
   it('toggles preferences.tunerMode via the Advanced mode switch', () => {

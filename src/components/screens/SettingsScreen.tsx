@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { usePreferences } from '../../preferences';
-import { openExternalLink } from '../../telegram';
+import { openExternalLink, useTelegramUser } from '../../telegram';
 import { classNames } from '../ui/classNames';
 import { Icon, StepperButton, ToggleSwitch } from '../ui';
 import settingsAvatar from './assets/settings-avatar.png';
@@ -10,6 +10,7 @@ const SUPPORT_URL = 'https://t.me/vrwrxx';
 
 export function SettingsScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
+  const telegramUser = useTelegramUser();
 
   function handleCalibrateChange(delta: number): void {
     const next = preferences.a4Frequency + delta;
@@ -17,17 +18,19 @@ export function SettingsScreen(): ReactElement {
     setPreference('a4Frequency', next);
   }
 
+  // Outside Telegram (plain browser, local dev) telegramUser is null - keep the original Figma
+  // placeholder text exactly as before. Inside Telegram, a real user very often has no public
+  // username set at all, so that line is omitted entirely rather than showing a fabricated handle.
+  const usernameLine = telegramUser === null ? '@username' : telegramUser.username ? `@${telegramUser.username}` : null;
+
   return (
     <div className={styles.screen}>
       <div className={styles.content}>
         <div className={styles.profile}>
-          <img src={settingsAvatar} alt="" className={styles.avatar} />
+          <img src={telegramUser?.photoUrl ?? settingsAvatar} alt="" className={styles.avatar} />
           <div className={styles.identity}>
-            {/* No Telegram user-identity wiring exists (TelegramAdapter only exposes theme +
-                haptics) - real nickname/username/avatar would need that interface extended,
-                which is an architecture change. Static Figma placeholder until that's decided. */}
-            <span className={styles.nickname}>Nickname</span>
-            <span className={styles.username}>@username</span>
+            <span className={styles.nickname}>{telegramUser?.displayName ?? 'Nickname'}</span>
+            {usernameLine !== null && <span className={styles.username}>{usernameLine}</span>}
           </div>
         </div>
 
