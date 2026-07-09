@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createAudioEngine } from '../audio-engine';
 import type { AudioEngine, AudioEngineError, EngineStatus } from '../audio-engine';
+import { scheduler } from '../animation';
 import { createTunerPresenter } from '../presentation/tunerPresenter';
 import type { TunerPresentationState, TunerPresenter } from '../presentation/tunerPresenter';
 import { DEFAULT_A4_FREQUENCY, getStandardTuning } from '../music-theory';
@@ -103,17 +104,16 @@ export const useAudioEngine: UseAudioEngine = (tuningPreset = getStandardTuning(
   }, [engine, presenter]);
 
   // Drives presenter.tick() so 'searching'/'lost' can be derived even when no new reading arrives.
+  // Subscribes to the shared animation-system scheduler instead of calling requestAnimationFrame
+  // itself - this used to be its own independent rAF loop; see src/animation/scheduler.ts for why
+  // the app should own exactly one requestAnimationFrame chain, not one per consumer.
   useEffect(() => {
     if (engineStatus !== 'listening') {
       return;
     }
-    let frameId: number;
-    const loop = (now: number): void => {
-      setPresentation(presenter.tick(now));
-      frameId = requestAnimationFrame(loop);
-    };
-    frameId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frameId);
+    return scheduler.subscribe(() => {
+      setPresentation(presenter.tick(performance.now()));
+    });
   }, [engineStatus, presenter]);
 
   // Fires exactly on the render where hapticTrigger transitions to true - the presenter is already

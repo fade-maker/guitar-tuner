@@ -1413,3 +1413,101 @@ errors/warnings across the entire click-through. 341 tests / 48 files, `tsc -b`,
 `npm run lint` all clean.
 
 Nothing committed or pushed yet, per instruction.
+
+### Animation System — Stage 1 (foundation)
+
+Full architecture discussion happened before any code (a dedicated design document covering where
+the system lives, its module boundaries, React vs. non-React split, and a tiered CSS/JS-engine
+model), then Stage 1 was scoped deliberately narrow per explicit instruction: prove the
+infrastructure works in the real app, don't invent a production UI consumer just to exercise every
+primitive.
+
+**What:** `src/animation/` (new, zero React, parallel to `audio-engine/`) - `scheduler.ts`,
+`sharedValue.ts`, `easing.ts`, `interpolate.ts`, `tween.ts`, `spring.ts`, `activeDriver.ts`,
+`types.ts`, plus a public `index.ts` barrel. React glue in `src/hooks/`: `useSharedValue.ts`,
+`useSpring.ts`, `useTween.ts` - same split as `audio-engine/` + `useAudioEngine.ts`, not a new
+pattern. `useAudioEngine.ts`'s own tick loop now subscribes to the shared `scheduler` instead of
+calling `requestAnimationFrame` itself.
+
+**Why the tiered model, not one universal engine:** CSS transitions/keyframes remain the primary
+mechanism for simple, discrete state-to-state animation (already how this project does most of its
+motion - footer blur, chevron rotation, `.pitchBadge`'s own transition) - cheap, compositor-driven,
+no JS involvement. `src/animation/`'s JS engine exists only for what CSS structurally can't do:
+values driven by a continuous live signal, or animations that need to be interrupted mid-flight
+without a visual jump. "All animations flow through this system" (the original ask) is interpreted
+as "this system governs the decision and owns the primitives," not "every animation's runtime must
+be JS-driven" - forcing trivial CSS-appropriate cases through a JS engine would be slower and
+contradicts this project's own established preference for CSS Modules over animation libraries.
+
+**Real motivating evidence, not hypothetical:** `useAudioEngine.ts` already had its own independent
+`requestAnimationFrame` loop before this stage (polling `presenter.tick()` into React state every
+frame while `listening`) - confirmed by reading the file directly, not from memory. This is the
+concrete "app already has more than one rAF loop" problem the scheduler exists to prevent from
+multiplying further, and it's also Stage 1's one production integration (see below) - not a second,
+separately invented example.
+
+**A real discrepancy found and reported before planning Stage 1, not glossed over:** an earlier
+session's CLAUDE.md entries describe `useSmoothedCents.ts`/`oneEuroFilter.ts` (a One Euro Filter
+driving `SimplePitchBadge`'s smoothing) in detail, as if still-current work. They are not - `git log`
+confirms they were added in `761e4db` and explicitly reverted in `f24b1be` ("revert Pitch Badge
+motion experiments"), part of the pitch-pipeline redesign that moved octave correction into
+`audio-engine`. The current `SimpleTunerScreen.tsx` has no smoothing filter at all. This is exactly
+why Stage 1's own completion criteria were revised mid-conversation: "migrate the existing
+`useSmoothedCents`" was never actually available as a real task, and manufacturing a fake production
+consumer just to exercise `spring()` was explicitly rejected rather than substituted in.
+
+**Ownership invariant, found while implementing, not pre-specified:** nothing originally guaranteed
+"at most one active driver per `SharedValue`" - `tween()`/`spring()` each opened independent closures
+with no awareness of each other, and `useSpring`/`useTween` only avoided a real conflict by accident
+of React's effect-cleanup-before-next-effect ordering, which a caller bypassing the hooks could
+easily violate. Resolved without any identity/token tracking: a legitimate retarget always releases
+(via `stop()`) before reclaiming, so `activeDriver.ts`'s registry finding an existing, un-released
+claim at `claimDriver()` time is structurally proof of two independent, uncoordinated owners, never a
+false positive against a real retarget. Behavior is deliberately asymmetric by environment, decided
+after discussion of both a hard-throw and a silent-auto-recover option and rejecting both as the
+sole answer:
+- **Development:** the conflict is logged as loudly as possible - `console.error` (including the
+  *original* claim's captured stack, not just the new one, so both call sites are visible at once)
+  plus `console.trace()` for the rejected attempt - and the new driver is rejected outright: it never
+  subscribes to the scheduler, the existing driver keeps running untouched, system state doesn't
+  change. A hard `throw` was considered and rejected - this project has no Error Boundary anywhere
+  yet, so an uncaught throw inside a `useEffect` would tear down the whole subtree, disproportionate
+  for what's a "fix your code" signal, not a runtime failure requiring execution to halt.
+- **Production:** silently auto-recovers instead (stop the old, claim the new) - a real user must
+  never see a frozen or fought-over animation because of a development mistake that slipped through.
+- Gated on `import.meta.env.DEV`, Vite's build-time-replaced constant. Verified empirically, not just
+  assumed: grepped the real production bundle (`dist/assets/*.js`) after `npm run build` for the
+  warning's own message text - zero matches, confirming the entire dev-only branch (including the
+  stack-capture cost) is dead-code-eliminated from what ships to real users, not merely skipped at
+  runtime.
+
+**`spring()`'s own interruption mechanism:** velocity is tracked in a `WeakMap<SharedValue, number>`
+keyed by the value itself, not held inside each `spring()` call's own closure - a second `spring()`
+call retargeting the same value inherits real momentum instead of restarting from rest, which is the
+entire reason to reach for spring over tween. Sub-steps any delta above one frame's worth
+(`MAX_STEP_MS`) so a long GC pause or busy main thread can't destabilize the semi-implicit Euler
+integrator.
+
+**`easing.ts` deliberately ships no named presets** (no "standard"/"decelerate"/"accelerate"), only
+`linear` and a `cubicBezier(x1,y1,x2,y2)` constructor (Newton-Raphson with a bisection fallback) -
+`theme/animation.ts`'s own `EasingTokens` are still shape-only, zero values, because Figma has no
+animation design in this project yet. Naming invented curves under design-sounding names would be
+exactly the kind of un-sourced design value this project's own rules prohibit.
+
+**Not built, per explicit scope:** `timeline`/`sequence`/`stagger` (deferred to the next tier, once a
+real choreography need exists); a `useSyncExternalStore`-based hook for the case where an animated
+value must appear in React-rendered text/markup, not just an imperative style write (flagged as a
+real, known-needed gap for whenever the first such UI consumer arrives, not solved speculatively
+now).
+
+**Verified:** 68 new tests (437 total across the project), `tsc -b`, `vite build`, `npm run lint` all
+clean. `useAudioEngine.test.ts` gained one test that fires the scheduler's actual queued frame
+(overriding the file's usual always-inert rAF stub for just that case) and confirms
+`presenter.tick()` genuinely ran via a real, observable state transition (`active` -> `searching`
+after crossing `LOST_GRACE_MS` with no new reading) - proof the integration works, not just that
+`requestAnimationFrame` got called once.
+
+**Not yet done, next stage per instruction:** no screen or design-system component consumes
+`SharedValue`/`spring`/`tween` yet - `useAudioEngine`'s scheduler subscription is the only thing
+running in the real app today. The first real UI consumer (whatever animation actually needs
+interruptible/signal-driven motion first) is deliberately still pending, not pre-selected.

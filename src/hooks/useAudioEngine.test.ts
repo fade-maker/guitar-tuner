@@ -248,6 +248,40 @@ describe('useAudioEngine', () => {
     expect(result.current.presentation.state).toBe('searching');
   });
 
+  it('drives presenter.tick() through the shared animation-system scheduler while listening', () => {
+    // Override this file's default always-inert rAF stub (see beforeEach) for just this test - a
+    // queue-based one that lets us actually invoke the frame the scheduler requested, to prove the
+    // hook is genuinely wired to src/animation's scheduler and not just requesting a frame it never
+    // uses.
+    let storedCallback: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      storedCallback = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {
+      storedCallback = null;
+    });
+
+    const { result } = renderHook(() => useAudioEngine());
+    act(() => emitStatus('listening'));
+    act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: 1000 }));
+    expect(result.current.presentation.state).toBe('active');
+    expect(storedCallback).not.toBeNull();
+
+    // Fire the one frame the scheduler requested, with performance.now() far enough past the last
+    // reading to cross LOST_GRACE_MS (400ms, tunerPresenter.ts) with no new reading arriving in
+    // between - only tick()'s own time-based logic can produce this transition, so seeing it proves
+    // the scheduler is actually driving presenter.tick() on a real frame, not that
+    // requestAnimationFrame merely got called once.
+    const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(1000 + 401);
+    act(() => {
+      storedCallback?.(performance.now());
+    });
+    nowSpy.mockRestore();
+
+    expect(result.current.presentation.state).toBe('searching');
+  });
+
   it('unsubscribes and stops the engine on unmount', () => {
     const { unmount } = renderHook(() => useAudioEngine());
     expect(readingListeners.length).toBeGreaterThan(0);
