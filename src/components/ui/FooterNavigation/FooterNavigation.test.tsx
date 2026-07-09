@@ -20,4 +20,16 @@ describe('FooterNavigation', () => {
     fireEvent.click(screen.getByText('Settings'));
     expect(onSelect).toHaveBeenCalledWith('Settings');
   });
+
+  it('falls back to the static placeholder icon when avatarUrl is omitted', () => {
+    render(<FooterNavigation active="Tuner" onSelect={() => {}} />);
+    const img = screen.getByText('Settings').closest('button')?.querySelector('img');
+    expect(img?.getAttribute('src')).toContain('settings-placeholder');
+  });
+
+  it('uses avatarUrl as the Settings tab icon when provided', () => {
+    render(<FooterNavigation active="Tuner" onSelect={() => {}} avatarUrl="https://t.me/ada.jpg" />);
+    const img = screen.getByText('Settings').closest('button')?.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('https://t.me/ada.jpg');
+  });
 });

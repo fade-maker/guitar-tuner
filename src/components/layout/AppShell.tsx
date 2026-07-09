@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { AppRouter, useNavigation } from '../../navigation';
 import type { ScreenId } from '../../navigation';
 import { usePreferences } from '../../preferences';
+import { useTelegramUser } from '../../telegram';
 import { FooterNavigation } from '../ui';
 import type { FooterNavigationTab } from '../ui';
 import { ViewportScreen } from './ViewportScreen';
@@ -25,6 +26,7 @@ function footerTabFor(screen: ScreenId): FooterNavigationTab {
 export function AppShell(): ReactElement {
   const { screen, navigateTo } = useNavigation();
   const { preferences } = usePreferences();
+  const telegramUser = useTelegramUser();
 
   function handleFooterSelect(tab: FooterNavigationTab): void {
     if (tab === 'Settings') {
@@ -35,7 +37,7 @@ export function AppShell(): ReactElement {
   }
 
   const footer = SCREENS_WITHOUT_FOOTER.has(screen) ? undefined : (
-    <FooterNavigation active={footerTabFor(screen)} onSelect={handleFooterSelect} />
+    <FooterNavigation active={footerTabFor(screen)} onSelect={handleFooterSelect} avatarUrl={telegramUser?.photoUrl} />
   );
 
   return (

@@ -37,6 +37,14 @@ vi.mock('../../telegram/haptics', () => ({
   triggerHapticFeedback: vi.fn(),
 }));
 
+const { useTelegramUser } = vi.hoisted(() => ({
+  useTelegramUser: vi.fn(() => null as null | { displayName: string; username: string | null; photoUrl: string | null }),
+}));
+vi.mock('../../telegram', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../telegram')>();
+  return { ...actual, useTelegramUser };
+});
+
 import { NavigationProvider } from '../../navigation';
 import type { ScreenId } from '../../navigation';
 import { PreferencesProvider } from '../../preferences';
@@ -63,6 +71,7 @@ afterEach(() => {
   cleanup();
   window.localStorage.clear();
   vi.unstubAllGlobals();
+  useTelegramUser.mockReturnValue(null);
 });
 
 describe('AppShell', () => {
@@ -109,5 +118,12 @@ describe('AppShell', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Advanced mode' }));
     fireEvent.click(screen.getByText('Tuner'));
     expect(screen.getByText('Advanced tuning')).not.toBeNull();
+  });
+
+  it("uses the real Telegram user's photo as the footer Settings tab icon when available", () => {
+    useTelegramUser.mockReturnValue({ displayName: 'Ada Lovelace', username: 'ada', photoUrl: 'https://t.me/ada.jpg' });
+    renderShell('simple-tuner');
+    const img = screen.getByText('Settings').closest('button')?.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('https://t.me/ada.jpg');
   });
 });

@@ -9,9 +9,15 @@ export type FooterNavigationTab = 'Tuner' | 'Settings';
 export interface FooterNavigationProps {
   readonly active: FooterNavigationTab;
   readonly onSelect: (tab: FooterNavigationTab) => void;
+  // The Settings tab's icon slot is a round avatar photo, not a generic icon (Figma's own
+  // placeholder is a photo, not an icon glyph) - this component stays presentational and doesn't
+  // reach into telegram/ itself, so the real Telegram user's photo (when available) is passed in
+  // as a prop by AppShell, the same way active/onSelect already are. Falls back to the static
+  // Figma placeholder when omitted or null (no Telegram user, or no photo_url set).
+  readonly avatarUrl?: string | null;
 }
 
-export function FooterNavigation({ active, onSelect }: FooterNavigationProps): ReactElement {
+export function FooterNavigation({ active, onSelect, avatarUrl }: FooterNavigationProps): ReactElement {
   const isTunerActive = active === 'Tuner';
   const isSettingsActive = active === 'Settings';
 
@@ -37,7 +43,7 @@ export function FooterNavigation({ active, onSelect }: FooterNavigationProps): R
           aria-current={isSettingsActive ? 'page' : undefined}
         >
           <span className={styles.iconSlot}>
-            <img src={settingsPlaceholder} alt="" className={styles.settingsIcon} />
+            <img src={avatarUrl ?? settingsPlaceholder} alt="" className={styles.settingsIcon} />
           </span>
           <span className={classNames(styles.label, isSettingsActive ? styles.active : styles.inactive)}>
             Settings
