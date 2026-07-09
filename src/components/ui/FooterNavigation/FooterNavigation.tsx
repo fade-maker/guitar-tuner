@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { triggerHapticFeedback } from '../../../telegram/haptics';
 import { classNames } from '../classNames';
 import { Icon } from '../Icon';
 import settingsPlaceholder from './assets/settings-placeholder.png';
@@ -21,6 +22,11 @@ export function FooterNavigation({ active, onSelect, avatarUrl }: FooterNavigati
   const isTunerActive = active === 'Tuner';
   const isSettingsActive = active === 'Settings';
 
+  function handleSelect(tab: FooterNavigationTab): void {
+    triggerHapticFeedback('light');
+    onSelect(tab);
+  }
+
   return (
     <nav className={styles.footer}>
       <div className={styles.pill}>
@@ -28,7 +34,7 @@ export function FooterNavigation({ active, onSelect, avatarUrl }: FooterNavigati
         <button
           type="button"
           className={classNames(styles.tab, isTunerActive && styles.active)}
-          onClick={() => onSelect('Tuner')}
+          onClick={() => handleSelect('Tuner')}
           aria-current={isTunerActive ? 'page' : undefined}
         >
           <span className={styles.iconSlot}>
@@ -39,7 +45,7 @@ export function FooterNavigation({ active, onSelect, avatarUrl }: FooterNavigati
         <button
           type="button"
           className={classNames(styles.tab, isSettingsActive && styles.active)}
-          onClick={() => onSelect('Settings')}
+          onClick={() => handleSelect('Settings')}
           aria-current={isSettingsActive ? 'page' : undefined}
         >
           <span className={styles.iconSlot}>

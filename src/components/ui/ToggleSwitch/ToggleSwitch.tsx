@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { triggerHapticFeedback } from '../../../telegram/haptics';
 import { classNames } from '../classNames';
 import styles from './ToggleSwitch.module.css';
 
@@ -10,22 +11,28 @@ export interface ToggleSwitchProps {
 }
 
 export function ToggleSwitch({ checked, onChange, disabled, ...rest }: ToggleSwitchProps): ReactElement {
+  function handleClick(): void {
+    triggerHapticFeedback('light');
+    onChange(!checked);
+  }
+
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       disabled={disabled}
-      onClick={() => onChange(!checked)}
+      onClick={handleClick}
       className={classNames(styles.track, checked ? styles.on : styles.off)}
       {...rest}
     >
-      {!checked && <span className={styles.thumb} />}
-      <span className={styles.indicatorSlot}>
-        {!checked && <span className={styles.trackBorder} />}
-        {checked && <span className={styles.onSliver} />}
+      {/* One persistent thumb/indicator each, position-animated between two fixed slots - not
+          conditionally rendered in different flex slots like before (see CLAUDE.md's note on why
+          that couldn't be animated with a plain CSS transition at all). */}
+      <span className={classNames(styles.thumb, checked ? styles.thumbOn : styles.thumbOff)} />
+      <span className={classNames(styles.indicatorSlot, checked ? styles.indicatorOn : styles.indicatorOff)}>
+        {checked ? <span className={styles.onSliver} /> : <span className={styles.trackBorder} />}
       </span>
-      {checked && <span className={styles.thumb} />}
     </button>
   );
 }
