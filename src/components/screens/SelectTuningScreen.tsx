@@ -4,6 +4,7 @@ import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
+import { classNames } from '../ui/classNames';
 import {
   BassIllustrationSmall,
   Button,
@@ -76,7 +77,7 @@ export function SelectTuningScreen(): ReactElement {
 
       <span className={styles.title}>Select tuning</span>
 
-      <div className={styles.illustration}>
+      <div className={classNames(styles.illustration, instrument === 'bass' && styles.illustrationBass)}>
         {instrument === 'bass' ? <BassIllustrationSmall /> : <GuitarIllustrationSmall />}
       </div>
 

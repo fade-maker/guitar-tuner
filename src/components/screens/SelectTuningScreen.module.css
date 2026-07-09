@@ -46,14 +46,14 @@
   display: block;
 }
 
-/* Raised 80px total above the original Figma-transcribed 123px (123-80=43, 43/874=4.920%) - a
-   further +30px on top of the first 50px pass, by explicit follow-up request ("подними еще").
-   Figma's current "Select tuning" frame (74:4405) has no title node at all to re-verify an exact
-   value against (see the illustration comment below), so this remains a deliberate feel
-   adjustment, not a transcription. */
+/* The two earlier "raise it" passes (+50px, then +30px more) were based on a stale/incomplete
+   metadata read that showed this frame with no title node at all - re-checked via the dedicated
+   "Select Tuning" Figma page (144:2178, distinct from the page this screen was first read from),
+   which does have both frames (Guitar 74:4405, Bass 140:1289) with a real title node at y=123 on
+   both - matches the original transcription exactly. Reverted back to the real value. */
 .title {
   position: absolute;
-  top: 4.920%; /* (123 - 80) / 874 */
+  top: 14.076%; /* 123 / 874 */
   left: 0;
   width: 100%;
   text-align: center;
@@ -66,28 +66,33 @@
 /* GuitarIllustrationSmall/BassIllustrationSmall (Figma: "SelectTuning - Guitar"/"SelectTuning -
    Bass", 163:3954/163:3976) are dedicated components, not GuitarIllustration/BassIllustration
    scaled down via CSS transform - both render at their own real fixed 155x291 size, so this is a
-   plain absolute position, no scaling/flex-centering machinery needed anymore. The original
-   `top: 20.595%` (180 / 874) was confirmed directly from the real "Select tuning" screen frame
-   (74:4405) for Guitar, back when that frame still had this illustration on it - re-checking it
-   found Figma's current master no longer has a title text node or this illustration anywhere on
-   that frame at all, only BG pattern + the tuning card + Save. Raised 80px total (100/874=11.442%)
-   - the original 50px feel adjustment plus a further +30px follow-up request ("подними еще") -
-   there's currently nothing in Figma to transcribe an exact value from. */
+   plain absolute position, no scaling/flex-centering machinery needed anymore.
+
+   Re-checked via the dedicated "Select Tuning" Figma page (144:2178) - both instruments' frames
+   (Guitar 74:4405, Bass 140:1289) really do exist with real content (the earlier "no title/
+   illustration at all" read was a stale/incomplete metadata call against a different page context,
+   not a real Figma-side removal). Confirmed this pass: the two instruments do NOT actually share
+   one top position as previously assumed when GuitarIllustrationSmall/BassIllustrationSmall were
+   built - Guitar's illustration sits at y=180 (180/874=20.595%, unchanged), Bass's sits 16px
+   higher at y=164 (164/874=18.764%) - a real, small but confirmed difference, not a rounding
+   artifact (both frames' title/BG pattern/picker positions otherwise match exactly). */
 .illustration {
   position: absolute;
-  top: 11.442%; /* (180 - 80) / 874 */
+  top: 20.595%; /* 180 / 874 - Guitar */
   left: 50%;
   transform: translateX(-50%);
 }
 
-/* Raised 80px total above the original Figma-transcribed 448px (448-80=368, 368/874=42.105%) - the
-   original 50px feel adjustment plus a further +30px follow-up ("подними еще"), same reasoning as
-   .title and .illustration above. Figma's own position for this card (448/874) still matches
-   exactly on its own - this offset isn't correcting a transcription bug, it's the requested feel
-   adjustment applied consistently across everything on this screen except the Save button. */
+.illustrationBass {
+  top: 18.764%; /* 164 / 874 - Bass sits 16px higher than Guitar */
+}
+
+/* Reverted back to the real Figma-transcribed value (448/874) - same stale-read root cause as
+   .title/.illustration above; this position was never actually wrong, the two "raise it" passes on
+   top of it were reacting to a false "nothing to check" premise. */
 .pickerBlock {
   position: absolute;
-  top: 42.105%; /* (448 - 80) / 874 */
+  top: 51.259%; /* 448 / 874 */
   left: 0;
   width: 100%;
   padding: 0 var(--space-16);
