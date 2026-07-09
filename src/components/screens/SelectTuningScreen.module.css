@@ -13,19 +13,20 @@
   composes: routedScreen from '../layout/ViewportScreen.module.css';
 }
 
-/* Re-checked directly against the current Figma master (74:4405): this screen's own BG PATTERN
-   sits at its own position, NOT identical to SimpleTunerScreen's copy as previously assumed here -
-   Group 4 (the actual wave lines) is at Figma y=129.79 on this screen vs y=179.79 on Simple Tuner,
-   a real 50px difference, which is why the pattern rendered 50px lower than Figma. This screen has
-   no Header flex child eating into its own top (confirmed: no "system(ios)" reference layer on
-   this frame either), so the raw Figma y maps directly with no origin correction needed - same
-   mask-size+position+asset as Simple Tuner's copy, just its own real top. Not converted to
-   percentages yet, on purpose, for the same reason as Simple Tuner's copy of this pattern. */
+/* Real Figma value (confirmed against 74:4405/140:1289's own BG PATTERN Group 4) is y=129.79 - not
+   identical to SimpleTunerScreen's copy as previously assumed here, a real 50px difference. This
+   screen has no Header flex child eating into its own top (no "system(ios)" reference layer on
+   this frame), so the raw Figma y maps directly with no origin correction. Not converted to
+   percentages yet, on purpose, for the same reason as Simple Tuner's copy of this pattern.
+
+   Raised another 80px above that real value (129.79-80=49.79) by explicit follow-up request, same
+   feel adjustment already applied to .title/.illustration above - kept consistent across every
+   element on this screen except the tuning card and Save button. */
 .bgPattern {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  top: 129.79px;
+  top: 49.79px;
   width: 434px;
   height: 284.417px;
   opacity: 0.08;
