@@ -127,6 +127,10 @@ export function SimpleTunerScreen(): ReactElement {
   function stringState(target: StringTarget): StringControlState {
     if (presentation.target?.id === target.id && presentation.inTune) return 'In tune';
     if (presentation.tunedTargetIds.has(target.id)) return 'Tuned';
+    // Manual mode's currently-picked string had no visual feedback at all before a reading actually
+    // confirmed it - clicking a string just silently pinned it. 'Selected' (Figma's new "Stelected"
+    // state) fills that gap: shown for the picked string as long as it isn't already In tune/Tuned.
+    if (!preferences.autoMode && manualStringId === target.id) return 'Selected';
     return 'Default';
   }
 

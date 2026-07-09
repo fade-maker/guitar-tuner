@@ -155,6 +155,7 @@ export function ComponentGallery(): ReactElement {
         <StringControl label="E" state="Default" />
         <StringControl label="A" state="In tune" />
         <StringControl label="D" state="Tuned" />
+        <StringControl label="G" state="Selected" />
       </Row>
 
       <Row title="SimplePitchBadge">

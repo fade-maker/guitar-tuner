@@ -236,4 +236,40 @@ describe('SimpleTunerScreen', () => {
 
     expect(screen.getByText('D').className.includes('_inTune_')).toBe(true);
   });
+
+  it('shows Selected on the manually-picked string before any reading confirms it', () => {
+    renderScreen();
+
+    // Enter Manual and pick D - no reading has arrived yet, so this used to show no feedback at all.
+    fireEvent.click(screen.getByRole('switch', { name: 'Auto mode' }));
+    fireEvent.click(screen.getByText('D'));
+
+    expect(screen.getByText('D').className.includes('_selected_')).toBe(true);
+    expect(screen.getByText('A').className.includes('_default_')).toBe(true);
+
+    // Picking a different string moves Selected, rather than leaving D marked too.
+    fireEvent.click(screen.getByText('A'));
+    expect(screen.getByText('A').className.includes('_selected_')).toBe(true);
+    expect(screen.getByText('D').className.includes('_default_')).toBe(true);
+  });
+
+  it('lets In tune take precedence over Selected once a reading confirms the picked string', () => {
+    renderScreen();
+    act(() => emitStatus('listening'));
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Auto mode' }));
+    fireEvent.click(screen.getByText('D'));
+    expect(screen.getByText('D').className.includes('_selected_')).toBe(true);
+
+    const D_STRING = getStandardTuning().strings[2];
+    const D_FREQUENCY = midiToFrequency(D_STRING.midi);
+    let t = 1000;
+    for (let i = 0; i < 40; i++) {
+      t += 15;
+      act(() => emitReading({ frequency: D_FREQUENCY, clarity: 0.95, timestamp: t }));
+    }
+
+    expect(screen.getByText('D').className.includes('_inTune_')).toBe(true);
+    expect(screen.getByText('D').className.includes('_selected_')).toBe(false);
+  });
 });

@@ -24,4 +24,11 @@ describe('StringControl', () => {
     render(<StringControl label="E" state="In tune" />);
     expect(screen.getByRole('button').getAttribute('aria-pressed')).toBe('true');
   });
+
+  it('renders the Selected state with its own class and marks it pressed for assistive tech', () => {
+    render(<StringControl label="G" state="Selected" />);
+    const button = screen.getByRole('button');
+    expect(button.className).toContain('selected');
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+  });
 });

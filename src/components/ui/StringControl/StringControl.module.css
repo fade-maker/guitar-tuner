@@ -39,3 +39,21 @@
   border: 2px solid var(--color-border-primary);
   color: var(--color-text-primary);
 }
+
+/* Figma's "Stelected" state (66:3581, node 236:1598 - typo in the layer name, not reproduced in
+   code). Manual mode's currently-picked-but-not-yet-confirmed string: same fill as Default, just a
+   thicker, lighter ring so it doesn't look identical to Default while the user waits for a reading. */
+.selected {
+  background: var(--color-surface-card);
+  border: 2px solid rgba(222, 220, 209, 0.3); /* --color-border-secondary (#dedcd1) at 30% opacity */
+  color: var(--color-text-primary);
+}
+
+/* Figma's "Pressed" state (66:3581, node 236:1600) - a momentary touch/click-down effect, not an
+   app-tracked state, so it's a plain :active override rather than a 5th StringControlState. Wins
+   over any of the 4 named states above via specificity (a class + pseudo-class beats a class alone)
+   regardless of source order. Same #4d4d4d already used for StepperButton's own :active state. */
+.control:active {
+  background: #4d4d4d;
+  border: 2px solid rgba(222, 220, 209, 0.3);
+}
