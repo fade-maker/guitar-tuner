@@ -4,7 +4,6 @@ import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
-import type { InstrumentId } from '../../preferences';
 import {
   BassIllustrationSmall,
   Button,
@@ -47,11 +46,20 @@ export function SelectTuningScreen(): ReactElement {
   const initialInstrument: PickableInstrument = preferences.selectedInstrument === 'bass' ? 'bass' : 'guitar';
   const [instrument, setInstrument] = useState<PickableInstrument>(initialInstrument);
 
+  // Tapping a row used to apply + navigate immediately (see CLAUDE.md's Save-button entry for why
+  // that changed). Now it only updates this pending choice - `instrument` (the SegmentedControl tab)
+  // is a pure view filter for which tuning list is shown and can be browsed freely without touching
+  // this; picking a tuning on either tab always overwrites the one pending selection, since tuning
+  // ids are already instrument-prefixed and globally unique (no need to track instrument alongside
+  // it - TUNING_INSTRUMENT recovers it from the id at Save time). Starts at the already-persisted
+  // tuning so the currently-active one still shows checked before anything is tapped.
+  const [pendingTuningId, setPendingTuningId] = useState<string>(preferences.selectedTuning);
+
   const tunings = tuningsForInstrument(allTunings, instrument);
 
-  function handleSelectTuning(tuning: TuningPreset): void {
-    setPreference('selectedInstrument', instrument as InstrumentId);
-    setPreference('selectedTuning', tuning.id);
+  function handleSave(): void {
+    setPreference('selectedInstrument', TUNING_INSTRUMENT[pendingTuningId] ?? instrument);
+    setPreference('selectedTuning', pendingTuningId);
     navigateTo(preferences.tunerMode === 'advanced' ? 'advanced-tuner' : 'simple-tuner');
   }
 
@@ -79,7 +87,7 @@ export function SelectTuningScreen(): ReactElement {
           {tunings.map((tuning, index) => (
             <div key={tuning.id}>
               {index > 0 && <hr className={styles.divider} />}
-              <button type="button" className={styles.row} onClick={() => handleSelectTuning(tuning)}>
+              <button type="button" className={styles.row} onClick={() => setPendingTuningId(tuning.id)}>
                 <span className={styles.rowLabel}>{TUNING_ROW_LABEL[tuning.id] ?? tuning.name}</span>
                 <span className={styles.rowRight}>
                   <span className={styles.chips}>
@@ -88,7 +96,7 @@ export function SelectTuningScreen(): ReactElement {
                       return <StringNoteChip key={stringTarget.id} note={noteName.note} octave={noteName.octave} />;
                     })}
                   </span>
-                  <CheckIndicator state={preferences.selectedTuning === tuning.id ? 'Active' : 'Default'} />
+                  <CheckIndicator state={pendingTuningId === tuning.id ? 'Active' : 'Default'} />
                 </span>
               </button>
             </div>
@@ -96,15 +104,13 @@ export function SelectTuningScreen(): ReactElement {
         </div>
       </div>
 
-      {/* Figma: "Frame 1" (174:1392), added after this screen's earlier stages shipped - a Save
-          button in the same gradient/blur band treatment as Bottom Navigation's own footer, sitting
-          at the very bottom of the screen. Visual only for now, per instruction: rows still apply
-          + navigate immediately on tap (handleSelectTuning, unchanged above) - this button doesn't
-          gate that yet. Wiring it to actually hold a pending selection until Save is pressed is
-          deferred to its own pass. */}
+      {/* Figma: "Frame 1" (174:1392) - a Save button in the same gradient/blur band treatment as
+          Bottom Navigation's own footer, sitting at the very bottom of the screen. Commits
+          pendingTuningId to preferences and navigates - the same two setPreference calls +
+          navigateTo that used to fire on every row tap, now gated behind this press instead. */}
       <div className={styles.saveBar}>
         <div className={styles.saveButton}>
-          <Button variant="primary" size="large" onClick={() => {}}>
+          <Button variant="primary" size="large" onClick={handleSave}>
             Save
           </Button>
         </div>

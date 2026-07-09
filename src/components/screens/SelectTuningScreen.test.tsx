@@ -41,7 +41,7 @@ describe('SelectTuningScreen', () => {
     expect(screen.queryByRole('tab', { name: /ukulele/i })).toBeNull();
   });
 
-  it('selects a tuning, persists it, and navigates back to the tuner', () => {
+  function renderWithProbe() {
     function Probe() {
       const { preferences } = usePreferences();
       const { screen: current } = useNavigation();
@@ -54,7 +54,7 @@ describe('SelectTuningScreen', () => {
       );
     }
 
-    render(
+    return render(
       <PreferencesProvider>
         <NavigationProvider initialScreen="select-tuning">
           <SelectTuningScreen />
@@ -62,19 +62,42 @@ describe('SelectTuningScreen', () => {
         </NavigationProvider>
       </PreferencesProvider>,
     );
+  }
+
+  // Tapping a row only marks it as the pending choice now (Figma's "Frame 1", 174:1392, added a
+  // Save button specifically to gate this - see CLAUDE.md) - it must not touch preferences or
+  // navigation on its own anymore.
+  it('tapping a row does not persist or navigate on its own', () => {
+    renderWithProbe();
+    fireEvent.click(screen.getByText('Drop-D'));
+
+    expect(screen.getByTestId('selected-tuning').textContent).toBe('guitar-standard');
+    expect(screen.getByTestId('current-screen').textContent).toBe('select-tuning');
+    // CheckIndicator's "Active" state renders its checkmark path in this exact fill color (see
+    // CheckIndicator.tsx) - confirms the tap did mark Drop-D as the pending choice, just without
+    // persisting it yet.
+    expect(screen.getByText('Drop-D').closest('button')?.querySelector('path[fill="#4682D5"]')).not.toBeNull();
+  });
+
+  it('selects a tuning, persists it, and navigates back to the tuner once Save is pressed', () => {
+    renderWithProbe();
 
     fireEvent.click(screen.getByText('Drop-D'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getByTestId('selected-tuning').textContent).toBe('guitar-drop-d');
     expect(screen.getByTestId('selected-instrument').textContent).toBe('guitar');
     expect(screen.getByTestId('current-screen').textContent).toBe('simple-tuner');
   });
 
-  // Visual-only per instruction (Figma: "Frame 1", 174:1392) - rows still apply + navigate
-  // immediately on tap, unchanged above. This just confirms the button itself renders; wiring it
-  // to actually gate the selection is a separate, not-yet-done pass.
-  it('renders the Save button', () => {
-    renderScreen();
-    expect(screen.getByRole('button', { name: 'Save' })).not.toBeNull();
+  it('Save persists whichever tuning is pending even after switching segments to browse', () => {
+    renderWithProbe();
+
+    fireEvent.click(screen.getByText('Drop-D')); // pick a guitar tuning
+    fireEvent.click(screen.getByRole('tab', { name: 'Bass 4-string' })); // just browsing
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByTestId('selected-tuning').textContent).toBe('guitar-drop-d');
+    expect(screen.getByTestId('selected-instrument').textContent).toBe('guitar');
   });
 });
