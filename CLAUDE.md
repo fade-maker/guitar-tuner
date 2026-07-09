@@ -1511,3 +1511,79 @@ after crossing `LOST_GRACE_MS` with no new reading) - proof the integration work
 `SharedValue`/`spring`/`tween` yet - `useAudioEngine`'s scheduler subscription is the only thing
 running in the real app today. The first real UI consumer (whatever animation actually needs
 interruptible/signal-driven motion first) is deliberately still pending, not pre-selected.
+
+### Animation System — project-wide CSS-vs-engine audit, and SimplePitchBadge paused before Stage 2
+
+Full audit of every existing animation/transition in the app (`grep` across all of `src` for
+`transition`/`@keyframes`/`animation-`, plus manual review of every screen for JS-driven continuous
+positioning), done before writing any migration code, per explicit instruction not to migrate
+anything without real need.
+
+**Findings - the real inventory is small:**
+- `.chevron` rotation in `SelectTuningScreen.module.css` (`transition: transform 250ms ease`,
+  Power/Open/Extras expand/collapse) - a discrete, click-triggered toggle. Correctly stays plain CSS
+  (Tier 0) - nothing to migrate.
+- `SimplePitchBadge`'s horizontal position (`SimpleTunerScreen.tsx`, `badgeLeftPercent(cents)` in an
+  inline `style`) - the **only** real Tier 1 candidate: driven by a continuously-changing signal
+  (`presentation.cents`), currently with **zero** transition/smoothing of any kind - it teleports to
+  a new position on every reading.
+- `SelectTuningScreen`'s native `scroll-snap-type`/`scrollIntoView` - browser-native scrolling, not a
+  CSS `transition` or JS animation in this system's domain. Out of scope for either CSS or the engine.
+- Two `transition` rules in `App.css` are dead code - that file isn't imported by anything since
+  `App.tsx` became the real `AppProviders`/`AppShell` entry point; not part of the live app.
+- Every other design-system primitive (`Button`, `ToggleSwitch`, `CheckIndicator`, `StepperButton`,
+  `SegmentedControl`, `StringControl`'s state changes, `NoteCircle`, `AdvancedStatusBadge`,
+  `AppHeader`) has **no** transition/animation at all today - state changes are instant. Not in scope
+  as "existing animations to migrate" since there is nothing there to migrate; giving any of them a
+  first animation at all would be new work, not migration, and wasn't asked for.
+
+Conclusion: the "staged migration plan, most to least valuable" the task asked for collapses to a
+single real candidate (`SimplePitchBadge`) - reported honestly rather than inventing extra stages to
+match the expected shape of the answer.
+
+**Design agreed for `SimplePitchBadge`, not yet built:** a single source of truth -
+`presentation.cents` drives exactly one `SharedValue<number>` (via `spring()`), which both the
+badge's DOM position (imperative `ref`/effect write, not through React) and its displayed cents text
+(via a new `useSharedValueState` hook, `useSyncExternalStore`-based, not yet built) read from - never
+two independent reads of `presentation.cents` for position vs. text.
+
+**A real finding that changed the framing of the problem:** `audio-engine/signal/stabilizer.ts`
+already runs a median filter (window 5) plus an asymmetric EMA (release α=0.15, attack α=0.6) on the
+detected frequency *before* it ever becomes `presentation.cents` - the signal reaching the UI is
+already meaningfully smoothed, not raw detector noise. This reframes what badge-level smoothing
+actually needs to solve: not "reject noise" (already handled upstream), but "add continuity between
+already-fairly-stable discrete steps arriving every ~12-23ms" - a materially gentler problem than
+originally assumed.
+
+**Spring vs. a dedicated smoothing driver - not yet decided, deliberately not pre-built:** per
+explicit instruction, no new driver was added speculatively. Plan was to implement first with
+`spring()` (the existing primitive) - stiffness/damping unknown yet, with the prior, reverted CSS
+implementation's `transition: left 100ms ease-out` as the one concrete empirical anchor for a
+starting settling time, not a value invented from nothing - and evaluate on a real device against
+three named criteria: stable while a note is held, catches up quickly on a real pitch change, never
+reads as laggy. A structural limitation of any single fixed-parameter spring was flagged before
+implementing: it has one time constant, so it cannot simultaneously be "settle instantly on tiny
+residual jitter" and "track fast on a genuine note change" the way an adaptive/speed-sensitive filter
+(e.g. a One Euro Filter, the same shape as the earlier, reverted `useSmoothedCents` work) can - but
+since the upstream stabilizer already shrinks the jitter this would need to reject, this limitation
+might not matter in practice. Only meant to be escalated to a dedicated driver if the spring
+demonstrably fails the three criteria on a real device, not pre-emptively.
+
+**Paused here, not implemented:** before writing any Stage 2 code, the user recalled that an earlier
+session's attempt at this exact kind of pitch-badge motion (see the "SimplePitchBadge re-evaluation"
+and "Pitch pipeline redesign" entries above - `useSmoothedCents`/`oneEuroFilter`, built in `761e4db`,
+reverted in `f24b1be`) made the badge *less* smooth, not more - it started visibly jittering. Wants
+to think this through further before committing to an approach, rather than repeat that outcome.
+Genuinely unresolved and worth investigating before resuming, not assumed: that revert's own commit
+message and this file's own log both frame it primarily as an *architecture* problem (octave
+correction needing to move into `audio-engine`, decoupled from `TunerPresenter`), not explicitly as
+"the smoothing felt bad" - whether the perceived jitter back then came from the smoothing algorithm
+itself, the badge's travel-range/clamp curve, an interaction with the octave-correction bugs that
+were being fixed in the same pass, or something else entirely, was never actually isolated. Worth
+determining specifically before trusting that spring (a different algorithm from what was tried
+before) would or wouldn't repeat it.
+
+**State at pause: zero Stage 2 code written.** `useSharedValueState` doesn't exist yet.
+`SimpleTunerScreen.tsx` is unchanged - `badgeLeftPercent()` is still the same plain, unsmoothed inline
+style it was before this whole discussion. Nothing to roll back if resumed differently later - this
+is a planning pause, not a partial implementation.
