@@ -63,12 +63,15 @@
 }
 
 /* Not converted to percentages yet, on purpose - the mask/decorative-effect pass on this pattern
-   is deferred to a separate UI-polish step. Rebased to .main's origin (179.79 - 121 = 58.79). */
+   is deferred to a separate UI-polish step. Rebased to .main's origin using the same fix as every
+   other element in this file: Header's Figma BOTTOM edge (210 = 121 + 89), not its top offset
+   (121) - this one element was missed when that fix was applied, which is why it sat 89px lower
+   than Figma (179.79 - 121 = 58.79) than it should have (179.79 - 210 = -30.21). */
 .bgPattern {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  top: 58.79px;
+  top: -30.21px;
   width: 434px;
   height: 284.417px;
   opacity: 0.08;
