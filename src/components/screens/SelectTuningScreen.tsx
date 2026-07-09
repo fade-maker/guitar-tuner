@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { TuningPreset } from '../../music-theory';
@@ -191,48 +191,6 @@ export function SelectTuningScreen(): ReactElement {
       pickerBlockRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
     }
   }
-
-  // Trial fix (see CLAUDE.md's "third scroll state" entry) - `scroll-snap-type: proximity` only
-  // pulls toward idle/raised when a gesture already ends near one of them, so a slow/gentle swipe
-  // can park the scroll at neither: title half-hidden, illustration half-clipped, catalog cards
-  // half-raised. This corrects that ~120ms after scrolling actually stops, but only when it's safe
-  // to force a hard snap - if the raised content is taller than one viewport (a long expanded
-  // catalog), free scrolling past the raised point must keep working, or this reproduces the exact
-  // "mandatory blocks scrolling a long catalog" bug proximity was chosen to avoid in the first
-  // place (see .scrollArea's own comment in the module.css).
-  useEffect(() => {
-    const scrollArea = scrollAreaRef.current;
-    const pickerBlock = pickerBlockRef.current;
-    if (!scrollArea || !pickerBlock) return;
-
-    let timeoutId: number | undefined;
-
-    function correctSnap(): void {
-      if (!scrollArea || !pickerBlock) return;
-      const raisedScrollTop = pickerBlock.offsetTop;
-      const contentBelowRaised = scrollArea.scrollHeight - raisedScrollTop;
-      if (contentBelowRaised > scrollArea.clientHeight) return;
-
-      const current = scrollArea.scrollTop;
-      const nearest = current < raisedScrollTop / 2 ? 0 : raisedScrollTop;
-      if (Math.abs(current - nearest) > 1) {
-        // 'auto' (instant), not 'smooth' - handleCategoryToggle's own comment above documents why:
-        // smooth scroll combined with this container's scroll-snap reliably stops short of target.
-        scrollArea.scrollTo({ top: nearest, behavior: 'auto' });
-      }
-    }
-
-    function handleScroll(): void {
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(correctSnap, 120);
-    }
-
-    scrollArea.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      scrollArea.removeEventListener('scroll', handleScroll);
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-    };
-  }, []);
 
   return (
     // Select Tuning has no Bottom Navigation (removed from Figma) - it's simply absent from
