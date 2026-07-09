@@ -46,9 +46,15 @@
   display: block;
 }
 
+/* Raised 50px above the original Figma-transcribed 123px (123-50=73, 73/874=8.352%), by explicit
+   request, matching the same 50px the BG pattern moved by once re-checked against the current
+   Figma master - Figma's current "Select tuning" frame (74:4405) no longer has a title node at
+   all to re-verify an exact value against (see the illustration comment below), so this is a
+   deliberate feel adjustment that keeps this element's spacing relative to the BG pattern
+   unchanged, not a new transcription. */
 .title {
   position: absolute;
-  top: 14.076%; /* 123 / 874 */
+  top: 8.352%; /* (123 - 50) / 874 */
   left: 0;
   width: 100%;
   text-align: center;
@@ -61,23 +67,29 @@
 /* GuitarIllustrationSmall/BassIllustrationSmall (Figma: "SelectTuning - Guitar"/"SelectTuning -
    Bass", 163:3954/163:3976) are dedicated components, not GuitarIllustration/BassIllustration
    scaled down via CSS transform - both render at their own real fixed 155x291 size, so this is a
-   plain absolute position, no scaling/flex-centering machinery needed anymore. `top: 20.595%`
-   (180 / 874) is confirmed directly from the real "Select tuning" screen frame (74:4405) for
-   Guitar; Bass shares it since both small components are now confirmed to share the exact same
-   155x291 footprint (previously they didn't - guitar/bass used different scaled target sizes,
-   155x290.72 vs 173x307 - that 173x307 figure traced back to a separate, older screen frame
-   (140:1289) that predates these two matched small components and reads as the same kind of
-   pre-redesign mockup already flagged elsewhere for Bass's Select Tuning references). */
+   plain absolute position, no scaling/flex-centering machinery needed anymore. The original
+   `top: 20.595%` (180 / 874) was confirmed directly from the real "Select tuning" screen frame
+   (74:4405) for Guitar, back when that frame still had this illustration on it - re-checking it
+   just now (alongside the BG pattern fix) found Figma's current master no longer has a title text
+   node or this illustration anywhere on that frame at all, only BG pattern + the tuning card +
+   Save. Per explicit instruction, raised anyway by the same 50px as title/BG pattern
+   (180-50=130, 130/874=14.874%) as a deliberate feel adjustment, not a re-transcription - there's
+   currently nothing in Figma to transcribe a new exact value from. */
 .illustration {
   position: absolute;
-  top: 20.595%;
+  top: 14.874%; /* (180 - 50) / 874 */
   left: 50%;
   transform: translateX(-50%);
 }
 
+/* Raised 50px above the original Figma-transcribed 448px (448-50=398, 398/874=45.538%), same
+   reasoning/request as .title and .illustration above. Figma's own current position for this card
+   (448/874, unchanged) was re-verified and still matches exactly - this 50px isn't correcting a
+   transcription bug like the BG pattern's was, it's purely the requested feel adjustment applied
+   consistently across everything on this screen except the Save button. */
 .pickerBlock {
   position: absolute;
-  top: 51.259%; /* 448 / 874 */
+  top: 45.538%; /* (448 - 50) / 874 */
   left: 0;
   width: 100%;
   padding: 0 var(--space-16);
