@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { TuningPreset } from '../../music-theory';
@@ -10,12 +10,15 @@ import {
   Button,
   CheckIndicator,
   GuitarIllustrationSmall,
+  Icon,
   SegmentedControl,
   StringNoteChip,
 } from '../ui';
 import bgPatternLines from './assets/bg-pattern-lines.svg';
 import bgPatternMask from './assets/bg-pattern-mask.svg';
 import styles from './SelectTuningScreen.module.css';
+import { CATEGORY_ORDER, TUNING_CATEGORY } from './tuningCategory';
+import type { TuningCategory } from './tuningCategory';
 import { TUNING_INSTRUMENT } from './tuningInstrument';
 
 // Select Tuning only supports the two instruments with a real string-count redesign in Figma
@@ -28,15 +31,68 @@ const INSTRUMENT_OPTIONS: readonly { value: PickableInstrument; label: string }[
 ];
 
 // Figma's row label reads "Drop-D" on this screen (hyphenated), distinct from Simple Tuner's
-// header subtitle spelling - both are screen-level display strings, not the same constant.
+// header subtitle spelling - both are screen-level display strings, not the same constant. The
+// Power/Open/Extras entries below have no Figma-confirmed row text of their own (that catalog is
+// new) - transcribed from the same user-supplied reference used for the tuning data itself, title
+// case, matching the short names actually used there. The two Extras entries with a long composite
+// name in the reference ("-1; Eb; 'Half step down'" / "-2; 'Whole step down'") show only the
+// descriptive phrase here, per explicit instruction - .rowLabel has no room for the rest.
 const TUNING_ROW_LABEL: Record<string, string> = {
   'guitar-standard': 'Standard',
   'guitar-drop-d': 'Drop-D',
   'bass-standard': 'Standard',
+  'guitar-double-drop-d': 'Double Drop D',
+  'guitar-d-modal': 'D modal',
+  'guitar-double-daddy': 'Double Daddy',
+  'guitar-drop-c-sharp': 'Drop C#',
+  'guitar-drop-c': 'Drop C',
+  'guitar-drop-b': 'Drop B',
+  'guitar-drop-a': 'Drop A',
+  'guitar-open-c': 'Open C',
+  'guitar-open-e': 'Open E',
+  'guitar-open-f': 'Open F',
+  'guitar-open-g': 'Open G',
+  'guitar-open-a': 'Open A',
+  'guitar-open-a-2': 'Open A 2',
+  'guitar-open-am': 'Open Am',
+  'guitar-open-em': 'Open Em',
+  'guitar-open-d': 'Open D',
+  'guitar-open-dm': 'Open Dm',
+  'guitar-dmaj69': 'Dmaj6/9',
+  'guitar-half-step-down': 'Half step down',
+  'guitar-whole-step-down': 'Whole step down',
+  'guitar-plus-1': '+1',
+  'guitar-plus-2': '+2',
+  'guitar-g-modal': 'G modal',
+  'guitar-all-4th': 'All 4th',
+  'guitar-nst': 'NST',
 };
 
 function tuningsForInstrument(allTunings: readonly TuningPreset[], instrument: PickableInstrument): TuningPreset[] {
   return allTunings.filter((tuning) => TUNING_INSTRUMENT[tuning.id] === instrument);
+}
+
+// One flat list mixing catalog headers and (only for the expanded catalog) its tunings, in render
+// order - lets the existing index>0 "divider before every row but the first" pattern already used
+// for Standard's own list apply here too, instead of separately tracking divider state per catalog.
+type CatalogRow =
+  | { readonly kind: 'header'; readonly category: TuningCategory }
+  | { readonly kind: 'tuning'; readonly tuning: TuningPreset };
+
+function buildCatalogRows(
+  tunings: readonly TuningPreset[],
+  expandedCategory: TuningCategory | null,
+): readonly CatalogRow[] {
+  const rows: CatalogRow[] = [];
+  for (const category of CATEGORY_ORDER) {
+    const items = tunings.filter((tuning) => TUNING_CATEGORY[tuning.id] === category);
+    if (items.length === 0) continue;
+    rows.push({ kind: 'header', category });
+    if (expandedCategory === category) {
+      for (const tuning of items) rows.push({ kind: 'tuning', tuning });
+    }
+  }
+  return rows;
 }
 
 export function SelectTuningScreen(): ReactElement {
@@ -56,7 +112,16 @@ export function SelectTuningScreen(): ReactElement {
   // tuning so the currently-active one still shows checked before anything is tapped.
   const [pendingTuningId, setPendingTuningId] = useState<string>(preferences.selectedTuning);
 
+  // Only one catalog (Power/Open/Extras) open at a time - opening a different one closes whichever
+  // was open. Deliberately independent of the scroll/raise position below (see handleCategoryToggle).
+  const [expandedCategory, setExpandedCategory] = useState<TuningCategory | null>(null);
+
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const pickerBlockRef = useRef<HTMLDivElement>(null);
+
   const tunings = tuningsForInstrument(allTunings, instrument);
+  const standardTuning = tunings.find((tuning) => TUNING_CATEGORY[tuning.id] === undefined) ?? null;
+  const catalogRows = buildCatalogRows(tunings, expandedCategory);
 
   function handleSave(): void {
     setPreference('selectedInstrument', TUNING_INSTRUMENT[pendingTuningId] ?? instrument);
@@ -64,45 +129,131 @@ export function SelectTuningScreen(): ReactElement {
     navigateTo(preferences.tunerMode === 'advanced' ? 'advanced-tuner' : 'simple-tuner');
   }
 
+  // The screen has exactly two resting scroll positions (CSS scroll-snap, see the module.css) -
+  // "idle" (illustration visible) and "raised" (catalog card flush to the top). Expanding a catalog
+  // must raise the screen if it isn't already, but per explicit instruction: collapsing a catalog
+  // never lowers it back, and expanding a *different* catalog while already raised must not move the
+  // scroll position again (checked via scrollTop, not a separate tracked "raised" boolean, so this
+  // stays in sync with whatever the user just did manually via swipe).
+  //
+  // behavior: 'auto' (instant), not 'smooth' - verified directly (real Chromium, not a guess) that
+  // scrollIntoView({behavior:'smooth'}) combined with this container's own scroll-snap-type:
+  // mandatory reliably stops short of the actual target (~28px into a needed ~368px scroll) instead
+  // of completing the scroll - a real, confirmed interaction bug between native smooth-scroll
+  // animation and mandatory snap, not something tunable away with a delay or a different easing.
+  // 'auto' reaches the exact target every time. Manual swiping between the two positions (the CSS
+  // scroll-snap itself) is untouched by this and still animates natively.
+  function handleCategoryToggle(category: TuningCategory): void {
+    const willExpand = expandedCategory !== category;
+    setExpandedCategory(willExpand ? category : null);
+    if (willExpand && (scrollAreaRef.current?.scrollTop ?? 0) <= 0) {
+      pickerBlockRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    }
+  }
+
   return (
     // Select Tuning has no Bottom Navigation (removed from Figma) - it's simply absent from
     // AppShell.tsx's SCREENS_WITHOUT_FOOTER exceptions, not something this screen decides itself.
     <div className={styles.screen}>
-      <div
-        className={styles.bgPattern}
-        style={{ maskImage: `url("${bgPatternMask}")`, WebkitMaskImage: `url("${bgPatternMask}")` }}
-      >
-        <img src={bgPatternLines} alt="" className={styles.bgPatternImg} />
-      </div>
+      {/* Fixed above everything (including the scrolling content below), per Figma's own "Rectangle
+          8" node - present at the same position whether the screen is idle or raised, so scrolled
+          content fades smoothly under it instead of cutting off sharply. */}
+      <div className={styles.topScrim} aria-hidden="true" />
 
-      <span className={styles.title}>Select tuning</span>
+      <div className={styles.scrollArea} ref={scrollAreaRef}>
+        <div className={styles.topBlock}>
+          <div
+            className={styles.bgPattern}
+            style={{ maskImage: `url("${bgPatternMask}")`, WebkitMaskImage: `url("${bgPatternMask}")` }}
+          >
+            <img src={bgPatternLines} alt="" className={styles.bgPatternImg} />
+          </div>
 
-      <div className={classNames(styles.illustration, instrument === 'bass' && styles.illustrationBass)}>
-        {instrument === 'bass' ? <BassIllustrationSmall /> : <GuitarIllustrationSmall />}
-      </div>
+          <span className={styles.title}>Select tuning</span>
 
-      <div className={styles.pickerBlock}>
-        <SegmentedControl options={INSTRUMENT_OPTIONS} value={instrument} onChange={setInstrument} />
+          <div className={classNames(styles.illustration, instrument === 'bass' && styles.illustrationBass)}>
+            {instrument === 'bass' ? <BassIllustrationSmall /> : <GuitarIllustrationSmall />}
+          </div>
+        </div>
 
-        <div className={styles.card}>
-          {tunings.map((tuning, index) => (
-            <div key={tuning.id}>
-              {index > 0 && <hr className={styles.divider} />}
-              <button type="button" className={styles.row} onClick={() => setPendingTuningId(tuning.id)}>
-                <span className={styles.rowLabel}>{TUNING_ROW_LABEL[tuning.id] ?? tuning.name}</span>
+        <div className={styles.pickerBlock} ref={pickerBlockRef}>
+          <SegmentedControl options={INSTRUMENT_OPTIONS} value={instrument} onChange={setInstrument} />
+
+          {/* Standard is its own card now, not the first row of a flat list - Figma split it out
+              (74:4406) once the catalog below grew large enough to need its own collapsible
+              structure. Never expands/collapses; behaves exactly like it always did. */}
+          {standardTuning && (
+            <div className={styles.card}>
+              <button
+                type="button"
+                className={styles.row}
+                onClick={() => setPendingTuningId(standardTuning.id)}
+              >
+                <span className={styles.rowLabel}>{TUNING_ROW_LABEL[standardTuning.id] ?? standardTuning.name}</span>
                 <span className={styles.rowRight}>
                   <span className={styles.chips}>
-                    {tuning.strings.map((stringTarget) => {
+                    {standardTuning.strings.map((stringTarget) => {
                       const noteName = midiToNoteName(stringTarget.midi, preferences.accidental);
                       return <StringNoteChip key={stringTarget.id} note={noteName.note} octave={noteName.octave} />;
                     })}
                   </span>
-                  <CheckIndicator state={pendingTuningId === tuning.id ? 'Active' : 'Default'} />
+                  <CheckIndicator state={pendingTuningId === standardTuning.id ? 'Active' : 'Default'} />
                 </span>
               </button>
             </div>
-          ))}
+          )}
+
+          {/* Power/Open/Extras - a second card, only rendered once there's at least one catalog with
+              data for the current instrument (bass has none yet, per instruction). */}
+          {catalogRows.length > 0 && (
+            <div className={styles.card}>
+              {catalogRows.map((row, index) => (
+                <div key={row.kind === 'header' ? row.category : row.tuning.id}>
+                  {index > 0 && <hr className={styles.divider} />}
+                  {row.kind === 'header' ? (
+                    <button
+                      type="button"
+                      className={styles.row}
+                      onClick={() => handleCategoryToggle(row.category)}
+                      aria-expanded={expandedCategory === row.category}
+                    >
+                      <span className={styles.rowLabel}>{row.category}</span>
+                      <span
+                        className={classNames(
+                          styles.chevron,
+                          expandedCategory !== row.category && styles.chevronCollapsed,
+                        )}
+                      >
+                        <Icon name="arrow-down" size={16} />
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.subRow}
+                      onClick={() => setPendingTuningId(row.tuning.id)}
+                    >
+                      <span className={styles.rowLabel}>{TUNING_ROW_LABEL[row.tuning.id] ?? row.tuning.name}</span>
+                      <span className={styles.rowRight}>
+                        <span className={styles.chips}>
+                          {row.tuning.strings.map((stringTarget) => {
+                            const noteName = midiToNoteName(stringTarget.midi, preferences.accidental);
+                            return (
+                              <StringNoteChip key={stringTarget.id} note={noteName.note} octave={noteName.octave} />
+                            );
+                          })}
+                        </span>
+                        <CheckIndicator state={pendingTuningId === row.tuning.id ? 'Active' : 'Default'} />
+                      </span>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+
+        <div className={styles.scrollSpacer} aria-hidden="true" />
       </div>
 
       {/* Figma: "Frame 1" (174:1392) - a Save button in the same gradient/blur band treatment as

@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NavigationProvider, useNavigation } from '../../navigation';
 import { PreferencesProvider, usePreferences } from '../../preferences';
 import { SelectTuningScreen } from './SelectTuningScreen';
+
+// jsdom doesn't implement scrollIntoView at all (not even as a no-op) - every test that expands a
+// catalog exercises handleCategoryToggle's scrollIntoView call, not just the dedicated scroll tests
+// below, so this needs to be a global stub rather than scoped to one describe block.
+beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 afterEach(() => {
   cleanup();
@@ -21,18 +28,45 @@ function renderScreen() {
 }
 
 describe('SelectTuningScreen', () => {
-  it('defaults to the Guitar segment showing both guitar tunings', () => {
+  it('defaults to the Guitar segment, showing Standard directly and the catalog collapsed', () => {
     renderScreen();
     expect(screen.getByRole('tab', { name: 'Guitar 6-string' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByText('Standard')).not.toBeNull();
-    expect(screen.getByText('Drop-D')).not.toBeNull();
+    expect(screen.getByText('Power')).not.toBeNull();
+    expect(screen.getByText('Open')).not.toBeNull();
+    expect(screen.getByText('Extras')).not.toBeNull();
+    // Collapsed by default - Drop-D (inside Power) isn't in the DOM until Power is expanded.
+    expect(screen.queryByText('Drop-D')).toBeNull();
   });
 
-  it('shows only the Bass standard tuning after switching segments (no bass-drop-d preset exists)', () => {
+  it('expands a catalog to reveal its tunings, and collapses it again on a second tap', () => {
+    renderScreen();
+
+    fireEvent.click(screen.getByText('Power'));
+    expect(screen.getByText('Drop-D')).not.toBeNull();
+    expect(screen.getByText('Drop C')).not.toBeNull();
+
+    fireEvent.click(screen.getByText('Power'));
+    expect(screen.queryByText('Drop-D')).toBeNull();
+  });
+
+  it('only keeps one catalog expanded at a time', () => {
+    renderScreen();
+
+    fireEvent.click(screen.getByText('Power'));
+    expect(screen.getByText('Drop-D')).not.toBeNull();
+
+    fireEvent.click(screen.getByText('Open'));
+    expect(screen.queryByText('Drop-D')).toBeNull();
+    expect(screen.getByText('Open C')).not.toBeNull();
+  });
+
+  it('shows only the Bass standard tuning after switching segments (no bass catalog data yet)', () => {
     renderScreen();
     fireEvent.click(screen.getByRole('tab', { name: 'Bass 4-string' }));
 
     expect(screen.getAllByText('Standard')).toHaveLength(1);
+    expect(screen.queryByText('Power')).toBeNull();
     expect(screen.queryByText('Drop-D')).toBeNull();
   });
 
@@ -69,6 +103,7 @@ describe('SelectTuningScreen', () => {
   // navigation on its own anymore.
   it('tapping a row does not persist or navigate on its own', () => {
     renderWithProbe();
+    fireEvent.click(screen.getByText('Power'));
     fireEvent.click(screen.getByText('Drop-D'));
 
     expect(screen.getByTestId('selected-tuning').textContent).toBe('guitar-standard');
@@ -82,6 +117,7 @@ describe('SelectTuningScreen', () => {
   it('selects a tuning, persists it, and navigates back to the tuner once Save is pressed', () => {
     renderWithProbe();
 
+    fireEvent.click(screen.getByText('Power'));
     fireEvent.click(screen.getByText('Drop-D'));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -93,11 +129,47 @@ describe('SelectTuningScreen', () => {
   it('Save persists whichever tuning is pending even after switching segments to browse', () => {
     renderWithProbe();
 
+    fireEvent.click(screen.getByText('Power'));
     fireEvent.click(screen.getByText('Drop-D')); // pick a guitar tuning
     fireEvent.click(screen.getByRole('tab', { name: 'Bass 4-string' })); // just browsing
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getByTestId('selected-tuning').textContent).toBe('guitar-drop-d');
     expect(screen.getByTestId('selected-instrument').textContent).toBe('guitar');
+  });
+
+  describe('raise-on-expand scroll behavior', () => {
+    it('scrolls (raises) the screen when a catalog is expanded from idle', () => {
+      renderScreen();
+
+      fireEvent.click(screen.getByText('Power'));
+
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'start' });
+    });
+
+    it('does not scroll again when expanding a different catalog while already raised', () => {
+      renderScreen();
+
+      fireEvent.click(screen.getByText('Power'));
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+
+      // Simulate already being raised (jsdom doesn't implement real scrolling, so scrollTop is
+      // driven manually here rather than via a real scroll-snap gesture).
+      const scrollArea = document.querySelector('[class*="scrollArea"]') as HTMLElement;
+      Object.defineProperty(scrollArea, 'scrollTop', { value: 368, configurable: true });
+
+      fireEvent.click(screen.getByText('Open'));
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not scroll when collapsing an expanded catalog', () => {
+      renderScreen();
+
+      fireEvent.click(screen.getByText('Power'));
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('Power')); // collapse
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+    });
   });
 });

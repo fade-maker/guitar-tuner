@@ -24,8 +24,23 @@
   white-space: nowrap;
 }
 
+/* 13px, not the previously-shipped 15px - re-checked against Figma's current codegen (both the
+   plain and the accidental variant agree on 13px for the letter) while adding the accidental split
+   below; this was never updated by the sharp/flat change itself, just independently found wrong. */
 .note {
-  font-size: 15px;
+  font-size: 13px;
+}
+
+/* Figma's "Extras SHarp/flat" variant (240:2935): the accidental character gets its own small,
+   vertically-centered slot instead of sharing the letter's text run. */
+.accidental {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 4px;
+  padding: 3px 0;
+  font-size: 7px;
 }
 
 .octave {

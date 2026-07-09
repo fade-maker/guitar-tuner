@@ -4,24 +4,61 @@
    components/layout/AppShell.tsx's single ViewportScreen instance - this `.screen` class is just
    the box AppShell hands this screen to fill (see `.routedScreen` in
    components/layout/ViewportScreen.module.css, which is also where `position: relative` comes
-   from - load-bearing here since every child below is positioned absolute directly off `.screen`,
-   with no intermediate `.main`). This screen has no footer (removed from Figma) and no separate
-   Header flex child - everything below is absolutely positioned relative to the whole screen, same
-   percentages as before, since without a footer there's no sibling competing for space at the
-   bottom. */
+   from). This screen has no footer (removed from Figma) and no separate Header flex child.
+
+   Restructured for the new grouped/collapsible tuning catalog (Power/Open/Extras): the illustration
+   block and the tuning cards used to all be absolutely positioned directly off `.screen` at fixed
+   percentages of a static 874px canvas. Now there are two real resting scroll positions (per Figma's
+   own "idle" vs "raised" reference frames, 74:4405 vs 236:2135) instead of one static layout, so
+   `.scrollArea` below is a real, internally-scrollable region - `.screen` itself still never
+   scrolls, same invariant as every other screen in this project. */
 .screen {
   composes: routedScreen from '../layout/ViewportScreen.module.css';
 }
 
-/* Real Figma value (confirmed against 74:4405/140:1289's own BG PATTERN Group 4) is y=129.79 - not
-   identical to SimpleTunerScreen's copy as previously assumed here, a real 50px difference. This
-   screen has no Header flex child eating into its own top (no "system(ios)" reference layer on
-   this frame), so the raw Figma y maps directly with no origin correction. Not converted to
-   percentages yet, on purpose, for the same reason as Simple Tuner's copy of this pattern.
+/* Figma's "Rectangle 8" (236:2134/236:2198) - present at the same fixed position in both the idle
+   and raised reference frames, i.e. it doesn't move with the rest of the content. Sits above
+   `.scrollArea` (later in DOM order) so scrolled content fades smoothly under the status-bar area
+   instead of being cut off sharply. */
+.topScrim {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 43px;
+  background: linear-gradient(180deg, #121212 0%, rgba(18, 18, 18, 0) 100%);
+  pointer-events: none;
+  z-index: 2;
+}
 
-   Raised another 80px above that real value (129.79-80=49.79) by explicit follow-up request, same
-   feel adjustment already applied to .title/.illustration above - kept consistent across every
-   element on this screen except the tuning card and Save button. */
+/* The screen's one scrollable region. Exactly two resting positions via scroll-snap (`.topBlock`
+   and `.pickerBlock` below both mark themselves as snap targets) - not free scroll: swiping between
+   them is native browser scroll-snap behavior, not a hand-rolled gesture handler. */
+.scrollArea {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* BG pattern + title + illustration, exactly as tall as Figma's own gap between the top of the
+   canvas and where the tuning cards start (448 - 80, the same 80px feel-adjustment raise this
+   screen's title/illustration already had - see their own rules below) - this height is what
+   determines how far "raised" scrolls, not a separate hardcoded distance. scroll-snap-align:start
+   makes this the first of the two resting positions (scrollTop 0). */
+.topBlock {
+  position: relative;
+  flex-shrink: 0;
+  height: 368px;
+  scroll-snap-align: start;
+}
+
+/* Same values as before the scroll restructure - top offsets unchanged, just rebased from `.screen`
+   to `.topBlock` (a plain px height, not a percentage of the viewport) since `.topBlock` is now a
+   fixed-height, non-viewport-relative block. */
 .bgPattern {
   position: absolute;
   left: 50%;
@@ -47,14 +84,9 @@
   display: block;
 }
 
-/* Real Figma value is y=123 (14.076%, see the illustration comment below for how that was
-   confirmed). Raised 80px above it anyway (123-80=43, 43/874=4.920%) by explicit follow-up request
-   - a deliberate feel adjustment on top of a now-confirmed-correct transcription, the same 80px
-   total as the two passes this screen already had before the Figma re-check, re-applied together
-   with .illustration/.illustrationBass below. */
 .title {
   position: absolute;
-  top: 4.920%; /* (123 - 80) / 874 */
+  top: 43px; /* 123 - 80 */
   left: 0;
   width: 100%;
   text-align: center;
@@ -64,46 +96,53 @@
   color: var(--color-text-primary);
 }
 
-/* GuitarIllustrationSmall/BassIllustrationSmall (Figma: "SelectTuning - Guitar"/"SelectTuning -
-   Bass", 163:3954/163:3976) are dedicated components, not GuitarIllustration/BassIllustration
-   scaled down via CSS transform - both render at their own real fixed 155x291 size, so this is a
-   plain absolute position, no scaling/flex-centering machinery needed anymore.
-
-   Re-checked via the dedicated "Select Tuning" Figma page (144:2178) - both instruments' frames
-   (Guitar 74:4405, Bass 140:1289) really do exist with real content (the earlier "no title/
-   illustration at all" read was a stale/incomplete metadata call against a different page context,
-   not a real Figma-side removal). Confirmed: the two instruments do NOT actually share one top
-   position as previously assumed when GuitarIllustrationSmall/BassIllustrationSmall were built -
-   Guitar's real Figma value is y=180 (20.595%), Bass sits 16px higher at y=164 (18.764%) - a real,
-   confirmed difference, not a rounding artifact.
-
-   Raised 80px above those real values anyway (same follow-up request as .title above, applied
-   together so the title/illustration relationship stays the same): Guitar 180-80=100
-   (100/874=11.442%), Bass 164-80=84 (84/874=9.611%) - the 16px gap between the two is preserved. */
 .illustration {
   position: absolute;
-  top: 11.442%; /* (180 - 80) / 874 - Guitar */
+  top: 100px; /* 180 - 80 - Guitar */
   left: 50%;
   transform: translateX(-50%);
 }
 
 .illustrationBass {
-  top: 9.611%; /* (164 - 80) / 874 - Bass sits 16px higher than Guitar */
+  top: 84px; /* 164 - 80 - Bass sits 16px higher than Guitar */
 }
 
-/* Reverted back to the real Figma-transcribed value (448/874) - same stale-read root cause as
-   .title/.illustration above; this position was never actually wrong, the two "raise it" passes on
-   top of it were reacting to a false "nothing to check" premise. */
+/* No longer absolutely positioned off `.screen` - a normal flex-column child right after
+   `.topBlock`, so it naturally lands wherever `.topBlock`'s own height puts it (this is what
+   "raising" the screen via scroll-snap actually reveals). scroll-snap-align:start makes this the
+   second resting position: scrolling snaps until this element's own top is flush with the visible
+   top of `.scrollArea`.
+
+   min-height:100% (of `.scrollArea`'s own viewport) is load-bearing, not decorative padding: found
+   via direct testing that collapsing a small catalog (e.g. Power, 8 rows) shrinks this element
+   enough that `.scrollArea`'s total scrollable height can no longer physically reach the "raised"
+   scrollTop (topBlock's own 368px height) - scroll-snap-type:mandatory then forcibly re-snaps
+   *down* to whatever the new, smaller max actually is, which visibly undoes "raised" even though
+   nothing in this component ever asked for that. Guaranteeing this element is always at least one
+   full viewport tall keeps `topBlock.height + pickerBlock.height` comfortably above
+   `topBlock.height + viewport.height`, so the raised position stays reachable regardless of how
+   little the accordion currently shows - satisfies the explicit "collapsing must never lower the
+   screen back down" requirement structurally instead of fighting the browser's own snap
+   recalculation after the fact. */
 .pickerBlock {
-  position: absolute;
-  top: 51.259%; /* 448 / 874 */
-  left: 0;
+  position: relative;
   width: 100%;
+  min-height: 100%;
   padding: 0 var(--space-16);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
+  scroll-snap-align: start;
+}
+
+/* Trailing space inside the scrollable region so the last catalog row (when a large catalog like
+   Open is expanded) can scroll clear of the fixed Save bar overlay instead of being hidden under
+   it - the Save bar itself lives outside `.scrollArea` (see `.saveBar` below), so nothing here
+   reserves space for it automatically the way flex siblings would. */
+.scrollSpacer {
+  height: 180px;
+  flex-shrink: 0;
 }
 
 .card {
@@ -133,6 +172,14 @@
   text-align: left;
 }
 
+/* A catalog's own tunings, nested under its (expanded) header - Figma's own rows here are shorter
+   (py-12 vs the header/Standard rows' py-16, confirmed via 236:2155's codegen) since they're a
+   denser nested list, not a top-level card entry. */
+.subRow {
+  composes: row;
+  height: 48px;
+}
+
 .rowLabel {
   flex-shrink: 0;
   font-family: var(--font-family-display);
@@ -154,6 +201,19 @@
   gap: 4px;
 }
 
+/* Figma's own catalog-header chevron (66:3581-adjacent "Arrow Down / 16") rotates between two
+   states rather than swapping icon assets - down when expanded (Icon's own "arrow-down" glyph,
+   unrotated), right when collapsed (rotated -90deg). Confirmed with the user this is the intended
+   direction (an earlier read had it backwards; fixed directly in Figma, not compensated in code). */
+.chevron {
+  display: flex;
+  transition: transform 250ms ease;
+}
+
+.chevronCollapsed {
+  transform: rotate(-90deg);
+}
+
 .divider {
   height: 0;
   margin: 0 16px;
@@ -168,7 +228,11 @@
    stop - that adjustment was specific to Bottom Navigation's own, much tighter (106px, mostly
    covered by the pill) geometry; this bar is 146px with a 44px visible band before the button
    starts, a different enough shape that carrying over the same fix without re-checking would be a
-   guess, not a transcription. Revisit if this one also turns out too subtle on a real device. */
+   guess, not a transcription. Revisit if this one also turns out too subtle on a real device.
+
+   Lives outside `.scrollArea` (a sibling, absolutely positioned off `.screen`) so it stays fixed at
+   the bottom regardless of scroll position - `.scrollSpacer` above is what keeps scrolled content
+   from ending up hidden underneath it. */
 .saveBar {
   position: absolute;
   left: 0;
@@ -178,6 +242,7 @@
   padding: 44px;
   background: linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, #121212 78.302%);
   backdrop-filter: blur(2px);
+  z-index: 1;
 }
 
 /* Button doesn't expose a className prop (by design, see its own props type) - this targets the

@@ -173,6 +173,7 @@ export function ComponentGallery(): ReactElement {
       <Row title="CurrentTargetNote / StringNoteChip">
         <CurrentTargetNote note="E" octave={2} />
         <StringNoteChip note="E" octave={2} />
+        <StringNoteChip note="C#" octave={3} />
       </Row>
 
       <Row title="NoteCircle">
