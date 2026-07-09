@@ -186,12 +186,18 @@
   align-items: flex-start;
 }
 
-/* Guitar (3-per-column) fills the band top-down like Figma. Bass (2-per-column) has no current
-   Figma reference with the current component set (see the Stage 2 report) - centering the pair
-   vertically in the same band is an inferred, not confirmed, choice. */
+/* Guitar (3-per-column) fills the band top-down like Figma. Bass's single 4-string column is
+   vertically centered in the same band instead (confirmed from 144:1976, see splitStringColumns'
+   own comment in SimpleTunerScreen.tsx). */
 .columnCentered {
   justify-content: center;
   height: 100%;
+}
+
+/* Bass's own gap, confirmed from 144:1976: 68px between string button centers - 52px button height
+   = 16px, not guitar's 24px (var(--space-24) on .column above). */
+.columnBass {
+  gap: 16px;
 }
 
 /* No .footer rule here - this screen no longer renders Bottom Navigation at all. It lives in

@@ -93,6 +93,18 @@ describe('SimpleTunerScreen', () => {
     expect(screen.getAllByText('E')).toHaveLength(2); // low E and high E
   });
 
+  it('renders bass as a single left column, G/D/A/E top to bottom (Figma 144:1976)', () => {
+    window.localStorage.setItem(
+      'guitar-tuner:preferences',
+      JSON.stringify({ version: 1, preferences: { selectedInstrument: 'bass', selectedTuning: 'bass-standard' } }),
+    );
+    renderScreen();
+
+    expect(screen.getByText('Bass 4-string')).not.toBeNull();
+    const labels = screen.getAllByText(/^[A-G]$/).map((el) => el.textContent);
+    expect(labels).toEqual(['G', 'D', 'A', 'E']);
+  });
+
   it('hides the pitch badge and current note before any reading arrives', () => {
     renderScreen();
     expect(screen.queryByText('In tune!')).toBeNull();

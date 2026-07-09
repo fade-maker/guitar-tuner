@@ -5,6 +5,7 @@ import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { StringTarget, TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
+import { classNames } from '../ui/classNames';
 import {
   AppHeader,
   BassIllustration,
@@ -31,13 +32,23 @@ const TUNING_SUBTITLE: Record<string, string> = {
 };
 
 // Guitar's confirmed Figma layout: first half of the string array, reversed, on the left; second
-// half, forward, on the right (e.g. 6-string -> left [D,A,E], right [G,B,E]). Generalized to any
-// string count since Bass has no current Figma reference with the new component set - see the
-// Stage 2 report for that caveat.
-function splitStringColumns(strings: readonly StringTarget[]): {
+// half, forward, on the right (e.g. 6-string -> left [D,A,E], right [G,B,E]).
+//
+// Bass is a real, separate Figma layout, not this same split generalized to 4 strings: the "Guitar
+// tuner - Bass" frame (144:1976, still the pre-redesign raw-shape mockup per the Stage 2 report,
+// but confirmed by explicit request as the layout to match) shows all 4 strings in a single left
+// column, highest string at top - strings[] is stored low-to-high (E,A,D,G), so this is the full
+// array reversed into `left`, with `right` empty.
+function splitStringColumns(
+  strings: readonly StringTarget[],
+  instrument: string,
+): {
   left: readonly StringTarget[];
   right: readonly StringTarget[];
 } {
+  if (instrument === 'bass') {
+    return { left: [...strings].reverse(), right: [] };
+  }
   const half = Math.ceil(strings.length / 2);
   return { left: [...strings.slice(0, half)].reverse(), right: strings.slice(half) };
 }
@@ -119,11 +130,16 @@ export function SimpleTunerScreen(): ReactElement {
     return 'Default';
   }
 
-  const { left, right } = splitStringColumns(activeTuning.strings);
-  // 3-per-column (guitar) fills the band top-down, matching Figma; fewer strings per column
-  // (bass) are centered in the same band - see the Stage 2 report for why that's an inferred
-  // choice rather than a confirmed one.
-  const columnClassName = activeTuning.strings.length > 4 ? styles.column : `${styles.column} ${styles.columnCentered}`;
+  const { left, right } = splitStringColumns(activeTuning.strings, instrument);
+  // 3-per-column (guitar) fills the band top-down, matching Figma. Bass's single 4-string column is
+  // vertically centered in the same band (confirmed from 144:1976: its column sits 10px from both
+  // the top and bottom of its 276px-tall container - symmetric, i.e. centered) with its own 16px
+  // gap (68px between string centers - 52px button height = 16px), not guitar's 24px.
+  const columnClassName = classNames(
+    styles.column,
+    right.length === 0 && styles.columnCentered,
+    instrument === 'bass' && styles.columnBass,
+  );
 
   const showPitchInfo = presentation.cents !== null && presentation.target !== null;
   const badgeState: SimplePitchBadgeState = presentation.inTune
@@ -195,16 +211,18 @@ export function SimpleTunerScreen(): ReactElement {
               />
             ))}
           </div>
-          <div className={columnClassName}>
-            {right.map((target) => (
-              <StringControl
-                key={target.id}
-                label={stringLabel(target)}
-                state={stringState(target)}
-                onClick={() => handleStringClick(target)}
-              />
-            ))}
-          </div>
+          {right.length > 0 && (
+            <div className={columnClassName}>
+              {right.map((target) => (
+                <StringControl
+                  key={target.id}
+                  label={stringLabel(target)}
+                  state={stringState(target)}
+                  onClick={() => handleStringClick(target)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
