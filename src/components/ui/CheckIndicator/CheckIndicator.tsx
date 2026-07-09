@@ -9,7 +9,14 @@ export interface CheckIndicatorProps {
 export function CheckIndicator({ state = 'Active' }: CheckIndicatorProps): ReactElement {
   const isActive = state === 'Active';
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 10, width: 24, height: 24, boxSizing: 'border-box' }}>
+    // Figma's own dev-mode CSS for this node also states `padding: 10px` on a `size-[24px]` box
+    // around a 16px icon - the same impossible-by-CSS-border-box-math combo already found on
+    // StepperButton's small size (24 - 2*10 = 4px of content for a 16px child). Figma's own
+    // auto-layout just centers the icon at full size past that conflicting padding; real flexbox
+    // instead shrinks the SVG down toward that ~4px box, which is what read as "just a dot" here.
+    // padding: 0 + the same align-items/justify-content centering reproduces Figma's actual
+    // rendering without hardcoding a number, exactly like the StepperButton fix.
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, boxSizing: 'border-box' }}>
       <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         {isActive ? (
           <path
