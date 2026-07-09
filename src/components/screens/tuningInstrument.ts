@@ -32,5 +32,10 @@ export const TUNING_INSTRUMENT: Record<string, InstrumentId> = {
   'guitar-all-4th': 'guitar',
   'guitar-nst': 'guitar',
   'bass-standard': 'bass',
+  'bass-drop-d': 'bass',
+  'bass-e-flat': 'bass',
+  'bass-drop-c': 'bass',
+  'bass-low-c': 'bass',
+  'bass-low-b': 'bass',
   'ukulele-standard': 'ukulele',
 };

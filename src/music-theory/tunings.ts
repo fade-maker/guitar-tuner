@@ -265,6 +265,47 @@ const BASS_STANDARD = preset('bass-standard', 'Standard Bass (E A D G)', [
   stringTarget('1', 'G', 'G', 2),
 ]);
 
+// Select Tuning's bass tuning list (flat, no catalogs - see Figma 140:1289) - transcribed from the
+// user-supplied reference image, not invented. Internally consistent with Standard Bass: Drop D is
+// only string 4 down a whole step; Drop C is Drop D shifted down another whole step; E flat is
+// every string down a half step; Low B keeps Standard's own perfect-4th spacing shifted down
+// overall (the same B-E-A-D shape a 5-string bass's low string implies) - all real, known bass
+// tuning conventions, not ad hoc.
+const DROP_D_BASS = preset('bass-drop-d', 'Drop D Bass (D A D G)', [
+  stringTarget('4', 'D', 'D', 1),
+  stringTarget('3', 'A', 'A', 1),
+  stringTarget('2', 'D', 'D', 2),
+  stringTarget('1', 'G', 'G', 2),
+]);
+
+const E_FLAT_BASS = preset('bass-e-flat', 'E Flat Bass (Eb Ab Db Gb)', [
+  stringTarget('4', 'D#', 'D#', 1),
+  stringTarget('3', 'G#', 'G#', 1),
+  stringTarget('2', 'C#', 'C#', 2),
+  stringTarget('1', 'F#', 'F#', 2),
+]);
+
+const DROP_C_BASS = preset('bass-drop-c', 'Drop C Bass (C G C F)', [
+  stringTarget('4', 'C', 'C', 1),
+  stringTarget('3', 'G', 'G', 1),
+  stringTarget('2', 'C', 'C', 2),
+  stringTarget('1', 'F', 'F', 2),
+]);
+
+const LOW_C_BASS = preset('bass-low-c', 'Low C Bass (C A D G)', [
+  stringTarget('4', 'C', 'C', 1),
+  stringTarget('3', 'A', 'A', 1),
+  stringTarget('2', 'D', 'D', 2),
+  stringTarget('1', 'G', 'G', 2),
+]);
+
+const LOW_B_BASS = preset('bass-low-b', 'Low B Bass (B E A D)', [
+  stringTarget('4', 'B', 'B', 0),
+  stringTarget('3', 'E', 'E', 1),
+  stringTarget('2', 'A', 'A', 1),
+  stringTarget('1', 'D', 'D', 2),
+]);
+
 const UKULELE_STANDARD = preset('ukulele-standard', 'Standard Ukulele (G C E A)', [
   stringTarget('4', 'G', 'G', 4),
   stringTarget('3', 'C', 'C', 4),
@@ -301,6 +342,11 @@ const ALL_TUNINGS: readonly TuningPreset[] = [
   ALL_4TH_GUITAR,
   NST_GUITAR,
   BASS_STANDARD,
+  DROP_D_BASS,
+  E_FLAT_BASS,
+  DROP_C_BASS,
+  LOW_C_BASS,
+  LOW_B_BASS,
   UKULELE_STANDARD,
 ];
 

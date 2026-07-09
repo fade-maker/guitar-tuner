@@ -61,13 +61,30 @@ describe('SelectTuningScreen', () => {
     expect(screen.getByText('Open C')).not.toBeNull();
   });
 
-  it('shows only the Bass standard tuning after switching segments (no bass catalog data yet)', () => {
+  it('shows Standard plus a plain (no catalog headers) list of bass tunings after switching segments', () => {
     renderScreen();
     fireEvent.click(screen.getByRole('tab', { name: 'Bass 4-string' }));
 
     expect(screen.getAllByText('Standard')).toHaveLength(1);
+    // No accordion for Bass (140:1289 has none) - every one of its own tunings is already visible,
+    // nothing to expand.
     expect(screen.queryByText('Power')).toBeNull();
-    expect(screen.queryByText('Drop-D')).toBeNull();
+    expect(screen.getByText('Drop D')).not.toBeNull();
+    expect(screen.getByText('E flat')).not.toBeNull();
+    expect(screen.getByText('Drop C')).not.toBeNull();
+    expect(screen.getByText('Low C')).not.toBeNull();
+    expect(screen.getByText('Low B')).not.toBeNull();
+  });
+
+  it('selects and saves a bass tuning directly, with no expand step needed', () => {
+    renderWithProbe();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Bass 4-string' }));
+    fireEvent.click(screen.getByText('Low B'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByTestId('selected-tuning').textContent).toBe('bass-low-b');
+    expect(screen.getByTestId('selected-instrument').textContent).toBe('bass');
   });
 
   it('excludes ukulele from both segments', () => {

@@ -99,4 +99,45 @@ describe('getAllTunings', () => {
     expect(frequencies[4]).toBeCloseTo(329.6276, 3); // E4
     expect(frequencies[5]).toBeCloseTo(391.9954, 3); // G4
   });
+
+  // Bass's own tuning list (Select Tuning, 140:1289) - transcribed from a user-supplied reference
+  // image. Same internal-consistency check as the guitar catalog above: Drop D/Drop C/E flat are
+  // all exact semitone shifts of Standard Bass or of each other, and Low B matches the real,
+  // well-known B-E-A-D low-string bass tuning, independently checkable.
+  it('shifts Bass Drop D/Drop C/E flat by the expected number of semitones', () => {
+    const standardBassFrequencies = all.find((preset) => preset.id === 'bass-standard')!
+      .strings.map((string) => midiToFrequency(string.midi));
+    const semitone = 2 ** (1 / 12);
+
+    // Drop D: only the lowest string, down a whole step from Standard Bass.
+    const dropD = all.find((preset) => preset.id === 'bass-drop-d')!;
+    const dropDFrequencies = dropD.strings.map((string) => midiToFrequency(string.midi));
+    expect(dropDFrequencies[0]).toBeCloseTo(standardBassFrequencies[0] / semitone ** 2, 3);
+    expect(dropDFrequencies[1]).toBeCloseTo(standardBassFrequencies[1], 3);
+    expect(dropDFrequencies[2]).toBeCloseTo(standardBassFrequencies[2], 3);
+    expect(dropDFrequencies[3]).toBeCloseTo(standardBassFrequencies[3], 3);
+
+    // Drop C: Drop D shifted down another whole step, on every string.
+    const dropC = all.find((preset) => preset.id === 'bass-drop-c')!;
+    const dropCFrequencies = dropC.strings.map((string) => midiToFrequency(string.midi));
+    dropCFrequencies.forEach((frequency, index) => {
+      expect(frequency).toBeCloseTo(dropDFrequencies[index] / semitone ** 2, 3);
+    });
+
+    // E flat: every string of Standard Bass down a half step.
+    const eFlat = all.find((preset) => preset.id === 'bass-e-flat')!;
+    const eFlatFrequencies = eFlat.strings.map((string) => midiToFrequency(string.midi));
+    eFlatFrequencies.forEach((frequency, index) => {
+      expect(frequency).toBeCloseTo(standardBassFrequencies[index] / semitone, 3);
+    });
+  });
+
+  it('matches the known real Low B (B-E-A-D) bass tuning frequencies', () => {
+    const lowB = all.find((preset) => preset.id === 'bass-low-b')!;
+    const frequencies = lowB.strings.map((string) => midiToFrequency(string.midi));
+    expect(frequencies[0]).toBeCloseTo(30.8677, 3); // B0
+    expect(frequencies[1]).toBeCloseTo(41.2034, 3); // E1
+    expect(frequencies[2]).toBeCloseTo(55.0, 3); // A1
+    expect(frequencies[3]).toBeCloseTo(73.4162, 3); // D2
+  });
 });

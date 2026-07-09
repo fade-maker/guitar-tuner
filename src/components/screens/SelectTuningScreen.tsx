@@ -66,6 +66,11 @@ const TUNING_ROW_LABEL: Record<string, string> = {
   'guitar-g-modal': 'G modal',
   'guitar-all-4th': 'All 4th',
   'guitar-nst': 'NST',
+  'bass-drop-d': 'Drop D',
+  'bass-e-flat': 'E flat',
+  'bass-drop-c': 'Drop C',
+  'bass-low-c': 'Low C',
+  'bass-low-b': 'Low B',
 };
 
 function tuningsForInstrument(allTunings: readonly TuningPreset[], instrument: PickableInstrument): TuningPreset[] {
@@ -95,6 +100,35 @@ function buildCatalogRows(
   return rows;
 }
 
+interface TuningRowProps {
+  readonly tuning: TuningPreset;
+  readonly isPending: boolean;
+  readonly accidental: Parameters<typeof midiToNoteName>[1];
+  readonly onClick: () => void;
+}
+
+// Shared by both the nested rows inside a guitar catalog and Bass's own flat list below (140:1289
+// has no catalogs at all - every non-Standard bass tuning is just a plain list, but its rows use
+// this exact same "chips under the name" shape, not the old side-by-side one). Chips-under-name is
+// only for these non-Standard rows - see .subRow/.subRowContent's own comments for why Standard and
+// the catalog headers stay on the old single-line layout.
+function TuningRow({ tuning, isPending, accidental, onClick }: TuningRowProps): ReactElement {
+  return (
+    <button type="button" className={styles.subRow} onClick={onClick}>
+      <span className={styles.subRowContent}>
+        <span className={styles.rowLabel}>{TUNING_ROW_LABEL[tuning.id] ?? tuning.name}</span>
+        <span className={styles.chips}>
+          {tuning.strings.map((stringTarget) => {
+            const noteName = midiToNoteName(stringTarget.midi, accidental);
+            return <StringNoteChip key={stringTarget.id} note={noteName.note} octave={noteName.octave} />;
+          })}
+        </span>
+      </span>
+      <CheckIndicator state={isPending ? 'Active' : 'Default'} />
+    </button>
+  );
+}
+
 export function SelectTuningScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
   const { navigateTo } = useNavigation();
@@ -120,8 +154,15 @@ export function SelectTuningScreen(): ReactElement {
   const pickerBlockRef = useRef<HTMLDivElement>(null);
 
   const tunings = tuningsForInstrument(allTunings, instrument);
-  const standardTuning = tunings.find((tuning) => TUNING_CATEGORY[tuning.id] === undefined) ?? null;
-  const catalogRows = buildCatalogRows(tunings, expandedCategory);
+  // Matched by id suffix, not "absent from TUNING_CATEGORY" - that was only ever true by
+  // coincidence for Bass (its own presets just never got added to that guitar-only catalog map),
+  // and would have silently broken the moment Bass gained a real catalog of its own.
+  const standardTuning = tunings.find((tuning) => tuning.id.endsWith('-standard')) ?? null;
+  // Guitar groups everything else into the Power/Open/Extras catalog; Bass has no catalog structure
+  // at all yet (140:1289) - its own non-Standard tunings render as one plain list instead (see
+  // bassTunings below).
+  const catalogRows = instrument === 'guitar' ? buildCatalogRows(tunings, expandedCategory) : [];
+  const bassTunings = instrument === 'bass' ? tunings.filter((tuning) => tuning.id !== standardTuning?.id) : [];
 
   function handleSave(): void {
     setPreference('selectedInstrument', TUNING_INSTRUMENT[pendingTuningId] ?? instrument);
@@ -204,7 +245,7 @@ export function SelectTuningScreen(): ReactElement {
           )}
 
           {/* Power/Open/Extras - a second card, only rendered once there's at least one catalog with
-              data for the current instrument (bass has none yet, per instruction). */}
+              data for the current instrument. */}
           {catalogRows.length > 0 && (
             <div className={styles.card}>
               {catalogRows.map((row, index) => (
@@ -228,29 +269,32 @@ export function SelectTuningScreen(): ReactElement {
                       </span>
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      className={styles.subRow}
+                    <TuningRow
+                      tuning={row.tuning}
+                      isPending={pendingTuningId === row.tuning.id}
+                      accidental={preferences.accidental}
                       onClick={() => setPendingTuningId(row.tuning.id)}
-                    >
-                      {/* Chips moved from beside the name to below it (re-checked against 236:2135
-                          after the user's own Figma edit) - only nested catalog tunings changed
-                          this way; Standard's own row and the catalog header rows above are
-                          unaffected, still side-by-side. */}
-                      <span className={styles.subRowContent}>
-                        <span className={styles.rowLabel}>{TUNING_ROW_LABEL[row.tuning.id] ?? row.tuning.name}</span>
-                        <span className={styles.chips}>
-                          {row.tuning.strings.map((stringTarget) => {
-                            const noteName = midiToNoteName(stringTarget.midi, preferences.accidental);
-                            return (
-                              <StringNoteChip key={stringTarget.id} note={noteName.note} octave={noteName.octave} />
-                            );
-                          })}
-                        </span>
-                      </span>
-                      <CheckIndicator state={pendingTuningId === row.tuning.id ? 'Active' : 'Default'} />
-                    </button>
+                    />
                   )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Bass's own tuning list (140:1289) - a plain list, no catalogs/headers at all, always
+              fully visible (nothing to expand) - same row shape as a guitar catalog's nested
+              tunings (TuningRow), just without any accordion state driving it. */}
+          {bassTunings.length > 0 && (
+            <div className={styles.card}>
+              {bassTunings.map((tuning, index) => (
+                <div key={tuning.id}>
+                  {index > 0 && <hr className={styles.divider} />}
+                  <TuningRow
+                    tuning={tuning}
+                    isPending={pendingTuningId === tuning.id}
+                    accidental={preferences.accidental}
+                    onClick={() => setPendingTuningId(tuning.id)}
+                  />
                 </div>
               ))}
             </div>
