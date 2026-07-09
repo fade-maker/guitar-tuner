@@ -26,6 +26,8 @@ export type { FooterNavigationProps, FooterNavigationTab } from './FooterNavigat
 export { FooterNavigation } from './FooterNavigation';
 export { GuitarIllustration } from './GuitarIllustration';
 export { BassIllustration } from './BassIllustration';
+export { GuitarIllustrationSmall } from './GuitarIllustrationSmall';
+export { BassIllustrationSmall } from './BassIllustrationSmall';
 export type { StepperButtonProps, StepperButtonType, StepperButtonSize } from './StepperButton';
 export { StepperButton } from './StepperButton';
 export type { SegmentedControlProps, SegmentedControlOption } from './SegmentedControl';

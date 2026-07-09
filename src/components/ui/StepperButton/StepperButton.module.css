@@ -37,7 +37,16 @@
   height: 52px;
 }
 
+/* Figma's own per-node dev-mode CSS states `padding: 10px` here too (same as .large) - but at a
+   24px box (minus 2px border, border-box) that leaves a 22px inner area for a 10.696px icon, which
+   `padding:10px` would shrink to ~2px, clipping most of it down to what read as "just a dot"
+   instead of a visible +/- glyph. Figma's own auto-layout apparently just centers content past a
+   padding request it can't satisfy at this fixed size (confirmed via its own screenshot: the small
+   icons render at full size, not clipped) - real CSS border-box math doesn't do that automatically,
+   so padding is overridden to 0 here and centering (`.stepper`'s own align-items/justify-content)
+   does the rest, landing the icon at the same visual center Figma shows. */
 .small {
   width: 24px;
   height: 24px;
+  padding: 0;
 }

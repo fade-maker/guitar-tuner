@@ -1,0 +1,40 @@
+.container {
+  position: relative;
+  width: 155px;
+  height: 291px;
+}
+
+/* Figma positions this well outside a naive inset:0 of .container (236.541 x 257.336px, centered
+   horizontally, top:25.87px) with the mask itself offset within that box (mask-position
+   43.322px -0.866px) rather than starting at its own origin - transcribed as-is, not simplified,
+   since the offset is load-bearing for which part of the mask's gradient actually shows. */
+.masked {
+  position: absolute;
+  top: 25.87px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 236.541px;
+  height: 257.336px;
+  mask-repeat: no-repeat;
+  mask-size: 149.896px 266px;
+  mask-position: 43.322px -0.866px;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 149.896px 266px;
+  -webkit-mask-position: 43.322px -0.866px;
+}
+
+.crop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.photo {
+  position: absolute;
+  left: 0;
+  top: -0.01%;
+  width: 100%;
+  height: 126.26%;
+  max-width: none;
+}

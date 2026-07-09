@@ -53,21 +53,21 @@
   color: var(--color-text-primary);
 }
 
+/* GuitarIllustrationSmall/BassIllustrationSmall (Figma: "SelectTuning - Guitar"/"SelectTuning -
+   Bass", 163:3954/163:3976) are dedicated components, not GuitarIllustration/BassIllustration
+   scaled down via CSS transform - both render at their own real fixed 155x291 size, so this is a
+   plain absolute position, no scaling/flex-centering machinery needed anymore. `top: 20.595%`
+   (180 / 874) is confirmed directly from the real "Select tuning" screen frame (74:4405) for
+   Guitar; Bass shares it since both small components are now confirmed to share the exact same
+   155x291 footprint (previously they didn't - guitar/bass used different scaled target sizes,
+   155x290.72 vs 173x307 - that 173x307 figure traced back to a separate, older screen frame
+   (140:1289) that predates these two matched small components and reads as the same kind of
+   pre-redesign mockup already flagged elsewhere for Bass's Select Tuning references). */
 .illustration {
   position: absolute;
+  top: 20.595%;
   left: 50%;
   transform: translateX(-50%);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  overflow: hidden;
-}
-
-/* GuitarIllustration/BassIllustration render at their own fixed natural size (253x474) - scaled
-   down here via transform rather than duplicating those assets at a second size. */
-.illustrationScale {
-  transform-origin: top center;
-  flex-shrink: 0;
 }
 
 .pickerBlock {
