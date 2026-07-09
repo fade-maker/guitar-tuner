@@ -195,11 +195,21 @@ export function SelectTuningScreen(): ReactElement {
   // Trial fix (see CLAUDE.md's "third scroll state" entry) - `scroll-snap-type: proximity` only
   // pulls toward idle/raised when a gesture already ends near one of them, so a slow/gentle swipe
   // can park the scroll at neither: title half-hidden, illustration half-clipped, catalog cards
-  // half-raised. This corrects that ~120ms after scrolling actually stops, but only when it's safe
-  // to force a hard snap - if the raised content is taller than one viewport (a long expanded
-  // catalog), free scrolling past the raised point must keep working, or this reproduces the exact
-  // "mandatory blocks scrolling a long catalog" bug proximity was chosen to avoid in the first
-  // place (see .scrollArea's own comment in the module.css).
+  // half-raised. This corrects that ~120ms after scrolling actually stops.
+  //
+  // Correction only ever applies to scrollTop strictly between 0 and raisedScrollTop - `.topBlock`
+  // (368px, scroll-snap-align:start) ends exactly where `.pickerBlock` (also scroll-snap-align:
+  // start) begins, so that open interval has no legitimate resting content of its own; it's purely
+  // "in transit" between the two real states. `.pickerBlock`'s own `min-height: 100%` (see its
+  // comment in the module.css) guarantees it - and everything below it - is always at least one
+  // full viewport tall, so scrollTop >= raisedScrollTop is *always* real, independently scrollable
+  // catalog content, never another ambiguous gap - deliberately left untouched here so scrolling
+  // through a long expanded catalog (e.g. Open's 11 tunings) keeps working exactly as before,
+  // without reproducing the "mandatory blocks scrolling a long catalog" bug proximity was chosen to
+  // avoid in the first place (see .scrollArea's own comment). An earlier version of this fix tried
+  // to gate on comparing scrollHeight/clientHeight instead - that condition was always false because
+  // of the same min-height:100% (plus `.scrollSpacer`'s constant 180px), so the correction never
+  // actually ran; this scrollTop-range check is what replaced it.
   useEffect(() => {
     const scrollArea = scrollAreaRef.current;
     const pickerBlock = pickerBlockRef.current;
@@ -210,16 +220,13 @@ export function SelectTuningScreen(): ReactElement {
     function correctSnap(): void {
       if (!scrollArea || !pickerBlock) return;
       const raisedScrollTop = pickerBlock.offsetTop;
-      const contentBelowRaised = scrollArea.scrollHeight - raisedScrollTop;
-      if (contentBelowRaised > scrollArea.clientHeight) return;
-
       const current = scrollArea.scrollTop;
+      if (current <= 0 || current >= raisedScrollTop) return;
+
       const nearest = current < raisedScrollTop / 2 ? 0 : raisedScrollTop;
-      if (Math.abs(current - nearest) > 1) {
-        // 'auto' (instant), not 'smooth' - handleCategoryToggle's own comment above documents why:
-        // smooth scroll combined with this container's scroll-snap reliably stops short of target.
-        scrollArea.scrollTo({ top: nearest, behavior: 'auto' });
-      }
+      // 'auto' (instant), not 'smooth' - handleCategoryToggle's own comment above documents why:
+      // smooth scroll combined with this container's scroll-snap reliably stops short of target.
+      scrollArea.scrollTo({ top: nearest, behavior: 'auto' });
     }
 
     function handleScroll(): void {
