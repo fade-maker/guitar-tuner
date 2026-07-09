@@ -189,4 +189,88 @@ describe('SelectTuningScreen', () => {
       expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('third-scroll-state correction (proximity snap fallback)', () => {
+    beforeEach(() => {
+      Element.prototype.scrollTo = vi.fn();
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function getScrollArea(): HTMLElement {
+      return document.querySelector('[class*="scrollArea"]') as HTMLElement;
+    }
+
+    function getPickerBlock(): HTMLElement {
+      return document.querySelector('[class*="pickerBlock"]') as HTMLElement;
+    }
+
+    it('snaps a mid-scroll position back to idle once scrolling settles, when raised content fits one viewport', () => {
+      renderScreen();
+      const scrollArea = getScrollArea();
+      const pickerBlock = getPickerBlock();
+
+      Object.defineProperty(pickerBlock, 'offsetTop', { value: 368, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollHeight', { value: 768, configurable: true });
+      Object.defineProperty(scrollArea, 'clientHeight', { value: 700, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollTop', { value: 100, configurable: true });
+
+      fireEvent.scroll(scrollArea);
+      vi.advanceTimersByTime(200);
+
+      expect(scrollArea.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    });
+
+    it('snaps a mid-scroll position forward to raised once scrolling settles', () => {
+      renderScreen();
+      const scrollArea = getScrollArea();
+      const pickerBlock = getPickerBlock();
+
+      Object.defineProperty(pickerBlock, 'offsetTop', { value: 368, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollHeight', { value: 768, configurable: true });
+      Object.defineProperty(scrollArea, 'clientHeight', { value: 700, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollTop', { value: 300, configurable: true });
+
+      fireEvent.scroll(scrollArea);
+      vi.advanceTimersByTime(200);
+
+      expect(scrollArea.scrollTo).toHaveBeenCalledWith({ top: 368, behavior: 'auto' });
+    });
+
+    it('does not force-correct when the raised content is taller than one viewport (long expanded catalog)', () => {
+      renderScreen();
+      const scrollArea = getScrollArea();
+      const pickerBlock = getPickerBlock();
+
+      Object.defineProperty(pickerBlock, 'offsetTop', { value: 368, configurable: true });
+      // scrollHeight - offsetTop (900) > clientHeight (700): raised content taller than viewport.
+      Object.defineProperty(scrollArea, 'scrollHeight', { value: 1268, configurable: true });
+      Object.defineProperty(scrollArea, 'clientHeight', { value: 700, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollTop', { value: 600, configurable: true });
+
+      fireEvent.scroll(scrollArea);
+      vi.advanceTimersByTime(200);
+
+      expect(scrollArea.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('does not correct a position already at a resting point', () => {
+      renderScreen();
+      const scrollArea = getScrollArea();
+      const pickerBlock = getPickerBlock();
+
+      Object.defineProperty(pickerBlock, 'offsetTop', { value: 368, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollHeight', { value: 768, configurable: true });
+      Object.defineProperty(scrollArea, 'clientHeight', { value: 700, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollTop', { value: 368, configurable: true });
+
+      fireEvent.scroll(scrollArea);
+      vi.advanceTimersByTime(200);
+
+      expect(scrollArea.scrollTo).not.toHaveBeenCalled();
+    });
+  });
 });
