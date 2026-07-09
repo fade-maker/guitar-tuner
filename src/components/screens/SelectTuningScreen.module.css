@@ -31,16 +31,31 @@
   z-index: 2;
 }
 
-/* The screen's one scrollable region. Exactly two resting positions via scroll-snap (`.topBlock`
-   and `.pickerBlock` below both mark themselves as snap targets) - not free scroll: swiping between
-   them is native browser scroll-snap behavior, not a hand-rolled gesture handler. */
+/* The screen's one scrollable region. Two snap-assisted resting positions via scroll-snap
+   (`.topBlock` and `.pickerBlock` below both mark themselves as snap targets) - not a fully free
+   scroll, but not a hard 2-stop lock either.
+
+   `proximity`, not `mandatory`: found via direct testing that `mandatory` made it physically
+   impossible to scroll past the "raised" snap point at all - the browser forcibly snapped straight
+   back to it the instant a gesture ended, which broke scrolling through a catalog longer than one
+   screen (e.g. Open's 11 tunings - everything past the visible first screenful was simply
+   unreachable). `proximity` only pulls toward a snap point when a gesture already ends near one
+   (still gives the intended "snappy" idle<->raised feel for a normal swipe), and otherwise leaves
+   scrolling free - so scrolling further down into a long, already-raised catalog works normally.
+
+   scroll-padding-top matches `.topScrim`'s own height: without it, the "raised" snap position (and
+   a raw scrollTo/scrollIntoView) lands content flush with the real top edge, right under the fixed
+   gradient - this tells the browser's own snap/scrollIntoView alignment math to treat the visible
+   viewport as if it started 43px lower, so raised content clears the scrim instead of starting
+   underneath it. */
 .scrollArea {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  scroll-snap-type: y mandatory;
+  scroll-snap-type: y proximity;
+  scroll-padding-top: 43px;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -180,11 +195,13 @@
   height: 48px;
 }
 
+/* 14px, not the original 16px - shared by Standard, the catalog headers (Power/Open/Extras), and
+   nested tuning names, all by explicit request (they all use this one class already). */
 .rowLabel {
   flex-shrink: 0;
   font-family: var(--font-family-display);
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 22.4px;
   color: var(--color-text-primary);
   white-space: nowrap;
@@ -204,9 +221,14 @@
 /* Figma's own catalog-header chevron (66:3581-adjacent "Arrow Down / 16") rotates between two
    states rather than swapping icon assets - down when expanded (Icon's own "arrow-down" glyph,
    unrotated), right when collapsed (rotated -90deg). Confirmed with the user this is the intended
-   direction (an earlier read had it backwards; fixed directly in Figma, not compensated in code). */
+   direction (an earlier read had it backwards; fixed directly in Figma, not compensated in code).
+
+   color is load-bearing, not decorative: neither this element nor .row ever set one, so the icon's
+   own currentColor fell through to the browser's unstyled <button> default text color (a system
+   blue on WebKit/iOS) - never an intentional color choice anywhere in this file. */
 .chevron {
   display: flex;
+  color: var(--color-text-tertiary);
   transition: transform 250ms ease;
 }
 
