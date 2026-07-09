@@ -187,12 +187,22 @@
   text-align: left;
 }
 
-/* A catalog's own tunings, nested under its (expanded) header - Figma's own rows here are shorter
-   (py-12 vs the header/Standard rows' py-16, confirmed via 236:2155's codegen) since they're a
-   denser nested list, not a top-level card entry. */
+/* A catalog's own tunings, nested under its (expanded) header. Re-checked against 236:2135 after
+   the user's own Figma edit: the chips moved from beside the name to below it, so each row is
+   taller now - 70px (was 48px when chips sat on the same line), from a 46px content block
+   vertically centered with 12px top/bottom padding (70 = 46 + 12*2). */
 .subRow {
   composes: row;
-  height: 48px;
+  height: 70px;
+}
+
+/* Name on top, chips below (3px gap, per 236:2135's own codegen) - replaces the old side-by-side
+   .rowLabel + .chips that .row's other users (Standard, catalog headers) still use unchanged. */
+.subRowContent {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
 /* 14px, not the original 16px - shared by Standard, the catalog headers (Power/Open/Extras), and

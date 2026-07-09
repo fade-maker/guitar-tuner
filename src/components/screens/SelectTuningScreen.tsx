@@ -233,8 +233,12 @@ export function SelectTuningScreen(): ReactElement {
                       className={styles.subRow}
                       onClick={() => setPendingTuningId(row.tuning.id)}
                     >
-                      <span className={styles.rowLabel}>{TUNING_ROW_LABEL[row.tuning.id] ?? row.tuning.name}</span>
-                      <span className={styles.rowRight}>
+                      {/* Chips moved from beside the name to below it (re-checked against 236:2135
+                          after the user's own Figma edit) - only nested catalog tunings changed
+                          this way; Standard's own row and the catalog header rows above are
+                          unaffected, still side-by-side. */}
+                      <span className={styles.subRowContent}>
+                        <span className={styles.rowLabel}>{TUNING_ROW_LABEL[row.tuning.id] ?? row.tuning.name}</span>
                         <span className={styles.chips}>
                           {row.tuning.strings.map((stringTarget) => {
                             const noteName = midiToNoteName(stringTarget.midi, preferences.accidental);
@@ -243,8 +247,8 @@ export function SelectTuningScreen(): ReactElement {
                             );
                           })}
                         </span>
-                        <CheckIndicator state={pendingTuningId === row.tuning.id ? 'Active' : 'Default'} />
                       </span>
+                      <CheckIndicator state={pendingTuningId === row.tuning.id ? 'Active' : 'Default'} />
                     </button>
                   )}
                 </div>
