@@ -26,7 +26,13 @@
   align-items: center;
   gap: 24px;
   width: 100%;
-  padding-top: 14.76%; /* 129 / 874 - matches the status-bar clearance used in Figma's mockup */
+  /* Was 14.76% (129/874) - the status-bar clearance from Figma's own phone-mockup canvas, which
+     doesn't apply here: this screen has no AppHeader and the real status bar is Telegram/OS chrome
+     outside this app's own viewport (the "system(ios) - don't copy" layer, never rendered), not
+     something this screen needs to leave room for itself. That percentage read as a large, unwanted
+     empty gap above the profile block on a real device. Flat 10px instead, matching Support/Settings'
+     own general spacing scale rather than a canvas-relative percentage. */
+  padding-top: 10px;
   box-sizing: border-box;
 }
 
