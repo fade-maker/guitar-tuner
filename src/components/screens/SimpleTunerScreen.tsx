@@ -69,7 +69,10 @@ export function SimpleTunerScreen(): ReactElement {
   const allTunings = useMemo(() => getAllTunings(), []);
   const activeTuning: TuningPreset = allTunings.find((t) => t.id === preferences.selectedTuning) ?? allTunings[0];
 
-  const { presentation, pinTarget, unpinTarget, reset, start, stop } = useAudioEngine(activeTuning);
+  const { presentation, pinTarget, unpinTarget, reset, start, stop } = useAudioEngine(
+    activeTuning,
+    preferences.a4Frequency,
+  );
   const [manualStringId, setManualStringId] = useState<string | null>(null);
 
   // Figma's screen has no visible Start control - the real flow is PermissionGate requesting mic

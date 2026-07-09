@@ -122,6 +122,33 @@ describe('useAudioEngine', () => {
     expect(result.current.presentation.target?.label).toBe(dropDLowString.label);
   });
 
+  it('threads a given a4 into the presenter from the start', () => {
+    const { result } = renderHook(() => useAudioEngine(getStandardTuning(), 432));
+
+    act(() => emitStatus('listening'));
+    act(() =>
+      emitReading({ frequency: midiToFrequency(HIGH_E.midi, 432), clarity: 0.95, timestamp: 1000 }),
+    );
+
+    expect(result.current.presentation.target?.label).toBe(HIGH_E.label);
+    expect(result.current.presentation.cents).toBeCloseTo(0, 0);
+  });
+
+  it('re-calibrates the presenter via setA4() when the a4 argument changes across renders', () => {
+    const { result, rerender } = renderHook(({ a4 }) => useAudioEngine(getStandardTuning(), a4), {
+      initialProps: { a4: 440 },
+    });
+    act(() => emitStatus('listening'));
+
+    rerender({ a4: 432 });
+    act(() =>
+      emitReading({ frequency: midiToFrequency(HIGH_E.midi, 432), clarity: 0.95, timestamp: 1000 }),
+    );
+
+    expect(result.current.presentation.target?.label).toBe(HIGH_E.label);
+    expect(result.current.presentation.cents).toBeCloseTo(0, 0);
+  });
+
   it('delegates start()/stop() to the AudioEngine instance', async () => {
     const { result } = renderHook(() => useAudioEngine());
 

@@ -32,8 +32,8 @@ export function DebugSettingsPanel(): ReactElement {
     tuningsForInstrument[0] ??
     allTunings[0];
 
-  const { presentation, engineStatus, error, frequency, isRunning, start, stop, setA4, pinTarget, unpinTarget } =
-    useAudioEngine(activeTuning);
+  const { presentation, engineStatus, error, frequency, isRunning, start, stop, pinTarget, unpinTarget } =
+    useAudioEngine(activeTuning, preferences.a4Frequency);
 
   // Independent of presentation.target on purpose: pinTarget() only takes effect once the engine
   // is running and a reading/tick arrives, but this control must always show what was selected so
@@ -74,7 +74,6 @@ export function DebugSettingsPanel(): ReactElement {
   function handleA4Change(value: number): void {
     if (!Number.isFinite(value) || value <= 0) return;
     setPreference('a4Frequency', value);
-    setA4(value);
   }
 
   const displayedStrings = preferences.leftHanded ? [...activeTuning.strings].reverse() : activeTuning.strings;

@@ -17,8 +17,11 @@ export function AdvancedTunerScreen(): ReactElement {
 
   // Advanced Tuner always auto-detects the nearest string - Figma's header for this screen has no
   // Auto switch (unlike Simple Tuner's), and no manual per-string picker exists on this screen, so
-  // pinTarget/unpinTarget are never called here.
-  const { presentation, setA4, start, stop } = useAudioEngine(activeTuning);
+  // pinTarget/unpinTarget are never called here. a4Frequency is passed straight through as the
+  // hook's own controlled a4 input - useAudioEngine keeps the presenter's calibration synced to it
+  // on every render, so this screen's own Calibrate stepper only needs to update AppPreferences,
+  // not call a separate setA4() itself.
+  const { presentation, start, stop } = useAudioEngine(activeTuning, preferences.a4Frequency);
 
   // Same temporary responsibility as SimpleTunerScreen - see that screen's note on PermissionGate.
   useEffect(() => {
@@ -30,12 +33,10 @@ export function AdvancedTunerScreen(): ReactElement {
     const next = preferences.a4Frequency + delta;
     if (next <= 0) return;
     setPreference('a4Frequency', next);
-    setA4(next);
   }
 
   function handleReset(): void {
     setPreference('a4Frequency', DEFAULT_A4_FREQUENCY);
-    setA4(DEFAULT_A4_FREQUENCY);
   }
 
   const hasTarget = presentation.target !== null;
