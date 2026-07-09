@@ -149,11 +149,17 @@
    the illustration's own top at exactly Figma's raw 400px reference as a direct consequence, not by
    luck: bottom edge = screen's own bottom (874), so top edge = 874 - 474 (illustration's own fixed
    height) = 400, matching Figma exactly - and this holds on any device, since neither term depends
-   on the stretchy .main percentage math at all. */
+   on the stretchy .main percentage math at all.
+
+   -126px, not -106px: nudged 20px lower than that exact Figma position, by explicit request after
+   seeing the corrected (exact) position live - a deliberate feel adjustment, not a transcription
+   value. Still safe against the bleed invariant above: the extra 20px pushes the bottom edge 20px
+   past the true screen edge, which only eats further into the portion already hidden behind/under
+   the footer's own blur, not into anything visible. */
 .illustration {
   position: absolute;
   left: 50%;
-  bottom: -106px;
+  bottom: -126px;
   transform: translateX(-50%);
 }
 
