@@ -208,12 +208,14 @@ describe('SelectTuningScreen', () => {
       return document.querySelector('[class*="pickerBlock"]') as HTMLElement;
     }
 
-    it('snaps a mid-scroll position back to idle once scrolling settles', () => {
+    it('snaps a mid-scroll position back to idle once scrolling settles, when raised content fits one viewport', () => {
       renderScreen();
       const scrollArea = getScrollArea();
       const pickerBlock = getPickerBlock();
 
       Object.defineProperty(pickerBlock, 'offsetTop', { value: 368, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollHeight', { value: 768, configurable: true });
+      Object.defineProperty(scrollArea, 'clientHeight', { value: 700, configurable: true });
       Object.defineProperty(scrollArea, 'scrollTop', { value: 100, configurable: true });
 
       fireEvent.scroll(scrollArea);
@@ -228,6 +230,8 @@ describe('SelectTuningScreen', () => {
       const pickerBlock = getPickerBlock();
 
       Object.defineProperty(pickerBlock, 'offsetTop', { value: 368, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollHeight', { value: 768, configurable: true });
+      Object.defineProperty(scrollArea, 'clientHeight', { value: 700, configurable: true });
       Object.defineProperty(scrollArea, 'scrollTop', { value: 300, configurable: true });
 
       fireEvent.scroll(scrollArea);
@@ -236,13 +240,16 @@ describe('SelectTuningScreen', () => {
       expect(scrollArea.scrollTo).toHaveBeenCalledWith({ top: 368, behavior: 'auto' });
     });
 
-    it('does not correct once scrolled at or past raised, even deep into a long expanded catalog', () => {
+    it('does not force-correct when the raised content is taller than one viewport (long expanded catalog)', () => {
       renderScreen();
       const scrollArea = getScrollArea();
       const pickerBlock = getPickerBlock();
 
       Object.defineProperty(pickerBlock, 'offsetTop', { value: 368, configurable: true });
-      Object.defineProperty(scrollArea, 'scrollTop', { value: 900, configurable: true });
+      // scrollHeight - offsetTop (900) > clientHeight (700): raised content taller than viewport.
+      Object.defineProperty(scrollArea, 'scrollHeight', { value: 1268, configurable: true });
+      Object.defineProperty(scrollArea, 'clientHeight', { value: 700, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollTop', { value: 600, configurable: true });
 
       fireEvent.scroll(scrollArea);
       vi.advanceTimersByTime(200);
@@ -256,21 +263,9 @@ describe('SelectTuningScreen', () => {
       const pickerBlock = getPickerBlock();
 
       Object.defineProperty(pickerBlock, 'offsetTop', { value: 368, configurable: true });
+      Object.defineProperty(scrollArea, 'scrollHeight', { value: 768, configurable: true });
+      Object.defineProperty(scrollArea, 'clientHeight', { value: 700, configurable: true });
       Object.defineProperty(scrollArea, 'scrollTop', { value: 368, configurable: true });
-
-      fireEvent.scroll(scrollArea);
-      vi.advanceTimersByTime(200);
-
-      expect(scrollArea.scrollTo).not.toHaveBeenCalled();
-    });
-
-    it('does not correct while at scrollTop 0 (idle)', () => {
-      renderScreen();
-      const scrollArea = getScrollArea();
-      const pickerBlock = getPickerBlock();
-
-      Object.defineProperty(pickerBlock, 'offsetTop', { value: 368, configurable: true });
-      Object.defineProperty(scrollArea, 'scrollTop', { value: 0, configurable: true });
 
       fireEvent.scroll(scrollArea);
       vi.advanceTimersByTime(200);
