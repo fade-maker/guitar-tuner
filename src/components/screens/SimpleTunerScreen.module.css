@@ -26,10 +26,21 @@
 
 /* Everything that used to be positioned as a percentage of the full 874px Figma canvas now
    positions as a percentage of this element instead - .main is exactly "the space between Header
-   and Footer", so every top% below is rebased to (originalTop - 121) / 647, where 121px was
-   Header's Figma top offset and 647px (874 - 121 - 106) was the vertical span Figma implied for
-   this region. That reference math is only used to keep the original proportions; the box itself
-   sizes to whatever space Header/Footer's real rendered heights leave, on any device.
+   and Footer", so every top% below is rebased to (originalTop - 210) / 558, where 210px is
+   Header's Figma BOTTOM edge (121px top offset + its own 89px height) and 558px
+   (874 - 210 - 106) is the vertical span Figma implied for this region.
+
+   Corrected from an earlier version of this same rebasing that used 121/647 - Header's Figma TOP
+   offset, not its bottom - which effectively treated Header as if it had zero height instead of
+   89px, pushing everything below it (pitch badge, current note, tune line, illustration, string
+   rows) further down than Figma actually shows. Confirmed directly: our own real header renders at
+   essentially the same ~88-89px height Figma's own AppHeader instance reports, so 210/558 (not
+   121/647) is the correct reference frame - the 121px itself is real, but it's the *iOS status bar*
+   Figma's mockup canvas includes above the header (excluded from this app entirely, same as every
+   other "system(ios) - don't copy" reference chrome), not header content height, and was never
+   meant to also stand in for Header's own height in this formula. That reference math is only used
+   to keep the original proportions; the box itself sizes to whatever space Header/Footer's real
+   rendered heights leave, on any device.
 
    Deliberately NOT `overflow: hidden` (a first pass at this fix had it, defensively, and it clipped
    the bottom of the guitar/bass illustration - a real regression, not a "matches Figma at a
@@ -78,12 +89,17 @@
   display: block;
 }
 
+/* top is negative - the wrapper's own box starts ~34px above .main's top edge once its height
+   (48.387%, a fixed 270px span) is centered around the tune line's true Figma position (158 to
+   428). The wrapper itself is invisible (width:0, just a flex-centering box for the rotated line),
+   and the actual 1px line inside it is what's centered - confirmed via screenshot this does not
+   visibly cross into Header's own content, only the empty flex box technically does. */
 .tuneLineWrap {
   position: absolute;
   left: 50%;
-  top: 5.719%; /* (158 - 121) / 647 */
+  top: -9.319%; /* (158 - 210) / 558 */
   width: 0;
-  height: 41.731%; /* 270 / 647 */
+  height: 48.387%; /* 270 / 558 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -110,28 +126,43 @@
    tune line, with its text label free to extend further right. */
 .pitchBadge {
   position: absolute;
-  top: 21.329%; /* (259 - 121) / 647 */
+  top: 8.781%; /* (259 - 210) / 558 */
 }
 
 .currentNote {
   position: absolute;
   left: 44.527%; /* 179 / 402 - unaffected, this axis didn't change */
-  top: 34.158%; /* (342 - 121) / 647 */
+  top: 23.656%; /* (342 - 210) / 558 */
 }
 
+/* Anchored from the bottom, not a top%, unlike its siblings above - this element's height is fixed
+   (GuitarIllustration/BassIllustration's own 474px, not proportional to .main), and its bottom edge
+   must land exactly at the true screen bottom (see .main's own comment on why: it's designed to
+   extend the footer's full 106px height behind the translucent footer, not just approximately).
+   A top% derived from Figma's own reference proportions doesn't reliably hit that exact target on a
+   real device, because our real .main ends up taller than Figma's reference `.main` span (our
+   header has no 121px iOS-status-bar tax eating into its own footprint, the same fix as this file's
+   .main comment describes) - so a fixed-height child positioned via top% drifts short of the
+   footer instead of reaching it. `bottom: -106px` (.main's real bottom always equals footer's own
+   top, and footer is a fixed, non-percentage 106px in FooterNavigation.module.css) reproduces the
+   exact bleed-to-screen-bottom behavior regardless of .main's real height on any device - and lands
+   the illustration's own top at exactly Figma's raw 400px reference as a direct consequence, not by
+   luck: bottom edge = screen's own bottom (874), so top edge = 874 - 474 (illustration's own fixed
+   height) = 400, matching Figma exactly - and this holds on any device, since neither term depends
+   on the stretchy .main percentage math at all. */
 .illustration {
   position: absolute;
   left: 50%;
-  top: 43.122%; /* (400 - 121) / 647 */
+  bottom: -106px;
   transform: translateX(-50%);
 }
 
 .stringContainer {
   position: absolute;
   left: 0;
-  top: 51.159%; /* (452 - 121) / 647 */
+  top: 43.369%; /* (452 - 210) / 558 */
   width: 100%;
-  height: 31.530%; /* 204 / 647 */
+  height: 36.559%; /* 204 / 558 */
   padding: 0 var(--space-16);
   box-sizing: border-box;
   display: flex;
