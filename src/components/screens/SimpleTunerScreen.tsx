@@ -200,7 +200,7 @@ export function SimpleTunerScreen(): ReactElement {
           </div>
         )}
 
-        <div className={styles.stringContainer}>
+        <div className={classNames(styles.stringContainer, instrument === 'bass' && styles.stringContainerBass)}>
           <div className={columnClassName}>
             {left.map((target) => (
               <StringControl

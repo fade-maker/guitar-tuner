@@ -6,6 +6,13 @@
   justify-content: center;
   width: 52px;
   height: 52px;
+  /* Structural, not cosmetic: without this, a flex-column parent (SimpleTunerScreen's .column) can
+     shrink this button below its own 52px height whenever its siblings' combined size exceeds the
+     available band height (concretely: Bass's 4-string single column) - width stays exactly 52px
+     (the cross axis, unaffected) while height shrinks, turning the circle into an oval. flex-shrink
+     is 1 by default on every flex item; this one must never shrink regardless of how tight the
+     parent's available space gets. */
+  flex-shrink: 0;
   box-sizing: border-box;
   border-radius: var(--radius-full);
   font-family: var(--font-family-display);

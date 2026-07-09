@@ -4,23 +4,24 @@
   height: 291px;
 }
 
-/* Figma positions this well outside a naive inset:0 of .container (236.541 x 257.336px, centered
-   horizontally, top:25.87px) with the mask itself offset within that box (mask-position
-   43.322px -0.866px) rather than starting at its own origin - transcribed as-is, not simplified,
-   since the offset is load-bearing for which part of the mask's gradient actually shows. */
+/* Re-synced against the current master component (163:3976) - grew from 236.541x257.336px to
+   255x277px (same "image got bigger" change as the full-size BassIllustration), moved up (top
+   25.87px -> 6px) and 10px right of center (left: 50% -> calc(50% + 10px)), with the mask's own
+   offset following (mask-position 43.322px -0.866px -> 42.552px 19px). mask-size (149.896x266) is
+   unchanged - it's the same mask asset, just repositioned/enlarged. */
 .masked {
   position: absolute;
-  top: 25.87px;
-  left: 50%;
+  top: 6px;
+  left: calc(50% + 10px);
   transform: translateX(-50%);
-  width: 236.541px;
-  height: 257.336px;
+  width: 255px;
+  height: 277px;
   mask-repeat: no-repeat;
   mask-size: 149.896px 266px;
-  mask-position: 43.322px -0.866px;
+  mask-position: 42.552px 19px;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-size: 149.896px 266px;
-  -webkit-mask-position: 43.322px -0.866px;
+  -webkit-mask-position: 42.552px 19px;
 }
 
 .crop {

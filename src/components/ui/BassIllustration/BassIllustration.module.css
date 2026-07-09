@@ -4,13 +4,16 @@
   height: 474px;
 }
 
+/* Re-synced against the current master component (144:1609): the crop window grew from 293x450 to
+   299x458 (the photo/crop percentages below are unchanged - same source photo, same crop ratio,
+   just a bigger window onto it, which is what reads as "the image got bigger"). */
 .frame {
   position: absolute;
   left: 50%;
   top: calc(50% + 32px);
   transform: translate(-50%, -50%);
-  width: 293px;
-  height: 450px;
+  width: 299px;
+  height: 458px;
   overflow: hidden;
 }
 

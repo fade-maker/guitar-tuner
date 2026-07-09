@@ -179,6 +179,17 @@
   justify-content: space-between;
 }
 
+/* Bass's own band (144:1976's "Frame 2147231251", 176:1862) is a real, separate size from guitar's
+   - not this same box reused: top 432/height 276, vs guitar's 452/204. It has to be, since a single
+   4-string column (256px of content: 4*52 + 3*16 gaps) doesn't fit in guitar's 204px band at all -
+   that mismatch, not a CSS bug alone, was the other half of why the buttons rendered as ovals
+   (flexbox shrinking them to fit too little space); .control's own flex-shrink:0 now makes that
+   failure mode structurally impossible, and this is what gives it the real room it needs instead. */
+.stringContainerBass {
+  top: 39.785%; /* (432 - 210) / 558 */
+  height: 49.462%; /* 276 / 558 */
+}
+
 .column {
   display: flex;
   flex-direction: column;
