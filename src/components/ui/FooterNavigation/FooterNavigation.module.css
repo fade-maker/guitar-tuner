@@ -1,15 +1,15 @@
 @import '../../../theme/tokens.css';
 
-/* Structure transcribed exactly from Figma. No background on this outer node at all, by explicit
-   request - both the gradient and an earlier flat-fill attempt (--gradient-footer, still defined in
-   theme/tokens.css but no longer applied here) read as an unwanted filled bar on real-device testing.
-   `.pill`'s own glass/blur/border treatment below is what's meant to carry this component's visual
-   weight; this wrapper is now purely a layout/positioning box.
+/* Structure transcribed exactly from Figma. Background gradient restored to Figma's own real value
+   (--gradient-footer, 78.302% stop - see its own comment in theme/tokens.css) - an earlier pass
+   removed it entirely after a real-device report that the footer "has a background", but the actual
+   cause was RouteTransition's `.stage` clipping the illustration this gradient is meant to fade over
+   (see CLAUDE.md's "Fix footer background" entries), not the gradient itself. With that fixed, the
+   real Figma value is back.
 
-   No blur on this outer node either, by explicit request - confirmed on-device (via the
-   all-blur-removed diagnostic pass) that backdrop-filter does render in this Telegram client, and
-   blur was restored on `.pill` (below) as the one layer that's staying; this node's own blur stays
-   off. */
+   No blur on this outer node, by explicit request - confirmed on-device (via the all-blur-removed
+   diagnostic pass) that backdrop-filter does render in this Telegram client at all, and blur was
+   restored on `.pill` (below) as the one layer that's staying; this node's own blur stays off. */
 .footer {
   display: flex;
   align-items: center;
@@ -17,6 +17,7 @@
   width: 100%;
   box-sizing: border-box;
   padding: 21px var(--space-20, 20px);
+  background: var(--gradient-footer);
   overflow: hidden;
 }
 

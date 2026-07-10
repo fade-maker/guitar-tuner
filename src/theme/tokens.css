@@ -77,4 +77,13 @@
   --shadow-footer-inner: inset 0px 0px 12.6px 0px rgba(0, 0, 0, 0.251);
   --backdrop-blur-footer: 6px;
 
+  /* Figma's own codegen for BottomNavigation (66:3223): bg-gradient-to-b from-[rgba(18,18,18,0)]
+     to-[#121212] to-[78.302%] on the full 402x106 node. Re-confirmed directly against the live
+     Figma file, not carried over from memory - an earlier pass had moved this stop to 20% because
+     78.302% read as invisible on-device, but that finding was confounded by an unrelated bug
+     (RouteTransition's .stage was clipping the illustration that's meant to bleed through behind
+     this gradient - see CLAUDE.md's "Fix footer background" entries). Restored to the real value
+     now that the actual cause is fixed. */
+  --gradient-footer: linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, #121212 78.302%);
+
 }

@@ -1763,3 +1763,21 @@ band again, instead of flat black. `document.documentElement.scrollHeight === cl
 scroll) both at rest and mid-Select-Tuning-transition - confirming `.viewportScreen`'s own clip is
 genuinely sufficient on its own, this was never load-bearing for that. `tsc -b`, full test suite
 (456/62, unchanged), `npm run lint`, `vite build` all clean.
+
+**Footer gradient restored to Figma's real value, now that the actual clipping bug is fixed.**
+Re-fetched `get_design_context` on the live BottomNavigation component (`66:3223`, via a fileKey the
+user provided directly - no fileKey had been available to any earlier session's Figma calls) rather
+than trusting memory of the old, already-abandoned-once value. Confirmed: Figma's own codegen is
+`linear-gradient(180deg, rgba(18,18,18,0) 0%, #121212 78.302%)` across the node's full 106px height -
+exactly the value an earlier pass (see `theme/tokens.css`'s old comment, now replaced) had moved away
+from at 20% specifically because 78.302% "measured as invisible on a real device." That earlier
+finding was confounded by the `.stage` clipping bug fixed just above - with nothing visible bleeding
+through behind the footer at the time, no gradient stop could have looked like anything but flat
+black. Restored `--gradient-footer` to the real 78.302% value and reapplied it to `.footer`'s
+`background` (both had been fully removed in the immediately preceding commit). Verified via
+screenshot on both Simple Tuner (illustration fades correctly under the pill, reaching solid before
+the footer's own bottom edge - matching the user's own description of the intended look) and Settings
+(no illustration to bleed through there by design, footer renders cleanly with no page scroll -
+`scrollHeight === clientHeight`, confirming this screen never had a variant of the clipping bug, only
+the same shared-component gradient symptom). `tsc -b`, full test suite (456/62, unchanged),
+`npm run lint`, `vite build` all clean.
