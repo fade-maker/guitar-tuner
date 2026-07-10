@@ -20,20 +20,10 @@
   flex-direction: column;
 }
 
-/* Durations/curves here are an explicit engineering read (see RouteTransition.tsx's own top
-   comment) - no animation design exists in Figma for either transition. */
-
-@keyframes exitFadeOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-.exitFadeOut {
-  animation: exitFadeOut 240ms ease-out forwards;
-}
+/* Select Tuning's push/pop slide only - the footer-switch fade/spring pair that used to live here
+   was rolled back (see RouteTransition.tsx's own top comment for why: real-device lag from keeping
+   two audio-engine-owning screens mounted simultaneously). Durations/curves here are an explicit
+   engineering read, not a Figma-sourced spec - no animation design exists in Figma for this either. */
 
 @keyframes exitSlideOutRight {
   from {
