@@ -54,30 +54,40 @@
 }
 
 .thumbAnimateOn {
-  animation: thumbTurnOn 400ms forwards;
+  animation: thumbTurnOn 450ms forwards;
 }
 .thumbAnimateOff {
-  animation: thumbTurnOff 400ms forwards;
+  animation: thumbTurnOff 450ms forwards;
 }
 
-/* Pickup happens in place (0%->18%, ~72ms): grows to a fixed 58x36 (not a proportional scale -
+/* Pickup happens in place (0%->18%, ~81ms): grows to a fixed 58x36 (not a proportional scale -
    58/38=1.526 vs 36/24=1.5, different ratios per axis, explicitly requested as exact numbers rather
-   than a uniform multiplier) and the glass effect engages, quick ease-out "pop". transform: scale()
-   was deliberately dropped for this reason too - a non-uniform scale would distort the pill's
-   rounded end-caps into an ellipse; animating width/height directly keeps border-radius: var(
-   --radius-full) rendering a true capsule at every size. left/top at 18%/78% are computed to keep
-   the enlarged box centered on the same point the resting 38x24 box was centered on (both the
-   horizontal center of whichever side it started from, and the track's own vertical center) rather
-   than growing from a corner - see the two keyframe blocks below for the actual numbers. The
-   enlarged box does extend past `.track`'s own edges (e.g. left: -8px) - intentional, `.track` has
-   no `overflow: hidden`, matching Liquid Glass elements visibly puffing past their own bounds when
-   picked up, not a clipping bug.
+   than a uniform multiplier) and the glass effect engages, gentle ease-out. transform: scale() was
+   deliberately dropped for this reason too - a non-uniform scale would distort the pill's rounded
+   end-caps into an ellipse; animating width/height directly keeps border-radius: var(--radius-full)
+   rendering a true capsule at every size. left/top at 18%/78% are computed to keep the enlarged box
+   centered on the same point the resting 38x24 box was centered on (both the horizontal center of
+   whichever side it started from, and the track's own vertical center) rather than growing from a
+   corner - see the two keyframe blocks below for the actual numbers. The enlarged box does extend
+   past `.track`'s own edges (e.g. left: -8px) - intentional, `.track` has no `overflow: hidden`,
+   matching Liquid Glass elements visibly puffing past their own bounds when picked up, not a
+   clipping bug.
 
-   Travel (18%->78%, ~240ms): position moves while enlarged and glassy, smooth liquid deceleration -
-   deliberately no hard overshoot here, that's reserved for the softer settle below, since a
-   mechanical spring-back read as too snappy/un-"liquid" for this specific motion. Settle (78%->100%,
-   ~88ms): shrinks back to 38x24 and de-glasses together (per explicit instruction - not a two-step
-   sequence), landing on the exact resting position with a light, non-bouncy "catch". */
+   Travel (18%->78%, ~270ms): position moves while enlarged and glassy, smooth liquid deceleration.
+   Settle (78%->100%, ~99ms): shrinks back to 38x24 and de-glasses together (per explicit instruction
+   - not a two-step sequence), landing on the exact resting position with a very light, barely-there
+   "catch" rather than a bounce.
+
+   All three curves were deliberately softened from an earlier pass (which used a snappier expo-out
+   pickup and a more pronounced settle overshoot) after direct feedback that it read as too abrupt -
+   cubic-bezier(0.33, 1, 0.68, 1) ("ease-out-cubic", a standard, gentler curve than expo) now drives
+   both pickup and travel; settle's overshoot factor dropped from 1.2 to 1.05, barely perceptible.
+   Total duration is 450ms (was 400ms), a deliberately modest bump, not a re-tune of the phase split
+   itself (still 18/60/22).
+
+   Glass fill/border opacity were both lowered (0.55->0.35 fill, 0.45->0.32 border) per explicit
+   feedback that the glass state should read as more transparent - not a Figma value, a direct,
+   named adjustment, same as every other motion/opacity number on this component. */
 @keyframes thumbTurnOn {
   0% {
     left: 2px;
@@ -87,27 +97,27 @@
     background-color: var(--color-surface-inverse);
     backdrop-filter: blur(0px);
     border-color: transparent;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
   }
   18% {
     left: -8px; /* off-position center (2 + 38/2 = 21) minus half the enlarged width (58/2 = 29) */
     top: -4px; /* track's vertical center (28/2 = 14) minus half the enlarged height (36/2 = 18) */
     width: 58px;
     height: 36px;
-    background-color: rgba(255, 255, 255, 0.55);
+    background-color: rgba(255, 255, 255, 0.35);
     backdrop-filter: blur(4px);
-    border-color: rgba(255, 255, 255, 0.45);
-    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    border-color: rgba(255, 255, 255, 0.32);
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
   }
   78% {
     left: 16px; /* on-position center (26 + 38/2 = 45) minus half the enlarged width (29) */
     top: -4px;
     width: 58px;
     height: 36px;
-    background-color: rgba(255, 255, 255, 0.55);
+    background-color: rgba(255, 255, 255, 0.35);
     backdrop-filter: blur(4px);
-    border-color: rgba(255, 255, 255, 0.45);
-    animation-timing-function: cubic-bezier(0.34, 1.2, 0.64, 1);
+    border-color: rgba(255, 255, 255, 0.32);
+    animation-timing-function: cubic-bezier(0.34, 1.05, 0.64, 1);
   }
   100% {
     left: 26px;
@@ -129,27 +139,27 @@
     background-color: var(--color-surface-inverse);
     backdrop-filter: blur(0px);
     border-color: transparent;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
   }
   18% {
     left: 16px;
     top: -4px;
     width: 58px;
     height: 36px;
-    background-color: rgba(255, 255, 255, 0.55);
+    background-color: rgba(255, 255, 255, 0.35);
     backdrop-filter: blur(4px);
-    border-color: rgba(255, 255, 255, 0.45);
-    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    border-color: rgba(255, 255, 255, 0.32);
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
   }
   78% {
     left: -8px;
     top: -4px;
     width: 58px;
     height: 36px;
-    background-color: rgba(255, 255, 255, 0.55);
+    background-color: rgba(255, 255, 255, 0.35);
     backdrop-filter: blur(4px);
-    border-color: rgba(255, 255, 255, 0.45);
-    animation-timing-function: cubic-bezier(0.34, 1.2, 0.64, 1);
+    border-color: rgba(255, 255, 255, 0.32);
+    animation-timing-function: cubic-bezier(0.34, 1.05, 0.64, 1);
   }
   100% {
     left: 2px;
