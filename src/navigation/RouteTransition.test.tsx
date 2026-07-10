@@ -76,17 +76,13 @@ describe('RouteTransition', () => {
     expect(container.querySelectorAll('[class*="layer_"]').length).toBe(1);
   });
 
-  // Rolled back: footer-accessible screens (Simple/Advanced Tuner, Settings) used to fade/spring
-  // past each other here - removed after real-device testing showed it made the footer feel
-  // laggy/unresponsive (see RouteTransition.tsx's own top comment). A switch between any two
-  // screens that aren't Select Tuning is now a plain instant swap - no exiting entry at all.
-  it('a switch between two non-Select-Tuning screens is an instant swap, with no exiting layer', () => {
+  it('keeps the outgoing screen mounted (fadeOut) alongside the incoming one after a footer-style switch', () => {
     const { container, navigate } = renderTransition('permission', ['settings']);
     navigate('settings');
 
-    expect(screen.queryByText('Permission (stub)')).toBeNull();
-    expect(screen.getByText('Advanced mode')).not.toBeNull();
-    expect(container.querySelectorAll('[class*="layer_"]').length).toBe(1);
+    expect(screen.getByText('Permission (stub)')).not.toBeNull(); // still there, fading out
+    expect(screen.getByText('Advanced mode')).not.toBeNull(); // Settings screen, entering
+    expect(container.querySelector('[class*="exitFadeOut"]')).not.toBeNull();
   });
 
   it('opening Select Tuning: the previous screen stays static underneath, Select Tuning slides in', () => {
@@ -97,6 +93,7 @@ describe('RouteTransition', () => {
     expect(screen.getByText('Select tuning')).not.toBeNull(); // Select Tuning, entering
     expect(container.querySelector('[class*="enterSlideInRight"]')).not.toBeNull();
     // The underneath screen must not itself carry an exit animation class.
+    expect(container.querySelector('[class*="exitFadeOut"]')).toBeNull();
     expect(container.querySelector('[class*="exitSlideOutRight"]')).toBeNull();
   });
 
@@ -109,26 +106,24 @@ describe('RouteTransition', () => {
     expect(container.querySelector('[class*="exitSlideOutRight"]')).not.toBeNull();
   });
 
-  it('a second navigation before Select Tuning finishes entering evicts the previous exiting screen', () => {
-    const { navigate } = renderTransition('permission', ['select-tuning', 'settings']);
-    navigate('select-tuning'); // permission now exiting (staticUnderneath), Select Tuning entering
+  it('a second navigation before the first exit finishes evicts the first exiting screen immediately', () => {
+    const { navigate } = renderTransition('permission', ['settings', 'select-tuning']);
+    navigate('settings'); // permission now exiting (fadeOut), unfinished
     expect(screen.getByText('Permission (stub)')).not.toBeNull();
-    expect(screen.getByText('Select tuning')).not.toBeNull();
 
-    navigate('settings'); // closes Select Tuning before its entrance finished - permission must be
-    // gone (evicted, not queued), Select Tuning now exiting on top of settings.
+    navigate('select-tuning'); // settings now exiting instead - permission must be gone, not stacked
     expect(screen.queryByText('Permission (stub)')).toBeNull();
+    expect(screen.getByText('Advanced mode')).not.toBeNull(); // settings, now exiting (staticUnderneath)
     expect(screen.getByText('Select tuning')).not.toBeNull();
-    expect(screen.getByText('Advanced mode')).not.toBeNull();
   });
 
-  it('reduced motion: Select Tuning also swaps instantly, with no exiting layer at all', () => {
+  it('reduced motion: swaps instantly with no exiting layer at all', () => {
     ReducedMotion(true);
-    const { container, navigate } = renderTransition('settings', ['select-tuning']);
-    navigate('select-tuning');
+    const { container, navigate } = renderTransition('permission', ['settings']);
+    navigate('settings');
 
-    expect(screen.queryByText('Advanced mode')).toBeNull();
-    expect(screen.getByText('Select tuning')).not.toBeNull();
+    expect(screen.queryByText('Permission (stub)')).toBeNull();
+    expect(screen.getByText('Advanced mode')).not.toBeNull();
     expect(container.querySelectorAll('[class*="layer_"]').length).toBe(1);
   });
 });
