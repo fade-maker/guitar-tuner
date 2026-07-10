@@ -9,7 +9,10 @@
   box-sizing: border-box;
   padding: 4px;
   border-radius: var(--radius-full);
-  background: var(--color-surface-elevated);
+  /* --color-surface-card (#1e1e1e), not --color-surface-elevated (#2c2c2c) - matches the other
+     card panels on this screen (Standard, Power/Open/Extras) instead of reading as a visibly
+     different, lighter surface. */
+  background: var(--color-surface-card);
 }
 
 /* Slides between segments instead of each segment swapping its own background instantly - iOS-style

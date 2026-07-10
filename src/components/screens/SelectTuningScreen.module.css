@@ -274,14 +274,16 @@
   border-top: 1px solid rgba(225, 224, 217, 0.08);
 }
 
-/* Figma's "Frame 1" (174:1392) - same gradient/blur band treatment as FooterNavigation's own
-   .footer (transparent -> #121212), but this is a screen-specific Save-button bar, not the shared
-   Bottom Navigation component, so it's not reused from there. Value transcribed directly from this
-   node's own codegen (78.302%) rather than reusing --gradient-footer's tuned-for-visibility 20%
-   stop - that adjustment was specific to Bottom Navigation's own, much tighter (106px, mostly
-   covered by the pill) geometry; this bar is 146px with a 44px visible band before the button
-   starts, a different enough shape that carrying over the same fix without re-checking would be a
-   guess, not a transcription. Revisit if this one also turns out too subtle on a real device.
+/* Figma's "Frame 1" (174:1392) - same gradient band treatment as FooterNavigation's own .footer
+   (transparent -> #121212), but this is a screen-specific Save-button bar, not the shared Bottom
+   Navigation component, so it's not reused from there. Value transcribed directly from this node's
+   own codegen (78.302%) rather than reusing --gradient-footer's tuned-for-visibility 20% stop -
+   that adjustment was specific to Bottom Navigation's own, much tighter (106px, mostly covered by
+   the pill) geometry; this bar is 146px with a 44px visible band before the button starts, a
+   different enough shape that carrying over the same fix without re-checking would be a guess, not
+   a transcription. Revisit if this one also turns out too subtle on a real device.
+
+   No backdrop-filter, by explicit request - gradient fill only.
 
    Lives outside `.scrollArea` (a sibling, absolutely positioned off `.screen`) so it stays fixed at
    the bottom regardless of scroll position - `.scrollSpacer` above is what keeps scrolled content
@@ -294,7 +296,6 @@
   box-sizing: border-box;
   padding: 44px;
   background: linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, #121212 78.302%);
-  backdrop-filter: blur(2px);
   z-index: 1;
 }
 

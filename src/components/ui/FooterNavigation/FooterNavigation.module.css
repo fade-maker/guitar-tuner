@@ -1,14 +1,15 @@
 @import '../../../theme/tokens.css';
 
-/* Structure transcribed exactly from Figma. Background gradient - see --gradient-footer's own
-   comment in theme/tokens.css for why its stop position (20%, not Figma dev-mode's reported
-   78.3%) was deliberately adjusted: at 78.3% the fade only ever reaches ~25% opacity within the
-   sliver of `.footer` that isn't covered by `.pill`, which measured as invisible on a real device
-   side-by-side against Figma's own render - not a subtle difference, no visible transition at all.
+/* Structure transcribed exactly from Figma. No background on this outer node at all, by explicit
+   request - both the gradient and an earlier flat-fill attempt (--gradient-footer, still defined in
+   theme/tokens.css but no longer applied here) read as an unwanted filled bar on real-device testing.
+   `.pill`'s own glass/blur/border treatment below is what's meant to carry this component's visual
+   weight; this wrapper is now purely a layout/positioning box.
 
-   No blur on this outer node, by explicit request - confirmed on-device (via the all-blur-removed
-   diagnostic pass) that backdrop-filter does render in this Telegram client at all, and blur was
-   restored on `.pill` (below) as the one layer that's staying; this node's own blur stays off. */
+   No blur on this outer node either, by explicit request - confirmed on-device (via the
+   all-blur-removed diagnostic pass) that backdrop-filter does render in this Telegram client, and
+   blur was restored on `.pill` (below) as the one layer that's staying; this node's own blur stays
+   off. */
 .footer {
   display: flex;
   align-items: center;
@@ -16,7 +17,6 @@
   width: 100%;
   box-sizing: border-box;
   padding: 21px var(--space-20, 20px);
-  background: var(--gradient-footer, linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, #121212 20%));
   overflow: hidden;
 }
 

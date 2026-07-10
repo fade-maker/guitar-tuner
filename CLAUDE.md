@@ -1691,3 +1691,47 @@ animation completes (sheet fill goes from `--color-surface-elevated` back to the
 specifically tested on a real device for perceptibility - flagged, not fixed blind, since fixing it
 either way (matching Select Tuning's permanent resting background to the elevated tone, or something
 else) is a real visual-identity decision with no Figma source, not a bug with an obvious correct fix.
+
+### Real-device fixes after the above: footer background removed entirely, card-modal brightening reverted, three Select Tuning polish items
+
+Four fixes reported after testing the previous pass on a real device/Telegram client.
+
+**Footer "has a background again"**: investigated via `git log` before touching anything -
+`FooterNavigation.module.css`/`theme/tokens.css`'s `--gradient-footer` were untouched by any commit
+in this whole multi-task pass (last real change was `3678be8`, well before this session), and
+`.footer`'s height is fixed content-based (106px), not viewport-height-dependent - ruled out a
+regression from the Settings-keep-alive/RouteTransition work. Confirmed via a real screenshot that
+what's showing is exactly the intentional, previously-shipped `7280ff3` fix ("Make footer's
+background gradient actually visible" - the stop was deliberately moved to 20% specifically because
+Figma's own 78.3% read as no visible transition at all on-device). Reported this back with the
+screenshot rather than guessing at a new gradient value that might just re-break the older fix -
+user confirmed it's the same thing and asked for a different resolution: remove `.footer`'s
+background entirely (not just retune it), keeping `.pill`'s own glass/blur/border treatment as the
+component's only visual weight. `--gradient-footer` removed from `theme/tokens.css` (its own now
+20-line sourcing comment removed with it) since nothing applies it as a `background` anywhere anymore
+- confirmed via grep before deleting.
+
+**Select Tuning card-modal "brightening" removed**: `RouteTransition.module.css`'s `.sheetSurface`
+(added in the previous pass specifically to make the rounded corner visible - see that entry) went
+from `--color-surface-elevated` (#2c2c2c) back to `--color-surface-page` (#121212, matching what the
+screen renders at rest) - real-device testing showed the elevated tone read as an unwanted, distinctly
+lighter surface. The corner is subtler now (closer to the earlier "almost imperceptible" finding this
+project already logged once) - an explicit, acknowledged trade-off, not an oversight.
+
+**SegmentedControl (Guitar/Bass switcher) background**: `.track` changed from
+`--color-surface-elevated` to `--color-surface-card` (#1e1e1e) - matches the Standard/Power/Open/
+Extras card panels on the same screen instead of reading as a visibly different, lighter surface.
+
+**Select Tuning's Save bar blur removed**: `.saveBar` (the gradient band behind the Save button) had
+`backdrop-filter: blur(2px)` removed - gradient fill only now, per explicit request. Confirmed the
+Save-triggered exit already used the same downward slide (`exitSlideDown`) as any other close, since
+Save is the only way to leave this screen and simply calls `navigateTo()`, which is what
+`RouteTransition` already keys its exit animation off - no code change was needed for that part of
+the request, verified via computed style during the animation instead of assumed.
+
+Verified via the same static-build + Playwright + `file://` technique: `.footer`'s computed
+`background` is `rgba(0, 0, 0, 0)` (fully transparent, confirmed by screenshot - only the pill's own
+glass fill/blur/border remains visible); `.track`'s computed `background-color` is `rgb(30, 30, 30)`
+(`--color-surface-card`); `.saveBar`'s computed `backdrop-filter` is `none`; the exiting Select Tuning
+layer's `background-color` is `rgb(18, 18, 18)` (`--color-surface-page`) with a growing `translateY`
+mid-animation. `tsc -b`, full test suite (456/62, unchanged), `npm run lint`, `vite build` all clean.

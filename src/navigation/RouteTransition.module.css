@@ -74,20 +74,16 @@
   animation: scrimOut 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
-/* The rounded top corners only read as a real "card" if this layer has its own opaque fill to clip -
-   without one, `overflow:hidden` + `border-radius` has nothing visibly distinct to cut a corner out
-   of, since every screen relies on the shared page background (painted once, by AppShell's singleton
-   ViewportScreen, sitting behind every layer here) rather than painting its own. Found via a real
-   Playwright screenshot mid-transition: the corner was structurally "rounded" (confirmed in computed
-   style) but completely invisible against the identical black showing through on both sides of it.
-
-   Uses --color-surface-elevated (#2c2c2c), not --color-surface-page (#121212, what SelectTuningScreen
-   itself renders against once settled) - re-checked via another real screenshot: page-background-on
-   page-background left the card silhouette almost imperceptible against the also-near-black dimmed
-   backdrop (the two only differ by the scrim's ~7-unit darkening). Elevated reads as an actual
-   raised surface. No Figma source for this (same as the radius/scrim values) - an engineering read. */
+/* --color-surface-page (#121212), matching exactly what SelectTuningScreen itself renders against
+   once settled - not --color-surface-elevated (#2c2c2c). An earlier pass tried elevated specifically
+   to make the rounded corner visible against the dimmed backdrop (border-radius + overflow:hidden
+   need *some* opaque fill to clip, since screens don't paint their own background - see .scrim's own
+   comment), but that read as an unwanted brightening/lightening effect on real-device testing - the
+   sheet should not look like a distinctly different, lighter surface than the rest of the app.
+   Reverted to the page's own color; the corner is subtler this way but that's the explicit
+   trade-off asked for. */
 .sheetSurface {
-  background: var(--color-surface-elevated);
+  background: var(--color-surface-page);
 }
 
 @keyframes exitSlideDown {

@@ -77,21 +77,4 @@
   --shadow-footer-inner: inset 0px 0px 12.6px 0px rgba(0, 0, 0, 0.251);
   --backdrop-blur-footer: 6px;
 
-  /* Figma: "background/Surface/gradioent" (typo is Figma's own, kept only here for traceability -
-     get_variable_defs couldn't resolve this style to a value). Dev-mode's own reported stop
-     (78.3%) is real, but geometrically almost invisible in this component specifically: `.footer`
-     is 106px tall, `.pill` sits centered inside it and covers everything past ~20% of that height,
-     so the only part of this gradient anyone can actually see is the sliver between `.footer`'s
-     own top edge and the top of the pill - and at 78.3%, this gradient is still only ~25% opaque
-     by the time the pill covers it, over whatever's already dark behind it. Confirmed on-device
-     (screenshot compared directly against Figma's own render of this exact area) that this reads
-     as no visible transition at all, not a subtle one.
-
-     Moved the full-opacity stop to 20% - right where the pill begins - so the fade that's actually
-     visible (the sliver above the pill) covers its full transparent-to-opaque range within that
-     same sliver, instead of the first quarter of a transition that finishes somewhere no one can
-     see. Same two colors/stops Figma reports (rgba(18,18,18,0) -> #121212), same direction - only
-     the stop *position* changed, and only because the original one is provably not visible in this
-     specific layout, not because the color itself was wrong. */
-  --gradient-footer: linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, #121212 20%);
 }
