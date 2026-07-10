@@ -5,10 +5,20 @@
    screens, so it (not each individual screen) is the direct flex child of `.viewportScreen`'s
    column. Each screen's own `.screen` class still separately composes `routedScreen` too - that's
    still needed for `position: relative` (screens like SelectTuningScreen position children directly
-   off it) and to make the screen stretch to fill `.layer`'s own box (see `.layer` below). */
+   off it) and to make the screen stretch to fill `.layer`'s own box (see `.layer` below).
+
+   No `overflow: hidden` here, deliberately - this project already hit exactly this bug once before
+   (see CLAUDE.md's "illustration clipping" entry): Simple/Advanced Tuner's guitar illustration is
+   designed to bleed past its own screen's box into the translucent Bottom Navigation band behind it
+   (found via real-device testing: without that bleed, the footer has nothing to show through and
+   reads as a flat filled bar instead of a glass surface). An earlier version of this file added
+   `overflow: hidden` here to keep the Select Tuning slide contained during its transition - but
+   `.viewportScreen`'s own `overflow: hidden` (ViewportScreen.module.css) already sits one level up
+   and is the real, sufficient boundary against page-level scroll/overflow, exactly like that earlier
+   entry concluded for `.main`; this one was redundant and reintroduced the same clipping bug for
+   every screen, not just during a Select Tuning transition. */
 .stage {
   composes: routedScreen from './../components/layout/ViewportScreen.module.css';
-  overflow: hidden;
 }
 
 /* Every screen (exiting or entering) renders inside one of these - absolutely positioned to fill

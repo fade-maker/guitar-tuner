@@ -1735,3 +1735,31 @@ glass fill/blur/border remains visible); `.track`'s computed `background-color` 
 (`--color-surface-card`); `.saveBar`'s computed `backdrop-filter` is `none`; the exiting Select Tuning
 layer's `background-color` is `rgb(18, 18, 18)` (`--color-surface-page`) with a growing `translateY`
 mid-animation. `tsc -b`, full test suite (456/62, unchanged), `npm run lint`, `vite build` all clean.
+
+**Follow-up, same real-device session - the footer fix above didn't actually fix anything.** User's
+own screenshot comparison showed no visible change and correctly guessed the real mechanism: "screen
+adjusts to the footer container's height and just gets clipped there, not about the fill at all."
+Confirmed via direct `getBoundingClientRect()` inspection, not assumption: `RouteTransition.module.css`'s
+`.stage` had `overflow: hidden` (carried over verbatim from the original, pre-revert implementation),
+and `.stage`'s own box ends exactly where the footer begins (738px of an 844px-tall test viewport) -
+but Simple/Advanced Tuner's guitar illustration is 474px tall starting at 390px, so its bottom edge
+(864px) extends 126px *past* `.stage`'s own boundary by design (see the earlier "illustration
+clipping" entry below in this log - the illustration is meant to bleed into the translucent footer
+band). `.stage`'s `overflow: hidden` was silently clipping that entire 126px tail on every screen,
+every time, not just during a Select Tuning transition - so the footer had nothing to show through
+behind it and read as a flat filled bar regardless of `.footer`'s own (by-then-transparent)
+background. This is the *exact same bug* this project already hit and fixed once before at the
+`.main` level; `.stage` reintroduced it one layer up when `RouteTransition` was restored.
+
+Fix: removed `overflow: hidden` from `.stage` entirely - `.viewportScreen`'s own `overflow: hidden`
+(one level further up, in `ViewportScreen.module.css`) is already the real, sufficient boundary
+against page-level scroll, exactly as the earlier entry concluded for `.main`. `.stage` no longer
+needs to duplicate it; the Select Tuning slide's own `.exitSlideDown`/`.enterSlideUp` still carry
+their own `overflow: hidden` independently (needed there for the rounded-corner clip, not for this).
+
+Verified: illustration's bottom edge is now `864px` (unclipped, matches its full intended extent) and
+a real screenshot shows the guitar neck/strings visibly bleeding through the footer's translucent
+band again, instead of flat black. `document.documentElement.scrollHeight === clientHeight` (no page
+scroll) both at rest and mid-Select-Tuning-transition - confirming `.viewportScreen`'s own clip is
+genuinely sufficient on its own, this was never load-bearing for that. `tsc -b`, full test suite
+(456/62, unchanged), `npm run lint`, `vite build` all clean.
