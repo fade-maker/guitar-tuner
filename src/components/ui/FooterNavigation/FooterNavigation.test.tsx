@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../telegram/haptics', () => ({
@@ -8,11 +10,18 @@ vi.mock('../../../telegram/haptics', () => ({
 
 import { triggerHapticFeedback } from '../../../telegram/haptics';
 import { FooterNavigation } from './FooterNavigation';
+import styles from './FooterNavigation.module.css';
 
 afterEach(() => {
   cleanup();
   vi.mocked(triggerHapticFeedback).mockClear();
 });
+
+function getHighlight(container: HTMLElement): Element {
+  const highlight = container.querySelector(`.${styles.activeHighlight}`);
+  if (!highlight) throw new Error('active highlight not found');
+  return highlight;
+}
 
 describe('FooterNavigation', () => {
   it('marks the active tab with aria-current', () => {
@@ -44,5 +53,40 @@ describe('FooterNavigation', () => {
     render(<FooterNavigation active="Tuner" onSelect={() => {}} />);
     fireEvent.click(screen.getByText('Settings'));
     expect(triggerHapticFeedback).toHaveBeenCalledWith('light');
+  });
+
+  it('does not play the pickup/travel/settle animation on initial mount', () => {
+    const { container } = render(<FooterNavigation active="Tuner" onSelect={() => {}} />);
+    const highlight = getHighlight(container);
+    expect(highlight.classList.contains(styles.activeHighlightAnimateToSettings)).toBe(false);
+    expect(highlight.classList.contains(styles.activeHighlightAnimateToTuner)).toBe(false);
+  });
+
+  it('plays the toSettings animation after a real transition to the Settings tab', async () => {
+    function Controlled(): ReactElement {
+      const [active, setActive] = useState<'Tuner' | 'Settings'>('Tuner');
+      return <FooterNavigation active={active} onSelect={setActive} />;
+    }
+    const { container } = render(<Controlled />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Settings'));
+    });
+
+    expect(getHighlight(container).classList.contains(styles.activeHighlightAnimateToSettings)).toBe(true);
+  });
+
+  it('plays the toTuner animation after a real transition back to the Tuner tab', async () => {
+    function Controlled(): ReactElement {
+      const [active, setActive] = useState<'Tuner' | 'Settings'>('Settings');
+      return <FooterNavigation active={active} onSelect={setActive} />;
+    }
+    const { container } = render(<Controlled />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Tuner'));
+    });
+
+    expect(getHighlight(container).classList.contains(styles.activeHighlightAnimateToTuner)).toBe(true);
   });
 });
