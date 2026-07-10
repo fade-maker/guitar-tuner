@@ -65,6 +65,9 @@ beforeEach(() => {
   statusListeners.length = 0;
   vi.stubGlobal('requestAnimationFrame', vi.fn(() => 0));
   vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  // RouteTransition (AppShell's routed-content child as of the Settings keep-alive work) checks
+  // prefers-reduced-motion on every navigation - jsdom has no matchMedia implementation at all.
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
 });
 
 afterEach(() => {

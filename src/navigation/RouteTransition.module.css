@@ -1,0 +1,129 @@
+@import '../theme/tokens.css';
+
+/* .stage takes over the flex-sizing role `.routedScreen` used to give directly to whichever screen
+   AppRouter rendered - RouteTransition now sits between AppShell's ViewportScreen and the actual
+   screens, so it (not each individual screen) is the direct flex child of `.viewportScreen`'s
+   column. Each screen's own `.screen` class still separately composes `routedScreen` too - that's
+   still needed for `position: relative` (screens like SelectTuningScreen position children directly
+   off it) and to make the screen stretch to fill `.layer`'s own box (see `.layer` below). */
+.stage {
+  composes: routedScreen from './../components/layout/ViewportScreen.module.css';
+  overflow: hidden;
+}
+
+/* Every screen (exiting or entering) renders inside one of these - absolutely positioned to fill
+   `.stage`'s box exactly, `display: flex; flex-direction: column` so the screen inside it (itself
+   `flex: 1 1 auto` via its own `.routedScreen` composition) stretches to fill this box the same way
+   it used to stretch to fill `.viewportScreen`'s column directly. */
+.layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Settings' persistent layer uses this instead of unmounting - `display: none` fully removes it
+   from layout/paint/the accessibility tree while hidden (not just visually), same cost profile as
+   not being mounted at all, without actually tearing the component down. */
+.hidden {
+  display: none;
+}
+
+/* Select Tuning presents as an iOS-style card modal: a dimmed scrim behind the sheet, and the sheet
+   itself slides up from the bottom with rounded top corners - not a plain full-bleed push (that was
+   the earlier, reverted version; the user reported it "looked bad" with no backdrop/no rounded
+   corners). Radius (24px) reuses this project's existing --radius-card token rather than inventing a
+   new one; the scrim color/opacity and the cubic-bezier below have no Figma source (this screen has
+   no modal presentation reference in Figma at all) - confirmed as an acceptable engineering read with
+   the user, same as ToggleSwitch/FooterNavigation's own motion constants. The curve
+   (0.32, 0.72, 0, 1) is Apple's own publicly-documented UIKit sheet-presentation easing, not an
+   invented value.
+
+   Durations/curves are a deliberate engineering read; the underneath screen stays mounted only for
+   the duration of this same animation (identical window to the previous plain-slide version) - this
+   does not reintroduce the earlier dual-mounted-audio-engine lag regression, it only decorates the
+   overlap window that already existed. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+@keyframes scrimIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.scrimIn {
+  animation: scrimIn 380ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes scrimOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.scrimOut {
+  animation: scrimOut 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* The rounded top corners only read as a real "card" if this layer has its own opaque fill to clip -
+   without one, `overflow:hidden` + `border-radius` has nothing visibly distinct to cut a corner out
+   of, since every screen relies on the shared page background (painted once, by AppShell's singleton
+   ViewportScreen, sitting behind every layer here) rather than painting its own. Found via a real
+   Playwright screenshot mid-transition: the corner was structurally "rounded" (confirmed in computed
+   style) but completely invisible against the identical black showing through on both sides of it.
+
+   Uses --color-surface-elevated (#2c2c2c), not --color-surface-page (#121212, what SelectTuningScreen
+   itself renders against once settled) - re-checked via another real screenshot: page-background-on
+   page-background left the card silhouette almost imperceptible against the also-near-black dimmed
+   backdrop (the two only differ by the scrim's ~7-unit darkening). Elevated reads as an actual
+   raised surface. No Figma source for this (same as the radius/scrim values) - an engineering read. */
+.sheetSurface {
+  background: var(--color-surface-elevated);
+}
+
+@keyframes exitSlideDown {
+  from {
+    transform: translateY(0);
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+  }
+  to {
+    transform: translateY(100%);
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+  }
+}
+.exitSlideDown {
+  composes: sheetSurface;
+  overflow: hidden;
+  animation: exitSlideDown 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes enterSlideUp {
+  from {
+    transform: translateY(100%);
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+  }
+  to {
+    transform: translateY(0);
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+  }
+}
+.enterSlideUp {
+  composes: sheetSurface;
+  overflow: hidden;
+  animation: enterSlideUp 380ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* No `@media (prefers-reduced-motion: reduce)` block here, deliberately - unlike ToggleSwitch/
+   FooterNavigation (where disabling the animation via CSS alone is safe), this component's
+   `exiting` state is only ever cleared by an animation-end event; suppressing the animation in CSS
+   without also skipping the whole transition in JS would strand the outgoing screen mounted
+   forever. Handled once, in RouteTransition.tsx's own effect, instead. */

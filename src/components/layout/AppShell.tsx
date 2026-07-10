@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { AppRouter, useNavigation } from '../../navigation';
+import { RouteTransition, useNavigation } from '../../navigation';
 import type { ScreenId } from '../../navigation';
 import { usePreferences } from '../../preferences';
 import { useTelegramUser } from '../../telegram';
@@ -42,7 +42,7 @@ export function AppShell(): ReactElement {
 
   return (
     <ViewportScreen footer={footer}>
-      <AppRouter />
+      <RouteTransition />
     </ViewportScreen>
   );
 }
