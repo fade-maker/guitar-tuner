@@ -20,13 +20,6 @@
   flex-direction: column;
 }
 
-/* Settings' persistent layer uses this instead of unmounting - `display: none` fully removes it
-   from layout/paint/the accessibility tree while hidden (not just visually), same cost profile as
-   not being mounted at all, without actually tearing the component down. */
-.hidden {
-  display: none;
-}
-
 /* Select Tuning's push/pop slide only - the footer-switch fade/spring pair that used to live here
    was rolled back (see RouteTransition.tsx's own top comment for why: real-device lag from keeping
    two audio-engine-owning screens mounted simultaneously). Durations/curves here are an explicit
