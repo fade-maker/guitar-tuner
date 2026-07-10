@@ -5,19 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PreferencesProvider } from '../preferences';
 import { NavigationProvider } from './NavigationProvider';
 import { RouteTransition } from './RouteTransition';
+import styles from './RouteTransition.module.css';
 import { useNavigation } from './useNavigation';
 import type { ScreenId } from './types';
 
 // jsdom does not implement AnimationEvent at all (confirmed directly: 'AnimationEvent' in
 // window is false), and a plain Event dispatched as a stand-in for it does not fire React's
 // onAnimationEnd handler either - confirmed with a minimal isolated repro before concluding this,
-// not assumed. So the "exiting screen is removed once its animation reports finished" behavior
-// (the onAnimationEnd branch of RouteTransition.tsx) is not something this file can exercise -
-// verified instead via a real browser (Playwright) against the actual built output, where real
-// animationend events fire naturally. What *is* tested here: the correct exit/enter styles and
-// screens are chosen and rendered immediately after a navigation, and the single-exiting-slot
-// eviction behavior on rapid re-navigation - all of which are pure render/state assertions, not
-// dependent on the animation event system at all.
+// not assumed. So the "Select Tuning's layer is removed once its animation reports finished"
+// behavior is not something this file can exercise - verified instead via a real browser
+// (Playwright) against the actual built output, where real animationend events fire naturally.
 
 function ReducedMotion(matches: boolean): void {
   vi.stubGlobal(
@@ -68,67 +65,115 @@ function renderTransition(initialScreen: ScreenId, targets: readonly ScreenId[])
   return { ...utils, navigate: (to: ScreenId) => fireEvent.click(utils.getByText(`go-${to}`)) };
 }
 
+// Settings' text ("Advanced mode") is unique to it - this finds its wrapper `.layer` regardless of
+// whether that layer currently also carries `.hidden`.
+function settingsLayer(container: HTMLElement): Element | null {
+  return (
+    Array.from(container.querySelectorAll(`.${styles.layer}`)).find((el) => el.textContent?.includes('Advanced mode')) ??
+    null
+  );
+}
+
 describe('RouteTransition', () => {
-  it('renders the current screen on mount, with no exiting layer', () => {
+  it('does not mount Settings at all before it has ever been visited', () => {
     const { container } = renderTransition('permission', []);
-    expect(screen.getByText('Permission (stub)')).not.toBeNull();
-    // Only one screen's worth of content should be present - no leftover "exiting" layer on mount.
-    expect(container.querySelectorAll('[class*="layer_"]').length).toBe(1);
+    expect(screen.queryByText('Advanced mode')).toBeNull();
+    expect(container.querySelectorAll(`.${styles.layer}`).length).toBe(1);
   });
 
-  // Rolled back: footer-accessible screens (Simple/Advanced Tuner, Settings) used to fade/spring
-  // past each other here - removed after real-device testing showed it made the footer feel
-  // laggy/unresponsive (see RouteTransition.tsx's own top comment). A switch between any two
-  // screens that aren't Select Tuning is now a plain instant swap - no exiting entry at all.
-  it('a switch between two non-Select-Tuning screens is an instant swap, with no exiting layer', () => {
-    const { container, navigate } = renderTransition('permission', ['settings']);
-    navigate('settings');
-
+  it('a switch between two non-Select-Tuning, non-Settings screens is an instant swap', () => {
+    const { container, navigate } = renderTransition('permission', ['simple-tuner']);
+    navigate('simple-tuner');
     expect(screen.queryByText('Permission (stub)')).toBeNull();
-    expect(screen.getByText('Advanced mode')).not.toBeNull();
-    expect(container.querySelectorAll('[class*="layer_"]').length).toBe(1);
+    expect(container.querySelectorAll(`.${styles.layer}`).length).toBe(1);
   });
 
-  it('opening Select Tuning: the previous screen stays static underneath, Select Tuning slides in', () => {
+  it('keeps Settings mounted (hidden, not removed) after navigating away from it', () => {
+    const { container, navigate } = renderTransition('permission', ['settings', 'permission']);
+    navigate('settings');
+    const layerOnFirstVisit = settingsLayer(container);
+    expect(layerOnFirstVisit).not.toBeNull();
+    expect(layerOnFirstVisit?.classList.contains(styles.hidden)).toBe(false);
+
+    navigate('permission');
+    const layerAfterLeaving = settingsLayer(container);
+    expect(layerAfterLeaving).toBe(layerOnFirstVisit); // same DOM node - not unmounted and remounted
+    expect(layerAfterLeaving?.classList.contains(styles.hidden)).toBe(true);
+  });
+
+  it('shows the same persistent Settings node again (not a fresh mount) on a second visit', () => {
+    const { container, navigate } = renderTransition('permission', ['settings', 'permission']);
+    navigate('settings');
+    const firstVisitNode = settingsLayer(container);
+
+    navigate('permission');
+    navigate('settings');
+    const secondVisitNode = settingsLayer(container);
+
+    expect(secondVisitNode).toBe(firstVisitNode);
+    expect(secondVisitNode?.classList.contains(styles.hidden)).toBe(false);
+  });
+
+  it('opening Select Tuning from Settings: Settings stays visible underneath, Select Tuning is on top', () => {
     const { container, navigate } = renderTransition('settings', ['select-tuning']);
     navigate('select-tuning');
 
-    expect(screen.getByText('Advanced mode')).not.toBeNull(); // Settings, static underneath
-    expect(screen.getByText('Select tuning')).not.toBeNull(); // Select Tuning, entering
-    expect(container.querySelector('[class*="enterSlideInRight"]')).not.toBeNull();
-    // The underneath screen must not itself carry an exit animation class.
-    expect(container.querySelector('[class*="exitSlideOutRight"]')).toBeNull();
+    const settings = settingsLayer(container);
+    expect(settings).not.toBeNull();
+    expect(settings?.classList.contains(styles.hidden)).toBe(false);
+    expect(screen.getByText('Select tuning')).not.toBeNull();
+
+    // Select Tuning's own layer must come after Settings' in DOM order, so it stacks visually on top.
+    const selectTuningLayer = container.querySelector(`.${styles.enterSlideInRight}`);
+    expect(selectTuningLayer).not.toBeNull();
+    expect(settings!.compareDocumentPosition(selectTuningLayer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('closing Select Tuning: it slides out on top while the target screen sits static underneath', () => {
+  it('closing Select Tuning back to Settings: Select Tuning stays on top while it slides away, Settings is revealed underneath', () => {
     const { container, navigate } = renderTransition('select-tuning', ['settings']);
     navigate('settings');
 
-    expect(screen.getByText('Select tuning')).not.toBeNull(); // exiting, on top
-    expect(screen.getByText('Advanced mode')).not.toBeNull(); // target, already revealed underneath
-    expect(container.querySelector('[class*="exitSlideOutRight"]')).not.toBeNull();
+    const settings = settingsLayer(container);
+    expect(settings).not.toBeNull();
+    expect(settings?.classList.contains(styles.hidden)).toBe(false);
+
+    const selectTuningLayer = container.querySelector(`.${styles.exitSlideOutRight}`);
+    expect(selectTuningLayer).not.toBeNull();
+    expect(screen.getByText('Select tuning')).not.toBeNull();
+
+    // The regression this structure was rewritten to fix: Select Tuning must render *after* (on top
+    // of) Settings' persistent layer here, not before it.
+    expect(settings!.compareDocumentPosition(selectTuningLayer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('a second navigation before Select Tuning finishes entering evicts the previous exiting screen', () => {
-    const { navigate } = renderTransition('permission', ['select-tuning', 'settings']);
-    navigate('select-tuning'); // permission now exiting (staticUnderneath), Select Tuning entering
+  it('opening Select Tuning from a non-Settings screen: the previous screen stays static underneath', () => {
+    const { container, navigate } = renderTransition('permission', ['select-tuning']);
+    navigate('select-tuning');
+
     expect(screen.getByText('Permission (stub)')).not.toBeNull();
     expect(screen.getByText('Select tuning')).not.toBeNull();
-
-    navigate('settings'); // closes Select Tuning before its entrance finished - permission must be
-    // gone (evicted, not queued), Select Tuning now exiting on top of settings.
-    expect(screen.queryByText('Permission (stub)')).toBeNull();
-    expect(screen.getByText('Select tuning')).not.toBeNull();
-    expect(screen.getByText('Advanced mode')).not.toBeNull();
+    expect(container.querySelector(`.${styles.enterSlideInRight}`)).not.toBeNull();
   });
 
-  it('reduced motion: Select Tuning also swaps instantly, with no exiting layer at all', () => {
+  it('closing Select Tuning to a non-Settings screen: it slides out while the target sits static underneath', () => {
+    const { container, navigate } = renderTransition('select-tuning', ['permission']);
+    navigate('permission');
+
+    expect(screen.getByText('Select tuning')).not.toBeNull();
+    expect(screen.getByText('Permission (stub)')).not.toBeNull();
+    expect(container.querySelector(`.${styles.exitSlideOutRight}`)).not.toBeNull();
+  });
+
+  it('reduced motion: Select Tuning swaps instantly, with no animated layer at all', () => {
     ReducedMotion(true);
     const { container, navigate } = renderTransition('settings', ['select-tuning']);
     navigate('select-tuning');
 
-    expect(screen.queryByText('Advanced mode')).toBeNull();
+    // Settings is hidden (not removed - it's kept alive), Select Tuning is the plain, unanimated
+    // "underneath" screen since no `exiting` entry was ever created.
+    expect(settingsLayer(container)?.classList.contains(styles.hidden)).toBe(true);
     expect(screen.getByText('Select tuning')).not.toBeNull();
-    expect(container.querySelectorAll('[class*="layer_"]').length).toBe(1);
+    expect(container.querySelector(`.${styles.enterSlideInRight}`)).toBeNull();
+    expect(container.querySelector(`.${styles.exitSlideOutRight}`)).toBeNull();
   });
 });
