@@ -4,6 +4,7 @@ import { useAudioEngine } from '../../hooks';
 import { DEFAULT_A4_FREQUENCY, getAllTunings, midiToNoteName } from '../../music-theory';
 import type { TuningPreset } from '../../music-theory';
 import { usePreferences } from '../../preferences';
+import { triggerHapticFeedback } from '../../telegram/haptics';
 import { AdvancedStatusBadge, AppHeader, Button, Icon, InTuneZone, NoteCircle, StepperButton } from '../ui';
 import type { AdvancedStatusBadgeState } from '../ui';
 import bgPatternLines from './assets/bg-pattern-lines.svg';
@@ -36,6 +37,7 @@ export function AdvancedTunerScreen(): ReactElement {
   }
 
   function handleReset(): void {
+    triggerHapticFeedback('light');
     setPreference('a4Frequency', DEFAULT_A4_FREQUENCY);
   }
 

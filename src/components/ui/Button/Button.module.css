@@ -13,6 +13,16 @@
   border: none;
   background: none;
   padding: 0 var(--space-16);
+  transform: scale(1);
+  transition: transform 150ms ease-out;
+}
+
+/* iOS-style press feedback - no Figma source (Figma has no pressed-state/motion spec for this
+   component), same class of engineering-read motion value as ToggleSwitch/FooterNavigation's own
+   constants. Gated on :not(:disabled) so a disabled button never looks pressable. */
+.button:active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: 80ms;
 }
 
 .button:disabled {

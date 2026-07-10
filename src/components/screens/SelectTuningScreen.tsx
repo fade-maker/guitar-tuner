@@ -4,6 +4,7 @@ import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
+import { triggerHapticFeedback } from '../../telegram/haptics';
 import { classNames } from '../ui/classNames';
 import {
   BassIllustrationSmall,
@@ -77,27 +78,25 @@ function tuningsForInstrument(allTunings: readonly TuningPreset[], instrument: P
   return allTunings.filter((tuning) => TUNING_INSTRUMENT[tuning.id] === instrument);
 }
 
-// One flat list mixing catalog headers and (only for the expanded catalog) its tunings, in render
-// order - lets the existing index>0 "divider before every row but the first" pattern already used
-// for Standard's own list apply here too, instead of separately tracking divider state per catalog.
-type CatalogRow =
-  | { readonly kind: 'header'; readonly category: TuningCategory }
-  | { readonly kind: 'tuning'; readonly tuning: TuningPreset };
+// One group per non-empty category, always carrying its *full* tuning list (not gated on whether
+// it's currently expanded) - unlike the old flat CatalogRow list, which omitted a collapsed
+// category's tunings from the DOM entirely, the accordion-expand animation below needs every row
+// actually mounted at all times so it can animate its own container's height open/closed; only the
+// grid-rows track size (driven by expandedCategory, see the .expandWrapper usage below) decides
+// whether they're visible.
+interface CatalogGroup {
+  readonly category: TuningCategory;
+  readonly tunings: readonly TuningPreset[];
+}
 
-function buildCatalogRows(
-  tunings: readonly TuningPreset[],
-  expandedCategory: TuningCategory | null,
-): readonly CatalogRow[] {
-  const rows: CatalogRow[] = [];
+function buildCatalogGroups(tunings: readonly TuningPreset[]): readonly CatalogGroup[] {
+  const groups: CatalogGroup[] = [];
   for (const category of CATEGORY_ORDER) {
     const items = tunings.filter((tuning) => TUNING_CATEGORY[tuning.id] === category);
     if (items.length === 0) continue;
-    rows.push({ kind: 'header', category });
-    if (expandedCategory === category) {
-      for (const tuning of items) rows.push({ kind: 'tuning', tuning });
-    }
+    groups.push({ category, tunings: items });
   }
-  return rows;
+  return groups;
 }
 
 interface TuningRowProps {
@@ -113,8 +112,13 @@ interface TuningRowProps {
 // only for these non-Standard rows - see .subRow/.subRowContent's own comments for why Standard and
 // the catalog headers stay on the old single-line layout.
 function TuningRow({ tuning, isPending, accidental, onClick }: TuningRowProps): ReactElement {
+  function handleClick(): void {
+    if (!isPending) triggerHapticFeedback('light');
+    onClick();
+  }
+
   return (
-    <button type="button" className={styles.subRow} onClick={onClick}>
+    <button type="button" className={styles.subRow} onClick={handleClick}>
       <span className={styles.subRowContent}>
         <span className={styles.rowLabel}>{TUNING_ROW_LABEL[tuning.id] ?? tuning.name}</span>
         <span className={styles.chips}>
@@ -161,10 +165,11 @@ export function SelectTuningScreen(): ReactElement {
   // Guitar groups everything else into the Power/Open/Extras catalog; Bass has no catalog structure
   // at all yet (140:1289) - its own non-Standard tunings render as one plain list instead (see
   // bassTunings below).
-  const catalogRows = instrument === 'guitar' ? buildCatalogRows(tunings, expandedCategory) : [];
+  const catalogGroups = instrument === 'guitar' ? buildCatalogGroups(tunings) : [];
   const bassTunings = instrument === 'bass' ? tunings.filter((tuning) => tuning.id !== standardTuning?.id) : [];
 
   function handleSave(): void {
+    triggerHapticFeedback('light');
     setPreference('selectedInstrument', TUNING_INSTRUMENT[pendingTuningId] ?? instrument);
     setPreference('selectedTuning', pendingTuningId);
     navigateTo(preferences.tunerMode === 'advanced' ? 'advanced-tuner' : 'simple-tuner');
@@ -185,6 +190,7 @@ export function SelectTuningScreen(): ReactElement {
   // 'auto' reaches the exact target every time. Manual swiping between the two positions (the CSS
   // scroll-snap itself) is untouched by this and still animates natively.
   function handleCategoryToggle(category: TuningCategory): void {
+    triggerHapticFeedback('light');
     const willExpand = expandedCategory !== category;
     setExpandedCategory(willExpand ? category : null);
     if (willExpand && (scrollAreaRef.current?.scrollTop ?? 0) <= 0) {
@@ -228,7 +234,10 @@ export function SelectTuningScreen(): ReactElement {
               <button
                 type="button"
                 className={styles.row}
-                onClick={() => setPendingTuningId(standardTuning.id)}
+                onClick={() => {
+                  if (pendingTuningId !== standardTuning.id) triggerHapticFeedback('light');
+                  setPendingTuningId(standardTuning.id);
+                }}
               >
                 <span className={styles.rowLabel}>{TUNING_ROW_LABEL[standardTuning.id] ?? standardTuning.name}</span>
                 <span className={styles.rowRight}>
@@ -245,39 +254,48 @@ export function SelectTuningScreen(): ReactElement {
           )}
 
           {/* Power/Open/Extras - a second card, only rendered once there's at least one catalog with
-              data for the current instrument. */}
-          {catalogRows.length > 0 && (
+              data for the current instrument. Each group's tunings are always mounted (see
+              buildCatalogGroups' own comment) - only .expandWrapper's grid-template-rows (0fr
+              collapsed, 1fr expanded) decides whether they're visible, which is what lets the open/
+              close transition smoothly instead of the rows instantly appearing/disappearing. */}
+          {catalogGroups.length > 0 && (
             <div className={styles.card}>
-              {catalogRows.map((row, index) => (
-                <div key={row.kind === 'header' ? row.category : row.tuning.id}>
-                  {index > 0 && <hr className={styles.divider} />}
-                  {row.kind === 'header' ? (
+              {catalogGroups.map((group, groupIndex) => {
+                const isExpanded = expandedCategory === group.category;
+                return (
+                  <div key={group.category}>
+                    {groupIndex > 0 && <hr className={styles.divider} />}
                     <button
                       type="button"
                       className={styles.row}
-                      onClick={() => handleCategoryToggle(row.category)}
-                      aria-expanded={expandedCategory === row.category}
+                      onClick={() => handleCategoryToggle(group.category)}
+                      aria-expanded={isExpanded}
                     >
-                      <span className={styles.rowLabel}>{row.category}</span>
-                      <span
-                        className={classNames(
-                          styles.chevron,
-                          expandedCategory !== row.category && styles.chevronCollapsed,
-                        )}
-                      >
+                      <span className={styles.rowLabel}>{group.category}</span>
+                      <span className={classNames(styles.chevron, !isExpanded && styles.chevronCollapsed)}>
                         <Icon name="arrow-down" size={16} />
                       </span>
                     </button>
-                  ) : (
-                    <TuningRow
-                      tuning={row.tuning}
-                      isPending={pendingTuningId === row.tuning.id}
-                      accidental={preferences.accidental}
-                      onClick={() => setPendingTuningId(row.tuning.id)}
-                    />
-                  )}
-                </div>
-              ))}
+                    <div
+                      className={classNames(styles.expandWrapper, isExpanded && styles.expandWrapperOpen)}
+                    >
+                      <div className={styles.expandInner}>
+                        {group.tunings.map((tuning) => (
+                          <div key={tuning.id}>
+                            <hr className={styles.divider} />
+                            <TuningRow
+                              tuning={tuning}
+                              isPending={pendingTuningId === tuning.id}
+                              accidental={preferences.accidental}
+                              onClick={() => setPendingTuningId(tuning.id)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 

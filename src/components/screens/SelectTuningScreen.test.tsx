@@ -4,6 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NavigationProvider, useNavigation } from '../../navigation';
 import { PreferencesProvider, usePreferences } from '../../preferences';
 import { SelectTuningScreen } from './SelectTuningScreen';
+import styles from './SelectTuningScreen.module.css';
+
+// A category's tunings are always mounted now (the accordion animates open/close via CSS
+// grid-template-rows instead of adding/removing DOM nodes - see SelectTuningScreen.tsx's own
+// buildCatalogGroups comment), so "collapsed" is asserted via the wrapper's class, not DOM absence.
+function isCategoryExpanded(rowText: string): boolean {
+  const wrapper = screen.getByText(rowText).closest(`.${styles.expandWrapper}`);
+  return wrapper?.classList.contains(styles.expandWrapperOpen) ?? false;
+}
 
 // jsdom doesn't implement scrollIntoView at all (not even as a no-op) - every test that expands a
 // catalog exercises handleCategoryToggle's scrollIntoView call, not just the dedicated scroll tests
@@ -35,30 +44,31 @@ describe('SelectTuningScreen', () => {
     expect(screen.getByText('Power')).not.toBeNull();
     expect(screen.getByText('Open')).not.toBeNull();
     expect(screen.getByText('Extras')).not.toBeNull();
-    // Collapsed by default - Drop-D (inside Power) isn't in the DOM until Power is expanded.
-    expect(screen.queryByText('Drop-D')).toBeNull();
+    // Collapsed by default - Drop-D (inside Power) is mounted (see isCategoryExpanded's own
+    // comment) but its wrapper's grid track is collapsed.
+    expect(isCategoryExpanded('Drop-D')).toBe(false);
   });
 
   it('expands a catalog to reveal its tunings, and collapses it again on a second tap', () => {
     renderScreen();
 
     fireEvent.click(screen.getByText('Power'));
-    expect(screen.getByText('Drop-D')).not.toBeNull();
+    expect(isCategoryExpanded('Drop-D')).toBe(true);
     expect(screen.getByText('Drop C')).not.toBeNull();
 
     fireEvent.click(screen.getByText('Power'));
-    expect(screen.queryByText('Drop-D')).toBeNull();
+    expect(isCategoryExpanded('Drop-D')).toBe(false);
   });
 
   it('only keeps one catalog expanded at a time', () => {
     renderScreen();
 
     fireEvent.click(screen.getByText('Power'));
-    expect(screen.getByText('Drop-D')).not.toBeNull();
+    expect(isCategoryExpanded('Drop-D')).toBe(true);
 
     fireEvent.click(screen.getByText('Open'));
-    expect(screen.queryByText('Drop-D')).toBeNull();
-    expect(screen.getByText('Open C')).not.toBeNull();
+    expect(isCategoryExpanded('Drop-D')).toBe(false);
+    expect(isCategoryExpanded('Open C')).toBe(true);
   });
 
   it('shows Standard plus a plain (no catalog headers) list of bass tunings after switching segments', () => {

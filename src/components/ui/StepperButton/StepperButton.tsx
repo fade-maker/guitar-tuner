@@ -1,4 +1,5 @@
-import type { ButtonHTMLAttributes, ReactElement } from 'react';
+import type { ButtonHTMLAttributes, MouseEvent, ReactElement } from 'react';
+import { triggerHapticFeedback } from '../../../telegram/haptics';
 import { classNames } from '../classNames';
 import styles from './StepperButton.module.css';
 
@@ -57,10 +58,19 @@ function MinusIconSmall(): ReactElement {
   );
 }
 
-export function StepperButton({ type, size = 'large', disabled, ...rest }: StepperButtonProps): ReactElement {
+export function StepperButton({ type, size = 'large', disabled, onClick, ...rest }: StepperButtonProps): ReactElement {
   const isLarge = size === 'large';
   const icon =
     type === '+' ? (isLarge ? <PlusIconLarge /> : <PlusIconSmall />) : isLarge ? <MinusIconLarge /> : <MinusIconSmall />;
+
+  // Haptic lives here, not at each call site - every StepperButton usage (Settings' and Advanced
+  // Tuner's Calibrate rows) is the same "step a value up/down" interaction, unlike the generic
+  // Button component (Save/Reset/etc.) which is used for varied purposes and gets its haptic wired
+  // per call site instead.
+  function handleClick(event: MouseEvent<HTMLButtonElement>): void {
+    triggerHapticFeedback('light');
+    onClick?.(event);
+  }
 
   return (
     <button
@@ -68,6 +78,7 @@ export function StepperButton({ type, size = 'large', disabled, ...rest }: Stepp
       className={classNames(styles.stepper, styles[size])}
       disabled={disabled}
       aria-label={type === '+' ? 'Increase' : 'Decrease'}
+      onClick={handleClick}
       {...rest}
     >
       {icon}

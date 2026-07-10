@@ -1,4 +1,5 @@
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
+import { triggerHapticFeedback } from '../../../telegram/haptics';
 import { classNames } from '../classNames';
 import styles from './SegmentedControl.module.css';
 
@@ -19,8 +20,18 @@ export interface SegmentedControlProps<T extends string> {
 // (closest visual match from the screenshot) rather than inventing new ones. Flagged in the Stage 3
 // report as a Figma-MCP-limitation TODO, not a stop.
 export function SegmentedControl<T extends string>({ options, value, onChange }: SegmentedControlProps<T>): ReactElement {
+  const activeIndex = Math.max(
+    0,
+    options.findIndex((option) => option.value === value),
+  );
+  // --count/--index drive .pill's own width/position (see the module.css) - CSS custom properties
+  // rather than inline width/transform math here, so the actual sliding is one declarative CSS
+  // transition, not something recomputed in JS on every render.
+  const trackStyle = { '--count': options.length, '--index': activeIndex } as CSSProperties;
+
   return (
-    <div className={styles.track} role="tablist">
+    <div className={styles.track} role="tablist" style={trackStyle}>
+      <div className={styles.pill} aria-hidden="true" />
       {options.map((option) => {
         const isActive = option.value === value;
         return (
@@ -30,7 +41,10 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
             role="tab"
             aria-selected={isActive}
             className={classNames(styles.segment, isActive && styles.active)}
-            onClick={() => onChange(option.value)}
+            onClick={() => {
+              if (option.value !== value) triggerHapticFeedback('light');
+              onChange(option.value);
+            }}
           >
             {option.label}
           </button>

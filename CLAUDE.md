@@ -1587,3 +1587,107 @@ before) would or wouldn't repeat it.
 `SimpleTunerScreen.tsx` is unchanged - `badgeLeftPercent()` is still the same plain, unsmoothed inline
 style it was before this whole discussion. Nothing to roll back if resumed differently later - this
 is a planning pause, not a partial implementation.
+
+### Settings keep-alive restored, Select Tuning gained internal animations + an iOS card-modal entrance, haptics audit
+
+Four-task pass, executed in the requested order. Unrelated to the paused SimplePitchBadge Stage 2
+work above - `useSharedValue`/`spring` are not touched by any of this; every animation here is plain
+CSS (Tier 0), matching the CSS-vs-engine audit's own conclusion that this project has essentially one
+real Tier 1 candidate (the pitch badge) and everything else is discrete/state-driven.
+
+**1. Settings keep-alive.** Restored the exact mechanism from the previously-reverted `d97b555`
+(`resolveScreen.tsx`, `RouteTransition.tsx`/`.module.css`/`.test.tsx`, `AppShell.tsx` now renders
+`<RouteTransition />` instead of `<AppRouter />`) - this was reverted wholesale during an emergency
+rollback (see the "Emergency full rollback" entry above) together with the footer-bounce transition
+that actually caused the real-device lag; the keep-alive mechanism itself was never the problem.
+Settings mounts once on first visit, then only ever shows/hides via a `.hidden` (`display:none`)
+class. Simple/Advanced Tuner (live microphone) and Select Tuning (its own slide mechanic, see below)
+are deliberately excluded, unchanged from the original design.
+
+**2. Select Tuning internal animations.**
+- `SegmentedControl` (Guitar/Bass): a new absolutely-positioned `.pill` slides via
+  `transform: translateX(calc(var(--index) * 100%))`, sized off `--count`/`--index` custom
+  properties set inline from the option list/active index - works for any option count without new
+  CSS per usage. `.active` no longer paints its own background; only `color` transitions now,
+  synced to the same duration as the pill.
+- Power/Open/Extras accordion: `buildCatalogRows`/`CatalogRow` (a flat list that used to omit a
+  collapsed category's tunings from the DOM entirely) replaced with `buildCatalogGroups`/
+  `CatalogGroup` - every tuning row is now always mounted, wrapped in a `.expandWrapper` using the
+  `grid-template-rows: 0fr -> 1fr` technique (no JS height measurement needed) with `.expandInner`
+  providing the `overflow: hidden` that clips content mid-transition.
+- `Button`: gained a project-wide `:active:not(:disabled) { transform: scale(0.96) }` press state
+  (previously had none at all) - shared by Select Tuning's Save and Advanced Tuner's Reset for free,
+  since both already use this component.
+- `CheckIndicator`: gained its first CSS module (previously pure inline styles). Both the Default
+  ring and Active checkmark `<path>` now render unconditionally, crossfading/scaling via
+  opacity+transform transitions instead of one being swapped for the other - a swap can't animate,
+  since React just replaces the DOM node.
+- None of these have a Figma motion source (Figma has no animation spec for this screen at all,
+  consistent with every other motion decision in this project) - durations/curves are an engineering
+  read, confirmed acceptable with the user up front rather than assumed.
+
+**3. Haptics audit.** Added `triggerHapticFeedback('light')` to every spot confirmed with the user:
+`StepperButton` (+/-, wired once inside the shared component itself - covers both Settings' and
+Advanced Tuner's Calibrate rows for free, unlike `Button` which gets it per call site since it's used
+for varied purposes), Select Tuning's Save and Advanced Tuner's Reset, `SegmentedControl` (only when
+actually changing tabs, not on a no-op tap of the already-active one), tuning-row selection
+(`TuningRow` and Standard's own row, same "only if actually changing" guard), and the Power/Open/
+Extras chevron toggle.
+
+**4. Select Tuning iOS card-modal entrance.** Replaced the old plain horizontal push-slide
+(`exitSlideOutRight`/`enterSlideInRight`, no backdrop, no rounded corners - the user's own
+description of why it "looked bad" before) with a vertical card-modal presentation:
+`exitSlideDown`/`enterSlideUp` (`translateY` between `100%` and `0`), a `.scrim` backdrop
+(`rgba(0,0,0,0.4)`, fading in/out via its own `scrimIn`/`scrimOut` keyframes, DOM-ordered between the
+underneath layer and the sliding sheet so it stacks correctly with no `z-index` needed), and rounded
+top corners (`var(--radius-card)`, reusing the existing 24px token) on the sheet itself. Direction
+changed from horizontal to vertical deliberately, not per an explicit ask - rounded-corners+backdrop
+is specifically iOS's card/sheet presentation idiom, not its push-navigation one; flagged to the user
+as a judgment call, not silently decided.
+
+No Figma source exists for any of this (Select Tuning has no modal/sheet frame anywhere in Figma -
+confirmed, same as every previous check in this project). Confirmed acceptable with the user before
+implementing: the 24px radius (reusing `--radius-card`) and the `rgba(0,0,0,0.4)` scrim. The easing
+curve (`cubic-bezier(0.32, 0.72, 0, 1)`) is Apple's own publicly-documented UIKit sheet-presentation
+curve, not invented.
+
+**Real bug found via Playwright screenshot, not by inspection alone:** the first implementation gave
+the sliding sheet `border-radius` + `overflow: hidden` but no background fill of its own - every
+screen in this app relies on the page background painted once by the singleton `ViewportScreen`
+sitting behind every `RouteTransition` layer, so the "rounded corner" had nothing visually distinct
+to clip and was invisible despite being structurally correct (confirmed via computed-style
+inspection: the border-radius and translateY were both correct at the DOM level, the corner just
+wasn't perceptible in a screenshot). Fixed with a `.sheetSurface` fill, composed onto both
+`exitSlideDown`/`enterSlideUp`. First attempt used `--color-surface-page` (#121212, matching what
+Select Tuning renders at rest) - re-screenshotted and found the card still nearly imperceptible
+against the also-near-black dimmed backdrop (only the scrim's ~7-unit darkening separated them).
+Switched to `--color-surface-elevated` (#2c2c2c) instead, which reads as a genuinely distinct raised
+surface - confirmed via a third screenshot. Both values are token reuse, not new colors invented for
+this.
+
+Verified via the project's established static-build + `--disable-web-security` Playwright +
+`file://` technique at 390x844: Settings' DOM node identity survives a Tuner->Settings->Tuner->
+Settings round trip (not remounted); the SegmentedControl pill's `transform` changes on tab switch;
+the accordion's `grid-template-rows` goes from `0px` to a real pixel height on expand and back on
+collapse; `CheckIndicator`'s `checkVisible` class appears after selecting a tuning row; the entrance
+animation's mid-flight computed style showed the correct `translateY` offset, `border-radius: 24px
+24px 0 0`, and increasing scrim opacity; the exit (Save) animation correctly reveals Simple Tuner
+underneath (including its own Bottom Navigation) while the sheet visibly slides down and out; 8
+distinct haptic calls fired (visible as the emulated Telegram bridge's own console warnings) across
+the interaction sequence exercised. 456 tests / 62 files (up from 456/62 unchanged - see note below),
+`tsc -b`, `vite build`, `npm run lint` all clean.
+
+Test changes: `AppShell.test.tsx` needed a `matchMedia` stub added to its `beforeEach` (RouteTransition
+checks `prefers-reduced-motion` on every navigation; jsdom has no implementation at all - AppShell's
+test never needed this before since it rendered `AppRouter` directly). `SelectTuningScreen.test.tsx`'s
+three collapsed/expanded assertions were rewritten from `queryByText(...).toBeNull()` (DOM absence) to
+checking the `.expandWrapper`/`.expandWrapperOpen` class, since rows are always mounted now.
+`CheckIndicator.test.tsx` was rewritten from "which single path exists" to "which path's visibility
+class is active", for the same always-mounted-now reason.
+
+Not yet done, out of scope for this pass: the brief color handoff at the exact moment the entrance
+animation completes (sheet fill goes from `--color-surface-elevated` back to the page's normal
+`--color-surface-page` in the same frame `RouteTransition` swaps which JSX branch renders) wasn't
+specifically tested on a real device for perceptibility - flagged, not fixed blind, since fixing it
+either way (matching Select Tuning's permanent resting background to the elevated tone, or something
+else) is a real visual-identity decision with no Figma source, not a bug with an obvious correct fix.
