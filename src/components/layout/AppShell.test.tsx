@@ -65,13 +65,6 @@ beforeEach(() => {
   statusListeners.length = 0;
   vi.stubGlobal('requestAnimationFrame', vi.fn(() => 0));
   vi.stubGlobal('cancelAnimationFrame', vi.fn());
-  // jsdom doesn't implement matchMedia at all - RouteTransition (rendered by AppShell) reads
-  // prefers-reduced-motion via it. Stubbed to report "not reduced", matching a real browser's
-  // default and letting these tests exercise the real (non-instant-swap) transition path.
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn(() => ({ matches: false })),
-  );
 });
 
 afterEach(() => {
