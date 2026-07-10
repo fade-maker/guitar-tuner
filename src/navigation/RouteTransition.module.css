@@ -1,0 +1,66 @@
+/* .stage takes over the flex-sizing role `.routedScreen` used to give directly to whichever screen
+   AppRouter rendered - RouteTransition now sits between AppShell's ViewportScreen and the actual
+   screens, so it (not each individual screen) is the direct flex child of `.viewportScreen`'s
+   column. Each screen's own `.screen` class still separately composes `routedScreen` too - that's
+   still needed for `position: relative` (screens like SelectTuningScreen position children directly
+   off it) and to make the screen stretch to fill `.layer`'s own box (see `.layer` below). */
+.stage {
+  composes: routedScreen from './../components/layout/ViewportScreen.module.css';
+  overflow: hidden;
+}
+
+/* Every screen (exiting or entering) renders inside one of these - absolutely positioned to fill
+   `.stage`'s box exactly, `display: flex; flex-direction: column` so the screen inside it (itself
+   `flex: 1 1 auto` via its own `.routedScreen` composition) stretches to fill this box the same way
+   it used to stretch to fill `.viewportScreen`'s column directly. */
+.layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Durations/curves here are an explicit engineering read (see RouteTransition.tsx's own top
+   comment) - no animation design exists in Figma for either transition. */
+
+@keyframes exitFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.exitFadeOut {
+  animation: exitFadeOut 240ms ease-out forwards;
+}
+
+@keyframes exitSlideOutRight {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+.exitSlideOutRight {
+  animation: exitSlideOutRight 280ms ease-in forwards;
+}
+
+@keyframes enterSlideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.enterSlideInRight {
+  animation: enterSlideInRight 280ms ease-out forwards;
+}
+
+/* No `@media (prefers-reduced-motion: reduce)` block here, deliberately - unlike ToggleSwitch/
+   FooterNavigation (where disabling the animation via CSS alone is safe), this component's
+   `exiting` state is only ever cleared by an animation-end event; suppressing the animation in CSS
+   without also skipping the whole transition in JS would strand the outgoing screen mounted
+   forever. Handled once, in RouteTransition.tsx's own effect, instead. */
