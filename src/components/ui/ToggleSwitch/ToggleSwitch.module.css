@@ -18,26 +18,127 @@
   background: var(--color-accent-info);
 }
 
-/* Sliding thumb/indicator, not a Figma-sourced motion value (no animation design exists for this
-   component) - an explicit engineering/feel decision, same category as SimplePitchBadge's spring
-   constants. A discrete two-state control, not a continuously-driven signal, so plain CSS is enough
-   - this deliberately stays Tier 0 and doesn't reach for the Animation System's engine.
-   cubic-bezier(0.34, 1.56, 0.64, 1) is the standard "back" overshoot curve (a documented, named
-   easing shape, not an invented one) for the native-feeling snap-past-then-settle switches use. */
+/* Not a Figma-sourced motion spec (no animation design exists for this component) - an explicit
+   engineering read of iOS 26's Liquid Glass toggle interaction, confirmed with the user before
+   implementing: tap-triggered only (no drag - that's a deliberately separate, deferred mechanic),
+   three phases (pickup: scale + glass in-place; travel: position only; settle: shrink + glass fade
+   together), 400ms total. Stays plain CSS keyframes, no Animation System engine involvement - this
+   is a discrete two-state control triggered by a click, not a continuously-driven signal or a
+   gesture, so it's still Tier 0.
+
+   backdrop-filter/translucent fill/border here are a simplified version of the glass technique
+   already established in FooterNavigation.module.css's `.glass`/`.pill::after` (proven on-device) -
+   not the full gradient-ring `mask-composite` treatment, since that technique was built for a large,
+   static element where the exact gradient shape mattered; a flat semi-transparent border reads fine
+   at this size for something that's only ever on-screen for ~250ms of a 400ms animation.
+
+   backdrop-filter's "off" state is blur(0px), not `none` - browsers can't smoothly interpolate
+   between the `none` and `blur()` filter shapes, only between two blur() values, so this is required
+   for the glass effect to actually fade rather than pop. */
 .thumb {
   position: absolute;
   top: 2px;
-  background: var(--color-surface-inverse);
+  box-sizing: border-box;
+  background-color: var(--color-surface-inverse);
   height: 24px;
   width: 38px;
   border-radius: var(--radius-full);
-  transition: left 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid transparent;
+  backdrop-filter: blur(0px);
 }
 .thumbOff {
   left: 2px;
 }
 .thumbOn {
   left: 26px; /* track width 66 - padding 2 - thumb width 38 */
+}
+
+.thumbAnimateOn {
+  animation: thumbTurnOn 400ms forwards;
+}
+.thumbAnimateOff {
+  animation: thumbTurnOff 400ms forwards;
+}
+
+/* Pickup happens in place (0%->18%, ~72ms): scales up and the glass effect engages, quick ease-out
+   "pop". Travel (18%->78%, ~240ms): position moves while scaled up and glassy, smooth liquid
+   deceleration - deliberately no hard overshoot here, that's reserved for the softer settle below,
+   since a mechanical spring-back read as too snappy/un-"liquid" for this specific motion. Settle
+   (78%->100%, ~88ms): shrinks and de-glasses together (per explicit instruction - not a two-step
+   sequence), landing on the exact resting position with a light, non-bouncy "catch". */
+@keyframes thumbTurnOn {
+  0% {
+    left: 2px;
+    transform: scale(1);
+    background-color: var(--color-surface-inverse);
+    backdrop-filter: blur(0px);
+    border-color: transparent;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  18% {
+    left: 2px;
+    transform: scale(1.15);
+    background-color: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(4px);
+    border-color: rgba(255, 255, 255, 0.45);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  78% {
+    left: 26px;
+    transform: scale(1.15);
+    background-color: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(4px);
+    border-color: rgba(255, 255, 255, 0.45);
+    animation-timing-function: cubic-bezier(0.34, 1.2, 0.64, 1);
+  }
+  100% {
+    left: 26px;
+    transform: scale(1);
+    background-color: var(--color-surface-inverse);
+    backdrop-filter: blur(0px);
+    border-color: transparent;
+  }
+}
+
+@keyframes thumbTurnOff {
+  0% {
+    left: 26px;
+    transform: scale(1);
+    background-color: var(--color-surface-inverse);
+    backdrop-filter: blur(0px);
+    border-color: transparent;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  18% {
+    left: 26px;
+    transform: scale(1.15);
+    background-color: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(4px);
+    border-color: rgba(255, 255, 255, 0.45);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  78% {
+    left: 2px;
+    transform: scale(1.15);
+    background-color: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(4px);
+    border-color: rgba(255, 255, 255, 0.45);
+    animation-timing-function: cubic-bezier(0.34, 1.2, 0.64, 1);
+  }
+  100% {
+    left: 2px;
+    transform: scale(1);
+    background-color: var(--color-surface-inverse);
+    backdrop-filter: blur(0px);
+    border-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumbAnimateOn,
+  .thumbAnimateOff {
+    animation: none;
+  }
 }
 
 .indicatorSlot {
