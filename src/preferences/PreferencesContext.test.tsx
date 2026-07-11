@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_PREFERENCES } from './defaults';
 import { PreferencesProvider } from './PreferencesContext';
 import { PREFERENCES_STORAGE_KEY } from './storage';
@@ -9,6 +9,7 @@ import { usePreferences } from './usePreferences';
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  vi.useRealTimers();
 });
 
 describe('usePreferences', () => {
@@ -30,11 +31,51 @@ describe('usePreferences', () => {
     expect(result.current.preferences).toEqual({ ...DEFAULT_PREFERENCES, tunerMode: 'advanced' });
   });
 
-  it('persists changes to localStorage', () => {
+  it('persists changes to localStorage once the debounce window elapses', () => {
+    vi.useFakeTimers();
     const { result } = renderHook(() => usePreferences(), { wrapper: PreferencesProvider });
 
     act(() => result.current.setPreference('a4Frequency', 442));
+    // Inside the debounce window nothing is written yet (a stepper burst coalesces to one write).
+    expect(window.localStorage.getItem(PREFERENCES_STORAGE_KEY)).toBeNull();
 
+    act(() => vi.advanceTimersByTime(200));
+    const stored = JSON.parse(window.localStorage.getItem(PREFERENCES_STORAGE_KEY)!);
+    expect(stored.preferences.a4Frequency).toBe(442);
+  });
+
+  it('coalesces a rapid burst of changes into a single trailing write with the final values', () => {
+    vi.useFakeTimers();
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const { result } = renderHook(() => usePreferences(), { wrapper: PreferencesProvider });
+
+    act(() => {
+      result.current.setPreference('a4Frequency', 441);
+    });
+    act(() => {
+      result.current.setPreference('a4Frequency', 442);
+    });
+    act(() => {
+      result.current.setPreference('a4Frequency', 443);
+    });
+    act(() => vi.advanceTimersByTime(200));
+
+    expect(setItem).toHaveBeenCalledTimes(1);
+    const stored = JSON.parse(window.localStorage.getItem(PREFERENCES_STORAGE_KEY)!);
+    expect(stored.preferences.a4Frequency).toBe(443);
+    setItem.mockRestore();
+  });
+
+  it('flushes a still-pending write on pagehide instead of losing it', () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => usePreferences(), { wrapper: PreferencesProvider });
+
+    act(() => result.current.setPreference('a4Frequency', 442));
+    expect(window.localStorage.getItem(PREFERENCES_STORAGE_KEY)).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
     const stored = JSON.parse(window.localStorage.getItem(PREFERENCES_STORAGE_KEY)!);
     expect(stored.preferences.a4Frequency).toBe(442);
   });

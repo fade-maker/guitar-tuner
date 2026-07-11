@@ -6,9 +6,9 @@ import type { ScreenId } from './types';
 
 export interface NavigationProviderProps {
   readonly children: ReactNode;
-  // Defaults to the real landing screen. Not wired to PermissionGate/engine status yet - see
-  // CLAUDE.md's architecture log for why 'permission' isn't the default despite conceptually
-  // gating everything else.
+  // The real app boots into 'permission' (AppProviders passes it explicitly; the Permission screen
+  // skips itself to the tuner when mic access is already granted). This default exists for tests
+  // and debug entry points that mount a screen directly without caring about the permission flow.
   readonly initialScreen?: ScreenId;
 }
 
