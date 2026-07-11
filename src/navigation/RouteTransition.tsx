@@ -117,12 +117,18 @@ export function RouteTransition(): ReactElement {
         />
       )}
       {plan.selectTuningRole === 'exiting' && (
-        <div className={classNames(styles.layer, styles.exitSlideDown)} onAnimationEnd={handleSelectTuningAnimationEnd}>
+        <div
+          className={classNames(styles.layer, styles.exitSlideOutRight)}
+          onAnimationEnd={handleSelectTuningAnimationEnd}
+        >
           {resolveScreen('select-tuning')}
         </div>
       )}
       {plan.selectTuningRole === 'entering' && (
-        <div className={classNames(styles.layer, styles.enterSlideUp)} onAnimationEnd={handleSelectTuningAnimationEnd}>
+        <div
+          className={classNames(styles.layer, styles.enterSlideInRight)}
+          onAnimationEnd={handleSelectTuningAnimationEnd}
+        >
           {resolveScreen('select-tuning')}
         </div>
       )}

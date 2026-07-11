@@ -39,20 +39,19 @@
   display: none;
 }
 
-/* Select Tuning presents as an iOS-style card modal: a dimmed scrim behind the sheet, and the sheet
-   itself slides up from the bottom with rounded top corners - not a plain full-bleed push (that was
-   the earlier, reverted version; the user reported it "looked bad" with no backdrop/no rounded
-   corners). Radius (24px) reuses this project's existing --radius-card token rather than inventing a
-   new one; the scrim color/opacity and the cubic-bezier below have no Figma source (this screen has
-   no modal presentation reference in Figma at all) - confirmed as an acceptable engineering read with
-   the user, same as ToggleSwitch/FooterNavigation's own motion constants. The curve
-   (0.32, 0.72, 0, 1) is Apple's own publicly-documented UIKit sheet-presentation easing, not an
-   invented value.
+/* Select Tuning presents as a horizontal push (enters sliding right-to-left, exits sliding back out
+   to the right - reverted from a vertical bottom-sheet per explicit request, matching iOS's own
+   Settings drill-down: e.g. tapping Wi-Fi pushes the next screen in from the right), with a dimmed
+   scrim behind the sheet while it's in flight - the same subtle dimming iOS itself shows on the
+   screen being covered during a push transition. The scrim color/opacity and the cubic-bezier below
+   have no Figma source (this screen has no modal presentation reference in Figma at all) - an
+   engineering read, same as ToggleSwitch/FooterNavigation's own motion constants. The curve
+   (0.32, 0.72, 0, 1) is Apple's own publicly-documented UIKit push-transition easing, not invented.
 
    Durations/curves are a deliberate engineering read; the underneath screen stays mounted only for
-   the duration of this same animation (identical window to the previous plain-slide version) - this
-   does not reintroduce the earlier dual-mounted-audio-engine lag regression, it only decorates the
-   overlap window that already existed. */
+   the duration of this same animation (identical window to every earlier version of this transition)
+   - this does not reintroduce the earlier dual-mounted-audio-engine lag regression, it only decorates
+   the overlap window that already existed. */
 .scrim {
   position: absolute;
   inset: 0;
@@ -84,48 +83,41 @@
   animation: scrimOut 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
-/* --color-surface-page (#121212), matching exactly what SelectTuningScreen itself renders against
-   once settled - not --color-surface-elevated (#2c2c2c). An earlier pass tried elevated specifically
-   to make the rounded corner visible against the dimmed backdrop (border-radius + overflow:hidden
-   need *some* opaque fill to clip, since screens don't paint their own background - see .scrim's own
-   comment), but that read as an unwanted brightening/lightening effect on real-device testing - the
-   sheet should not look like a distinctly different, lighter surface than the rest of the app.
-   Reverted to the page's own color; the corner is subtler this way but that's the explicit
-   trade-off asked for. */
+/* Opaque fill for the sliding layer - screens don't paint their own full-bleed background (they
+   rely on the shared page background sitting behind every RouteTransition layer), so without this
+   the incoming/outgoing sheet would be see-through against whatever's underneath mid-slide. Matches
+   exactly what SelectTuningScreen itself renders against once settled. No rounded corners here (an
+   earlier vertical bottom-sheet version had them on the top edge only) - a full-height horizontal
+   push never reveals anything above/below the sheet to round a corner against, only left/right, so
+   corner-rounding doesn't apply to this direction. */
 .sheetSurface {
   background: var(--color-surface-page);
 }
 
-@keyframes exitSlideDown {
+@keyframes exitSlideOutRight {
   from {
-    transform: translateY(0);
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    transform: translateX(0);
   }
   to {
-    transform: translateY(100%);
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    transform: translateX(100%);
   }
 }
-.exitSlideDown {
+.exitSlideOutRight {
   composes: sheetSurface;
-  overflow: hidden;
-  animation: exitSlideDown 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  animation: exitSlideOutRight 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
-@keyframes enterSlideUp {
+@keyframes enterSlideInRight {
   from {
-    transform: translateY(100%);
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    transform: translateX(100%);
   }
   to {
-    transform: translateY(0);
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    transform: translateX(0);
   }
 }
-.enterSlideUp {
+.enterSlideInRight {
   composes: sheetSurface;
-  overflow: hidden;
-  animation: enterSlideUp 380ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  animation: enterSlideInRight 380ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
 /* No `@media (prefers-reduced-motion: reduce)` block here, deliberately - unlike ToggleSwitch/

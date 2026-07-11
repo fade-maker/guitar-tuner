@@ -124,7 +124,7 @@ describe('RouteTransition', () => {
     expect(screen.getByText('Select tuning')).not.toBeNull();
 
     // Select Tuning's own layer must come after Settings' in DOM order, so it stacks visually on top.
-    const selectTuningLayer = container.querySelector(`.${styles.enterSlideUp}`);
+    const selectTuningLayer = container.querySelector(`.${styles.enterSlideInRight}`);
     expect(selectTuningLayer).not.toBeNull();
     expect(settings!.compareDocumentPosition(selectTuningLayer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -137,7 +137,7 @@ describe('RouteTransition', () => {
     expect(settings).not.toBeNull();
     expect(settings?.classList.contains(styles.hidden)).toBe(false);
 
-    const selectTuningLayer = container.querySelector(`.${styles.exitSlideDown}`);
+    const selectTuningLayer = container.querySelector(`.${styles.exitSlideOutRight}`);
     expect(selectTuningLayer).not.toBeNull();
     expect(screen.getByText('Select tuning')).not.toBeNull();
 
@@ -152,7 +152,7 @@ describe('RouteTransition', () => {
 
     expect(screen.getByText('Request access')).not.toBeNull();
     expect(screen.getByText('Select tuning')).not.toBeNull();
-    expect(container.querySelector(`.${styles.enterSlideUp}`)).not.toBeNull();
+    expect(container.querySelector(`.${styles.enterSlideInRight}`)).not.toBeNull();
   });
 
   it('closing Select Tuning to a non-Settings screen: it slides out while the target sits static underneath', () => {
@@ -161,7 +161,7 @@ describe('RouteTransition', () => {
 
     expect(screen.getByText('Select tuning')).not.toBeNull();
     expect(screen.getByText('Request access')).not.toBeNull();
-    expect(container.querySelector(`.${styles.exitSlideDown}`)).not.toBeNull();
+    expect(container.querySelector(`.${styles.exitSlideOutRight}`)).not.toBeNull();
   });
 
   it('opening or closing Select Tuning renders a backdrop scrim behind the sheet', () => {
@@ -179,8 +179,8 @@ describe('RouteTransition', () => {
     // "underneath" screen since no `exiting` entry was ever created.
     expect(settingsLayer(container)?.classList.contains(styles.hidden)).toBe(true);
     expect(screen.getByText('Select tuning')).not.toBeNull();
-    expect(container.querySelector(`.${styles.enterSlideUp}`)).toBeNull();
-    expect(container.querySelector(`.${styles.exitSlideDown}`)).toBeNull();
+    expect(container.querySelector(`.${styles.enterSlideInRight}`)).toBeNull();
+    expect(container.querySelector(`.${styles.exitSlideOutRight}`)).toBeNull();
     expect(container.querySelector(`.${styles.scrim}`)).toBeNull();
   });
 });
