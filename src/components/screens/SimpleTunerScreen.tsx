@@ -293,6 +293,8 @@ export function SimpleTunerScreen(): ReactElement {
             </div>
           )}
         </div>
+
+        <div className={styles.bottomFade} aria-hidden="true" />
       </div>
     </div>
   );

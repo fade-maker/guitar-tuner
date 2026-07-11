@@ -274,5 +274,26 @@
   gap: 12px;
 }
 
+/* Figma: "Rectangle 8" (266:888, added to 74:4342 after the original Stage 8 transcription) - a
+   fixed 402x57 gradient (rgba(18,18,18,0) -> #121212, top to bottom) sitting in the footer's own
+   106px band (Figma y=817-874), fading the illustration/BG pattern into the screen's background
+   color before the translucent footer pill. Same `bottom: -106px` bleed-to-true-screen-bottom
+   pattern as `.illustration` above (footer's real height is fixed regardless of device, so this
+   isn't part of .main's stretchy percentage math) - height stays a fixed 57px for the same reason.
+   The apparent rounded top corners in Figma's own screenshot of this node are just the gradient's
+   own top being fully transparent, not a real border-radius (confirmed: Figma's generated code has
+   no rounding on this node at all). Last child of .main so it paints over the illustration/pattern
+   beneath it; the footer itself is a later DOM sibling one level up (AppShell), so it already paints
+   over this by default stacking order with no z-index needed. */
+.bottomFade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -106px;
+  height: 57px;
+  background: linear-gradient(to bottom, rgba(18, 18, 18, 0), #121212);
+  pointer-events: none;
+}
+
 /* No .footer rule here - this screen no longer renders Bottom Navigation at all. It lives in
    AppShell now (see components/layout/AppShell.tsx), one level above every routed screen. */
