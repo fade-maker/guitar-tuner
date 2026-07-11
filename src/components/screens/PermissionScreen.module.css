@@ -115,9 +115,11 @@
   animation: rimShimmer 1s ease-in-out infinite;
 }
 
-/* Ellipse 2's own rim (r=94) - a crisp, bright, thin edge (sampled ~191/255, as bright as the glow's
-   own center) sitting exactly where .lens's growth tops out. Plain white, no color banding - the
-   sampled asset has no blue or any other hue anywhere in it. */
+/* Ellipse 2's own rim (r=94) - sits exactly where .lens's growth tops out. Plain white, no color
+   banding - the sampled asset has no blue or any other hue anywhere in it. Opacity toned down from
+   the literally-sampled ~191/255 (0.75) to 0.42 per explicit request - the sampled value read as an
+   embossed/beveled-metal edge against the dark ring fill below, not the softer look wanted here; a
+   deliberate softening, not a re-sampling. */
 .rimInner {
   margin: -94px 0 0 -94px;
   width: 188px;
@@ -125,17 +127,17 @@
   background: radial-gradient(
     circle closest-side,
     transparent calc(100% - 4px),
-    rgba(255, 255, 255, 0.75) calc(100% - 2px),
-    rgba(255, 255, 255, 0.7) 100%
+    rgba(255, 255, 255, 0.42) calc(100% - 2px),
+    rgba(255, 255, 255, 0.38) 100%
   );
 }
 
 /* Ellipse 1 - a genuine thick ring/donut (r=124 inner edge -> r=150 outer edge, a ~26px band, not a
-   hairline), sampled directly from the Figma export: bright inner-edge rim (~181/255), dark grey fill
-   between the two edges (~48-53/255 - present but subtle against this screen's own dark background),
-   dimmer outer-edge rim (~121/255, per Figma's own export - the outer edge is genuinely fainter than
-   the inner one, not a transcription error). Percentages are of this box's own 150px closest-side
-   radius: 124/150=82.7%, 149/150=99.3%. */
+   hairline). Percentages are of this box's own 150px closest-side radius: 124/150=82.7%,
+   149/150=99.3%. Edge/fill opacities toned down from the literally-sampled values (inner-edge rim
+   ~181/255, fill ~48-53/255, outer-edge rim ~121/255) per explicit request - full-strength sampling
+   read as an embossed/beveled-metal ring rather than the softer look wanted; same deliberate
+   softening as .rimInner, not a re-sampling. */
 .rimOuter {
   margin: -150px 0 0 -150px;
   width: 300px;
@@ -143,10 +145,10 @@
   background: radial-gradient(
     circle closest-side,
     transparent 82%,
-    rgba(255, 255, 255, 0.68) 83.5%,
-    rgba(200, 200, 200, 0.16) 88%,
-    rgba(200, 200, 200, 0.14) 96%,
-    rgba(255, 255, 255, 0.42) 99.3%,
+    rgba(255, 255, 255, 0.38) 83.5%,
+    rgba(200, 200, 200, 0.13) 88%,
+    rgba(200, 200, 200, 0.11) 96%,
+    rgba(255, 255, 255, 0.24) 99.3%,
     transparent 100%
   );
 }
