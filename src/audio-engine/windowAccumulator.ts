@@ -1,4 +1,6 @@
 export interface WindowReady {
+  // Valid only until the accumulator's next push()/reset() - a reused scratch buffer, not a fresh
+  // allocation per hop. See readWindow's comment.
   readonly samples: Float32Array;
   readonly timestamp: number;
 }
@@ -10,10 +12,17 @@ export interface WindowAccumulator {
 
 export type CreateWindowAccumulator = (windowSize: number, hopSize: number) => WindowAccumulator;
 
-// Assumes each pushed block is no larger than hopSize - true for the AudioWorklet's fixed 128-sample
-// render quantum against any realistic hop size - so a single push can cross at most one hop boundary.
+// Assumes each pushed block is no larger than hopSize - true both for the AudioWorklet's raw
+// 128-sample render quantum and for its batched hop-sized messages (batchSize == hopSize exactly) -
+// so a single push can cross at most one hop boundary.
 export const createWindowAccumulator: CreateWindowAccumulator = (windowSize, hopSize) => {
   const buffer = new Float32Array(windowSize);
+  // Reused across every readWindow() call (audit H1): allocating a fresh windowSize-sample array
+  // per hop (~83/s at the default config) produced ~0.7MB/s of garbage for buffers that every
+  // consumer (RMS gate, pitchy) reads strictly synchronously. Contract: the returned samples are
+  // valid only until the next push()/reset() - callers must not retain them across calls, which
+  // frameProcessor's synchronous pipeline already satisfies by construction.
+  const windowScratch = new Float32Array(windowSize);
   let writeIndex = 0;
   let filledSamples = 0;
   let samplesSinceLastWindow = 0;
@@ -31,11 +40,10 @@ export const createWindowAccumulator: CreateWindowAccumulator = (windowSize, hop
   }
 
   function readWindow(): Float32Array {
-    const output = new Float32Array(windowSize);
     const tailLength = windowSize - writeIndex;
-    output.set(buffer.subarray(writeIndex), 0);
-    output.set(buffer.subarray(0, writeIndex), tailLength);
-    return output;
+    windowScratch.set(buffer.subarray(writeIndex), 0);
+    windowScratch.set(buffer.subarray(0, writeIndex), tailLength);
+    return windowScratch;
   }
 
   return {

@@ -253,6 +253,9 @@ export const createAudioEngine: CreateAudioEngine = () => {
       numberOfInputs: 1,
       numberOfOutputs: 0,
       channelCount: 1,
+      // One message per hop instead of one per 128-sample render quantum - see the worklet's own
+      // batching comment. hopSize is already in real-sample-rate samples here.
+      processorOptions: { batchSize: hopSize },
     });
     workletNode = node;
     node.port.onmessage = (event: MessageEvent<AudioBlockMessage>) => {
