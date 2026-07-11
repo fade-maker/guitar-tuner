@@ -144,6 +144,50 @@
   top: 0;
 }
 
+/* GuitarTuna-style trail beneath the badge, tracking its horizontal position - no Figma source (not
+   a Figma-designed screen element), a direct reference request.
+   .trailTrack is a sibling of .pitchBadgeTrack (both direct children of .main, sharing the exact same
+   inline translateX - see the .tsx), not nested inside it: .pitchBadgeTrack has no explicit height
+   (it sizes to the badge's own content), so a child positioned with top+bottom percentages would
+   resolve those percentages against that small auto-height box instead of .main's - confirmed
+   as a real bug via a live end-to-end run (a synthetic audio tone through the real pipeline), not
+   caught by unit tests alone since jsdom doesn't compute layout. Being its own full-width,
+   independently-positioned sibling gives it .main's real coordinate system directly, exactly like
+   .pitchBadgeTrack itself already relies on.
+   Vertical span (this screen's badge never moves vertically, only horizontally, so this is fixed):
+   from the bottom of the badge's small tail nub (44px indicator + ~6px tail cap) down to the tune
+   line's own bottom edge (-9.319% + 48.387% = 39.068%, both already-established constants from
+   .tuneLineWrap above) - explicitly not the very bottom of the play area, per instruction: the trail
+   terminates where the tune line does. */
+.trailTrack {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  top: calc(8.781% + 50px);
+  bottom: 60.932%; /* 100% - 39.068% */
+  pointer-events: none;
+}
+
+/* Horizontal: centered on the indicator circle's own center (left edge 44.527% + half its 44px
+   width) - the same anchor point the badge circle itself uses, now expressed relative to
+   .trailTrack's own 100%-width box (matching .pitchBadge's own left anchor inside .pitchBadgeTrack). */
+.trailLine {
+  position: absolute;
+  left: calc(44.527% + 22px);
+  transform: translateX(-50%);
+  top: 0;
+  height: 100%;
+  width: 2px;
+}
+
+.trailInTune {
+  background: linear-gradient(to bottom, var(--color-surface-inverse), transparent);
+}
+
+.trailOffPitch {
+  background: linear-gradient(to bottom, var(--color-accent-danger), transparent);
+}
+
 .currentNote {
   position: absolute;
   left: 44.527%; /* 179 / 402 - unaffected, this axis didn't change */

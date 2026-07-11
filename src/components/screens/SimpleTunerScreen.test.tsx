@@ -166,6 +166,39 @@ describe('SimpleTunerScreen', () => {
     expect(badgeTranslatePercent()).toBeCloseTo(40.547, 2);
   });
 
+  it('shows a white trail behind the badge when in tune, riding the same track transform', () => {
+    renderScreen();
+    act(() => emitStatus('listening'));
+    act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: 1000 }));
+
+    const trail = screen.getByTestId('pitch-badge-trail');
+    expect(trail.className).toContain('trailInTune');
+    expect(trail.className).not.toContain('trailOffPitch');
+    // The trail's own full-width track (its parent) is a sibling of pitch-badge-position, not
+    // nested inside it - nesting it inside pitch-badge-position resolved its top/bottom percentages
+    // against that element's own auto (content-sized) height instead of .main's, collapsing the
+    // trail to zero height (a real bug caught via a live end-to-end run, not by jsdom alone). Both
+    // tracks receive the identical inline transform instead.
+    const track = screen.getByTestId('pitch-badge-position');
+    expect(trail.parentElement).not.toBe(track);
+    expect(trail.parentElement?.style.transform).toBe(track.style.transform);
+  });
+
+  it('shows a danger-colored trail when off pitch (tune up or down)', () => {
+    renderScreen();
+    act(() => emitStatus('listening'));
+    act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, 20), clarity: 0.95, timestamp: 1000 }));
+
+    const trail = screen.getByTestId('pitch-badge-trail');
+    expect(trail.className).toContain('trailOffPitch');
+    expect(trail.className).not.toContain('trailInTune');
+  });
+
+  it('does not render a trail before any reading arrives', () => {
+    renderScreen();
+    expect(screen.queryByTestId('pitch-badge-trail')).toBeNull();
+  });
+
   it('navigates to select-tuning when the header title is tapped', () => {
     function ScreenProbe() {
       const { screen: current } = useNavigation();

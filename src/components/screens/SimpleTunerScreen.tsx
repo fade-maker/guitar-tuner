@@ -207,6 +207,9 @@ export function SimpleTunerScreen(): ReactElement {
   const currentNote = presentation.target
     ? midiToNoteName(presentation.target.midi, preferences.accidental)
     : null;
+  // Computed once, applied to both .pitchBadgeTrack and .trailTrack below - one value, two
+  // elements, so they can never drift apart and the badge/trail move on the same style write.
+  const badgeTransform = { transform: `translateX(${badgeOffsetPercent(presentation.cents ?? 0)}%)` };
 
   return (
     <div className={styles.screen}>
@@ -242,15 +245,20 @@ export function SimpleTunerScreen(): ReactElement {
         </div>
 
         {showPitchInfo && (
-          <div
-            className={styles.pitchBadgeTrack}
-            style={{ transform: `translateX(${badgeOffsetPercent(presentation.cents ?? 0)}%)` }}
-            data-testid="pitch-badge-position"
-          >
-            <div className={styles.pitchBadge}>
-              <SimplePitchBadge state={badgeState} cents={Math.abs(Math.round(presentation.cents ?? 0))} />
+          <>
+            <div className={styles.pitchBadgeTrack} style={badgeTransform} data-testid="pitch-badge-position">
+              <div className={styles.pitchBadge}>
+                <SimplePitchBadge state={badgeState} cents={Math.abs(Math.round(presentation.cents ?? 0))} />
+              </div>
             </div>
-          </div>
+            <div className={styles.trailTrack} style={badgeTransform}>
+              <div
+                className={classNames(styles.trailLine, badgeState === 'In tune' ? styles.trailInTune : styles.trailOffPitch)}
+                aria-hidden="true"
+                data-testid="pitch-badge-trail"
+              />
+            </div>
+          </>
         )}
 
         {currentNote && (
