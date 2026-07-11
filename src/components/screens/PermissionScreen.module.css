@@ -11,20 +11,27 @@
 
 /* Figma: "Illustration" (165:362) positions a 286px circle with its center at calc(50% - 118px) of
    the canvas height (874/2 - 118 = 319px; top edge 319 - 143 = 176px -> 20.137%) - kept as this
-   wrapper's anchor. The actual visual is NOT from Figma at all: a breathing "sonar ping" effect
-   directly modeled on a reference video (Apple Journal's audio-recording indicator), per explicit
-   request - white/silver instead of the reference's blue, on this screen's dark background instead
-   of the reference's near-white one. Analyzed the reference frame-by-frame (a radius-vs-time
-   luminance heatmap, not eyeballing) before building anything: confirmed a real ring travels outward
-   from the center once per ~3s breathing cycle, accelerating as it goes, thinning as it grows
-   (not just fading) - not the static-geometry/opacity-only pulse an earlier, wrong first read of the
-   video assumed.
-   No WebGL/canvas: the whole effect is 3 CSS-only rings (see .ring below) plus a static glow (.core)
-   - concluded from the analysis that nothing here needs pixel shading (no refraction, no reactive
-   lighting, no interactivity) - a plain accelerating radius + thinning border reproduces the
-   observed motion. This matters specifically for this screen: it's the very first thing rendered on
-   every app launch, so paint must start the instant the stylesheet parses - no canvas context, no
-   shader compile, no JS animation loop at all. */
+   wrapper's anchor. The actual visual is NOT from Figma at all: a breathing "liquid glass" effect
+   directly modeled on a reference video (an Apple audio-recording indicator), per explicit request -
+   white/silver instead of the reference's blue, on this screen's dark background instead of the
+   reference's near-white one.
+
+   Re-analyzed the reference frame-by-frame twice (a radius-vs-time luminance heatmap the first time,
+   a full radius-vs-time matrix plus fixed-radius time series the second time) after the first CSS
+   pass turned out visually wrong. The second pass overturned the first pass's own conclusion:
+   - There is NO ring that travels outward across the whole illustration. What actually moves is a
+     lens-shaped glow (.lens below) that swells from the center out to one fixed inner rim and resets
+     - a 3.0s cycle, confirmed by tracking its own leading edge across ~25 sampled frames.
+   - The thin circles further out (.rimInner/.rimOuter) never change radius at all - confirmed by
+     sampling brightness at 7 fixed radii across the full 9.4s clip: each one oscillates in place,
+     synchronized, on a 1.0s cycle - 3x faster than the lens, not the same cycle staggered in time.
+   - Checked specifically for a rotating specular highlight (an angular brightness-peak scan at 2
+     radii across a full slow cycle): the peak angle does not move outside sampling noise - the glass
+     look here is not from a moving light glint.
+   No WebGL/canvas: nothing observed needs pixel shading (no refraction, no reactive lighting, no
+   interactivity) - fixed-geometry rings plus one scaling fill reproduces the observed motion, and
+   this is the very first thing rendered on every app launch, so paint must start the instant the
+   stylesheet parses - no canvas context, no shader compile, no JS animation loop at all. */
 .illustration {
   position: absolute;
   top: 20.137%;
@@ -35,85 +42,138 @@
   pointer-events: none;
 }
 
-/* The one static element - never animates. Reference video's small bright center that every ring
-   emerges from; sized to roughly match .ring's own minimum (emergence) radius below so rings read as
-   originating from its edge, not popping in from nothing. */
-.core {
+/* The swelling glow at the center - the one element that actually changes size. Radial-gradient
+   fully centered at 50% 50% (the first CSS pass used an off-center 42% gradient origin meant to read
+   as a "lit sphere"; it instead visibly read as a mispositioned circle relative to the rims around
+   it - a real, reported bug, not a rendering illusion). white->blue->transparent mirrors what the
+   reference actually shows: the fill is whitest at its own center and cools toward blue further out,
+   not a flat tint.
+   Sized to the inner rim's own diameter (140px) rather than the full 300px box, then scaled 0->1 -
+   growth is transform:scale() (compositor-only); the keyframe's opacity ramp is the paint cost this
+   screen can afford (see the block comment above: no competing mic/audio pipeline here). */
+.lens {
   position: absolute;
   top: 50%;
   left: 50%;
-  margin: -55px 0 0 -55px;
-  width: 110px;
-  height: 110px;
+  margin: -70px 0 0 -70px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 42%, #ffffff 0%, #e9e9e9 32%, rgba(255, 255, 255, 0.25) 68%, transparent 100%);
-  box-shadow: 0 0 40px 8px rgba(255, 255, 255, 0.08);
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(214, 236, 255, 0.75) 38%,
+    rgba(151, 197, 255, 0.35) 72%,
+    rgba(151, 197, 255, 0) 100%
+  );
+  animation: lensBreathe 3s ease-in-out infinite;
 }
 
-/* Three instances of the same ring, staggered by a third of the cycle each (animation-delay, see the
-   .tsx) - this is what gives "several rings visible at once at different stages" without hand-
-   coordinating separate hand-off elements: N identical instances of one continuous 0%->100% journey,
-   offset in time, is trivially seamless-looping by construction (no discontinuity to get wrong).
-   Pre-centered via margin (half of the fixed 300px box) rather than a translate(-50%,-50%) baked into
-   the same transform as the scale below - keeps the animated transform to scale() alone, so the only
-   thing animating is genuinely compositor-cheap; centering itself never moves.
-   border-radius:50% + border (not box-shadow) for the ring shape - a plain circle outline, no glass/
-   blur treatment, matching the "просто след из линии"-style plainness already established for the
-   pitch badge trail elsewhere in this project. */
-.ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  margin: -150px 0 0 -150px;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  border-style: solid;
-  animation: ringPulse 3s ease-in infinite;
-}
-
-/* Growth (scale) is compositor-only; border-width/opacity are paint, not compositor - a real,
-   accepted trade-off (see .illustration's own comment): this screen owns no live resource yet (no
-   microphone stream, no audio pipeline competing for the main thread the way the tuner screens do),
-   so three small circles repainting is negligible. Values reverse-engineered from the reference
-   analysis, not measured exactly (this isn't a Figma value to transcribe) - min scale (0.367) puts
-   the ring's start radius at .core's own 55px edge; max scale (1.0) reaches this box's full 150px
-   radius. border-width shrinks faster than the scale grows so the *rendered* stroke genuinely
-   thins (transform:scale() alone would make a fixed border-width look thicker as the box grows, the
-   opposite of what's wanted) - 12px at 36.7% scale renders ~4.4px, 2px at ~73% scale renders ~1.5px,
-   0.5px at 100% scale renders as a near-invisible hairline right as it fades out. ease-in matches the
-   reference's own measured motion: slow near the center, accelerating outward. */
-@keyframes ringPulse {
+/* Growth phase (0%->40%, ~1.2s) matches the measured ~1.3s the reference's own fill takes to reach
+   the inner rim; the remaining 60% of the cycle is the fade/reset the analysis didn't need to time
+   precisely (no crisp edge to track once the fill is dissolving, unlike its growth edge). */
+@keyframes lensBreathe {
   0% {
-    transform: scale(0.367);
-    border-width: 12px;
-    border-color: rgba(255, 255, 255, 0.85);
+    transform: scale(0.08);
+    opacity: 0;
+  }
+  10% {
     opacity: 0.9;
   }
-  60% {
-    transform: scale(0.747);
-    border-width: 2px;
-    border-color: rgba(255, 255, 255, 0.5);
-    opacity: 0.6;
+  40% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  70% {
+    transform: scale(1);
+    opacity: 0.1;
   }
   100% {
-    transform: scale(1);
-    border-width: 0.5px;
-    border-color: rgba(255, 255, 255, 0.15);
+    transform: scale(0.08);
     opacity: 0;
   }
 }
 
+/* Both rims share one glass-edge technique: a filled circle whose own background is a tight-radius
+   radial-gradient (white -> blue -> white, back-to-back within a few px), then `mask` cuts everything
+   but a thin band at the very edge out of it - this is what gives the rim its own internal color
+   *variation* ("белый потом синий и разный", per explicit request) instead of a flat border-color,
+   which is what a plain CSS `border` can only ever produce. Same masked-ring family of technique as
+   FooterNavigation's own gradient border elsewhere in this project, applied here via a single
+   `radial-gradient` mask instead of that component's two-layer `mask-composite: exclude` - simpler
+   because this ring's color pattern is itself radial already, so one gradient can supply both the
+   color and the ring-shaped cutout in one declaration. */
+.rimInner,
+.rimOuter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  animation: rimShimmer 1s ease-in-out infinite;
+}
+
+/* Radius confirmed directly from the reference (the fixed line the lens fill grows to meet).
+   6px band, banded white/blue/white within it - thick enough for the color transition to actually
+   read at real device sizes instead of collapsing into one blended hue. */
+.rimInner {
+  margin: -70px 0 0 -70px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(
+    circle closest-side,
+    transparent calc(100% - 7px),
+    rgba(255, 255, 255, 0.95) calc(100% - 5.5px),
+    rgba(151, 197, 255, 0.9) calc(100% - 3px),
+    rgba(255, 255, 255, 0.8) calc(100% - 1px),
+    transparent 100%
+  );
+  mask-image: radial-gradient(circle closest-side, transparent calc(100% - 8px), #000 calc(100% - 7px));
+  -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 8px), #000 calc(100% - 7px));
+}
+
+/* Radius confirmed from the reference's own outermost visible circle, near this box's own edge -
+   fainter and thinner than the inner rim, same banded-glass technique. */
+.rimOuter {
+  margin: -150px 0 0 -150px;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(
+    circle closest-side,
+    transparent calc(100% - 4px),
+    rgba(255, 255, 255, 0.55) calc(100% - 3px),
+    rgba(151, 197, 255, 0.45) calc(100% - 1.5px),
+    transparent 100%
+  );
+  mask-image: radial-gradient(circle closest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px));
+  -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px));
+}
+
+/* Subtle by design - the measured brightness swing at fixed rim radii across the clip was only a
+   few percent, not a dramatic blink. Both rims share this animation unstaggered: the per-radius
+   phase offsets measured in the outer zone didn't resolve to a consistent, confidently-reproducible
+   lag (noise comparable to the offsets themselves at this sampling rate) - flagged as a simplification
+   rather than a recovered value. */
+@keyframes rimShimmer {
+  0%,
+  75%,
+  100% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 0.6;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ring {
+  .lens {
     animation: none;
-    /* Rests at the reference's own "static circle" edge (the .core-to-ring hand-off radius) rather
-       than at either animation extreme, so the still image reads as a coherent single ring, not a
-       barely-there sliver or an oversized outline. */
-    transform: scale(0.6);
-    border-width: 4px;
-    border-color: rgba(255, 255, 255, 0.4);
-    opacity: 0.5;
+    transform: scale(0.7);
+    opacity: 0.4;
+  }
+  .rimInner,
+  .rimOuter {
+    animation: none;
+    opacity: 1;
   }
 }
 

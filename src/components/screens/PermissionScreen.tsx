@@ -76,17 +76,15 @@ export function PermissionScreen(): ReactElement {
 
   return (
     <div className={styles.screen}>
-      {/* Breathing "sonar ping" illustration - see PermissionScreen.module.css's own comment for the
-          full reference-video analysis and why this is CSS-only (no WebGL/canvas). 3 identical ring
-          instances, each a full 3s 0%->100% journey, staggered by a third of that (1s) via a negative
-          animation-delay - negative, not positive, so every instance is already mid-journey on the
-          very first painted frame instead of the screen looking empty for up to 2s while instances
-          "catch up" to their offset. */}
+      {/* Breathing "liquid glass" illustration - see PermissionScreen.module.css's own comment for
+          the frame-by-frame reference re-analysis this is built from. Two independent, fixed-radius
+          glass rims (.rimInner/.rimOuter) that never move, shimmering together on a fast 1s cycle,
+          plus one growing lens fill (.lens) that swells from the center out to the inner rim on a
+          slow 3s cycle - not 3 identical traveling rings, which the first reference read got wrong. */}
       <div className={styles.illustration} aria-hidden="true">
-        <div className={styles.core} />
-        <div className={styles.ring} style={{ animationDelay: '0s' }} />
-        <div className={styles.ring} style={{ animationDelay: '-1s' }} />
-        <div className={styles.ring} style={{ animationDelay: '-2s' }} />
+        <div className={styles.lens} />
+        <div className={styles.rimInner} />
+        <div className={styles.rimOuter} />
       </div>
 
       {/* Figma's own text node is two fixed lines; \n + white-space: pre-line reproduces the break
