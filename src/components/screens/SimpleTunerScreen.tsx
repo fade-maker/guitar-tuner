@@ -58,7 +58,6 @@ function splitStringColumns(
 // across its In-tune/Tune-up/Tune-down demo states. Those 3 samples don't give an exact px-per-cent
 // slope (their cents values aren't known), so this is a bounded linear approximation over ±50 cents,
 // unchanged - only BADGE_MAX_OFFSET_PERCENT (how far that same ±50-cent range travels) changed.
-const BADGE_BASE_LEFT_PERCENT = 44.527; // 179 / 402, same anchor as .currentNote
 // 163 / 402 = the circle's own left edge reaching 16px from the screen's left edge (and,
 // symmetrically, its right edge reaching 16px from the right edge) - the same 16px margin this
 // screen already uses elsewhere (.stringContainer's padding is var(--space-16)), not a new number
@@ -66,12 +65,20 @@ const BADGE_BASE_LEFT_PERCENT = 44.527; // 179 / 402, same anchor as .currentNot
 // that established margin; ±50 cents (unchanged) now reaches that maximum instead of stopping at a
 // small fraction of it, per an explicit request to make the same cents range travel further without
 // touching the clamp bound, the linear formula, or anything else about the mechanic.
+//
+// Applied as a translateX percentage on the full-width .pitchBadgeTrack wrapper, not as a `left`
+// on the badge itself (Production Readiness Audit H2): `left` updates force main-thread layout on
+// every reading (~up to 80/s while a note sounds); transform on the wrapper is compositor-only.
+// A transform percentage is relative to the element's *own* box, which is why the wrapper exists:
+// it spans exactly the screen's width, so translateX(N%) here means the same "N% of screen width"
+// the old left-based math produced. The badge's own resting anchor (44.527% = 179/402, same as
+// .currentNote) lives in the CSS as .pitchBadge's static `left`.
 const BADGE_MAX_OFFSET_PERCENT = 40.547; // 163 / 402
 const BADGE_CENTS_RANGE = 50;
 
-function badgeLeftPercent(cents: number): number {
+function badgeOffsetPercent(cents: number): number {
   const clamped = Math.max(-BADGE_CENTS_RANGE, Math.min(BADGE_CENTS_RANGE, cents));
-  return BADGE_BASE_LEFT_PERCENT + (clamped / BADGE_CENTS_RANGE) * BADGE_MAX_OFFSET_PERCENT;
+  return (clamped / BADGE_CENTS_RANGE) * BADGE_MAX_OFFSET_PERCENT;
 }
 
 export function SimpleTunerScreen(): ReactElement {
@@ -190,11 +197,13 @@ export function SimpleTunerScreen(): ReactElement {
 
         {showPitchInfo && (
           <div
-            className={styles.pitchBadge}
-            style={{ left: `${badgeLeftPercent(presentation.cents ?? 0)}%` }}
+            className={styles.pitchBadgeTrack}
+            style={{ transform: `translateX(${badgeOffsetPercent(presentation.cents ?? 0)}%)` }}
             data-testid="pitch-badge-position"
           >
-            <SimplePitchBadge state={badgeState} cents={Math.abs(Math.round(presentation.cents ?? 0))} />
+            <div className={styles.pitchBadge}>
+              <SimplePitchBadge state={badgeState} cents={Math.abs(Math.round(presentation.cents ?? 0))} />
+            </div>
           </div>
         )}
 

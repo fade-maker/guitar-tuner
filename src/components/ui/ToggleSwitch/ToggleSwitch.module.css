@@ -38,6 +38,7 @@
 .thumb {
   position: absolute;
   top: 2px;
+  left: 2px;
   box-sizing: border-box;
   background-color: var(--color-surface-inverse);
   height: 24px;
@@ -46,11 +47,15 @@
   border: 1px solid transparent;
   backdrop-filter: blur(0px);
 }
+/* Position via transform, not left - the whole animation below runs on transform/paint properties
+   only (Production Readiness Audit H2): the previous version animated left/top/width/height, which
+   forces main-thread layout on every frame and cannot be composited; transform can. Same resting
+   geometry: translateX(24px) = the old `left: 26px` minus the base 2px. */
 .thumbOff {
-  left: 2px;
+  transform: none;
 }
 .thumbOn {
-  left: 26px; /* track width 66 - padding 2 - thumb width 38 */
+  transform: translateX(24px); /* (track width 66 - padding 2 - thumb width 38) - base left 2 */
 }
 
 .thumbAnimateOn {
@@ -60,70 +65,50 @@
   animation: thumbTurnOff 450ms forwards;
 }
 
-/* Pickup happens in place (0%->18%, ~81ms): grows to a fixed 58x36 (not a proportional scale -
-   58/38=1.526 vs 36/24=1.5, different ratios per axis, explicitly requested as exact numbers rather
-   than a uniform multiplier) and the glass effect engages, gentle ease-out. transform: scale() was
-   deliberately dropped for this reason too - a non-uniform scale would distort the pill's rounded
-   end-caps into an ellipse; animating width/height directly keeps border-radius: var(--radius-full)
-   rendering a true capsule at every size. left/top at 18%/78% are computed to keep the enlarged box
-   centered on the same point the resting 38x24 box was centered on (both the horizontal center of
-   whichever side it started from, and the track's own vertical center) rather than growing from a
-   corner - see the two keyframe blocks below for the actual numbers. The enlarged box does extend
-   past `.track`'s own edges (e.g. left: -8px) - intentional, `.track` has no `overflow: hidden`,
-   matching Liquid Glass elements visibly puffing past their own bounds when picked up, not a
-   clipping bug.
+/* Pickup happens in place (0%->18%, ~81ms): grows to 58x36 and the glass effect engages, gentle
+   ease-out. Travel (18%->78%, ~270ms): position moves while enlarged and glassy, smooth liquid
+   deceleration. Settle (78%->100%, ~99ms): shrinks back and de-glasses together, landing on the
+   exact resting position with a very light, barely-there "catch". Curves/durations/opacities all
+   carry over unchanged from the previous version - see git history for how each was tuned with the
+   user.
 
-   Travel (18%->78%, ~270ms): position moves while enlarged and glassy, smooth liquid deceleration.
-   Settle (78%->100%, ~99ms): shrinks back to 38x24 and de-glasses together (per explicit instruction
-   - not a two-step sequence), landing on the exact resting position with a very light, barely-there
-   "catch" rather than a bounce.
+   Rewritten from left/top/width/height keyframes to transform-only (Production Readiness Audit H2):
+   geometry animation forces main-thread layout+paint every frame for the full 450ms and cannot be
+   composited - under main-thread load (the audio pipeline ticking every 12ms) that read as dropped
+   frames. transform runs on the compositor. The enlarged box is expressed as
+   scale(58/38, 36/24) = scale(1.5263, 1.5) about the element's center - the same box the old
+   left/top keyframes produced (they were computed to keep the box centered on the resting center).
+   The one trade-off: under a non-uniform scale, border-radius corners distort slightly instead of
+   staying a perfect capsule - here the two axis factors are nearly identical (1.526 vs 1.5), putting
+   the corner error at ~0.3px at peak, below anything perceptible. The enlarged box still extends
+   past `.track`'s own edges - intentional, `.track` has no overflow: hidden (Liquid Glass elements
+   puff past their bounds when picked up).
 
-   All three curves were deliberately softened from an earlier pass (which used a snappier expo-out
-   pickup and a more pronounced settle overshoot) after direct feedback that it read as too abrupt -
-   cubic-bezier(0.33, 1, 0.68, 1) ("ease-out-cubic", a standard, gentler curve than expo) now drives
-   both pickup and travel; settle's overshoot factor dropped from 1.2 to 1.05, barely perceptible.
-   Total duration is 450ms (was 400ms), a deliberately modest bump, not a re-tune of the phase split
-   itself (still 18/60/22).
-
-   Glass fill/border opacity were both lowered (0.55->0.35 fill, 0.45->0.32 border) per explicit
-   feedback that the glass state should read as more transparent - not a Figma value, a direct,
-   named adjustment, same as every other motion/opacity number on this component. */
+   translateX values: 0 = resting off (base left 2px), 24px = resting on - matching .thumbOff/.thumbOn. */
 @keyframes thumbTurnOn {
   0% {
-    left: 2px;
-    top: 2px;
-    width: 38px;
-    height: 24px;
+    transform: translateX(0) scale(1);
     background-color: var(--color-surface-inverse);
     backdrop-filter: blur(0px);
     border-color: transparent;
     animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
   }
   18% {
-    left: -8px; /* off-position center (2 + 38/2 = 21) minus half the enlarged width (58/2 = 29) */
-    top: -4px; /* track's vertical center (28/2 = 14) minus half the enlarged height (36/2 = 18) */
-    width: 58px;
-    height: 36px;
+    transform: translateX(0) scale(1.5263, 1.5);
     background-color: rgba(255, 255, 255, 0.35);
     backdrop-filter: blur(4px);
     border-color: rgba(255, 255, 255, 0.32);
     animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
   }
   78% {
-    left: 16px; /* on-position center (26 + 38/2 = 45) minus half the enlarged width (29) */
-    top: -4px;
-    width: 58px;
-    height: 36px;
+    transform: translateX(24px) scale(1.5263, 1.5);
     background-color: rgba(255, 255, 255, 0.35);
     backdrop-filter: blur(4px);
     border-color: rgba(255, 255, 255, 0.32);
     animation-timing-function: cubic-bezier(0.34, 1.05, 0.64, 1);
   }
   100% {
-    left: 26px;
-    top: 2px;
-    width: 38px;
-    height: 24px;
+    transform: translateX(24px) scale(1);
     background-color: var(--color-surface-inverse);
     backdrop-filter: blur(0px);
     border-color: transparent;
@@ -132,40 +117,28 @@
 
 @keyframes thumbTurnOff {
   0% {
-    left: 26px;
-    top: 2px;
-    width: 38px;
-    height: 24px;
+    transform: translateX(24px) scale(1);
     background-color: var(--color-surface-inverse);
     backdrop-filter: blur(0px);
     border-color: transparent;
     animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
   }
   18% {
-    left: 16px;
-    top: -4px;
-    width: 58px;
-    height: 36px;
+    transform: translateX(24px) scale(1.5263, 1.5);
     background-color: rgba(255, 255, 255, 0.35);
     backdrop-filter: blur(4px);
     border-color: rgba(255, 255, 255, 0.32);
     animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
   }
   78% {
-    left: -8px;
-    top: -4px;
-    width: 58px;
-    height: 36px;
+    transform: translateX(0) scale(1.5263, 1.5);
     background-color: rgba(255, 255, 255, 0.35);
     backdrop-filter: blur(4px);
     border-color: rgba(255, 255, 255, 0.32);
     animation-timing-function: cubic-bezier(0.34, 1.05, 0.64, 1);
   }
   100% {
-    left: 2px;
-    top: 2px;
-    width: 38px;
-    height: 24px;
+    transform: translateX(0) scale(1);
     background-color: var(--color-surface-inverse);
     backdrop-filter: blur(0px);
     border-color: transparent;
@@ -179,21 +152,24 @@
   }
 }
 
+/* Positioned via transform for the same compositor reason as .thumb above (audit H2) - the old
+   `transition: left` forced layout per frame. 38px = the old left 40px minus the base 2px. */
 .indicatorSlot {
   position: absolute;
   top: 2px;
+  left: 2px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 24px;
-  transition: left 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .indicatorOff {
-  left: 40px; /* track width 66 - padding 2 - indicator width 24 */
+  transform: translateX(38px); /* (track width 66 - padding 2 - indicator width 24) - base left 2 */
 }
 .indicatorOn {
-  left: 2px;
+  transform: none;
 }
 
 .trackBorder {

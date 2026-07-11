@@ -125,33 +125,38 @@
    two tab buttons purely via DOM order (rendered right after `.glass`, before either button) - no
    z-index needed, same convention `.glass` already uses.
 
-   width/height are animated directly (not transform: scale()) for the same reason as ToggleSwitch:
-   139->165 (1.187x) and 54->76 (1.407x) are different ratios, and a non-uniform scale would distort
-   the capsule's rounded ends. left/top at the enlarged size were computed so the highlight
-   overflows `.pill`'s own edges by exactly 6px on every relevant side (top/bottom always, plus
-   whichever horizontal side it's nearest to) - not centered on the resting tab's own midpoint,
-   which would give slightly different numbers; `.pill` has no `overflow: hidden`, so this overflow
-   renders unclipped by design, matching Liquid Glass elements puffing past their container. */
+   Rewritten from left/top/width/height keyframes to transform-only (Production Readiness Audit H2):
+   geometry animation forces main-thread layout+paint on every frame for the full 520ms and cannot
+   be composited - under main-thread load it read as dropped frames; transform runs on the
+   compositor. The enlarged 165x76 box is expressed as scale(165/139, 76/54) = scale(1.18705,
+   1.40741) about the element's center, plus the small translate offset that reproduces the old
+   "6px overflow past .pill's edge" placement exactly (the old enlarged box was not center-scaled:
+   its center sat 2px outward from the resting center - e.g. resting Tuner center x = 5+69.5 = 74.5,
+   enlarged x = -6+82.5 = 76.5). Trade-off, accepted and verified by screenshot: under a non-uniform
+   scale the capsule's corner radii distort mid-flight (rx ~32px vs a true capsule's 38px at peak) -
+   only while moving, at 4%-alpha fill; resting frames (0%/100%) are exact. `.pill` has no
+   `overflow: hidden`, so the overflow renders unclipped by design, matching Liquid Glass elements
+   puffing past their container.
+
+   translateX values: 0 = resting Tuner (base left 5px), 139px = resting Settings (old left 144px
+   minus base). */
 .activeHighlight {
   position: absolute;
-  box-sizing: border-box;
-  border-radius: var(--radius-full);
-  border: 1px solid transparent;
-  pointer-events: none;
-}
-.activeHighlightTuner {
   left: 5px;
   top: 5px;
   width: 139px;
   height: 54px;
+  box-sizing: border-box;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
   background-color: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+.activeHighlightTuner {
+  transform: none;
 }
 .activeHighlightSettings {
-  left: 144px; /* pill content width 278 / 2 + padding 5 */
-  top: 5px;
-  width: 139px;
-  height: 54px;
-  background-color: rgba(255, 255, 255, 0.08);
+  transform: translateX(139px); /* (pill content width 278 / 2 + padding 5) - base left 5 */
 }
 
 .activeHighlightAnimateToSettings {
@@ -163,37 +168,27 @@
 
 @keyframes activeHighlightToSettings {
   0% {
-    left: 5px;
-    top: 5px;
-    width: 139px;
-    height: 54px;
+    transform: translateX(0) scale(1);
     background-color: rgba(255, 255, 255, 0.08);
     border-color: transparent;
     animation-timing-function: cubic-bezier(0.45, 0, 0.15, 1);
   }
   18% {
-    left: -6px; /* 6px overflow past .pill's own left edge */
-    top: -6px; /* 6px overflow past .pill's own top/bottom edges */
-    width: 165px;
-    height: 76px;
+    /* old enlarged Tuner-side box center (76.5, 32) minus resting center (74.5, 32) = +2px */
+    transform: translateX(2px) scale(1.18705, 1.40741);
     background-color: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.25);
     animation-timing-function: cubic-bezier(0.45, 0, 0.15, 1);
   }
   78% {
-    left: 129px; /* 6px overflow past .pill's own right edge (288 - 165 + 6) */
-    top: -6px;
-    width: 165px;
-    height: 76px;
+    /* old enlarged Settings-side box center x = 129+82.5 = 211.5; 211.5 - 74.5 = 137px */
+    transform: translateX(137px) scale(1.18705, 1.40741);
     background-color: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.25);
     animation-timing-function: cubic-bezier(0.34, 1.02, 0.64, 1);
   }
   100% {
-    left: 144px;
-    top: 5px;
-    width: 139px;
-    height: 54px;
+    transform: translateX(139px) scale(1);
     background-color: rgba(255, 255, 255, 0.08);
     border-color: transparent;
   }
@@ -201,37 +196,25 @@
 
 @keyframes activeHighlightToTuner {
   0% {
-    left: 144px;
-    top: 5px;
-    width: 139px;
-    height: 54px;
+    transform: translateX(139px) scale(1);
     background-color: rgba(255, 255, 255, 0.08);
     border-color: transparent;
     animation-timing-function: cubic-bezier(0.45, 0, 0.15, 1);
   }
   18% {
-    left: 129px;
-    top: -6px;
-    width: 165px;
-    height: 76px;
+    transform: translateX(137px) scale(1.18705, 1.40741);
     background-color: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.25);
     animation-timing-function: cubic-bezier(0.45, 0, 0.15, 1);
   }
   78% {
-    left: -6px;
-    top: -6px;
-    width: 165px;
-    height: 76px;
+    transform: translateX(2px) scale(1.18705, 1.40741);
     background-color: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.25);
     animation-timing-function: cubic-bezier(0.34, 1.02, 0.64, 1);
   }
   100% {
-    left: 5px;
-    top: 5px;
-    width: 139px;
-    height: 54px;
+    transform: translateX(0) scale(1);
     background-color: rgba(255, 255, 255, 0.08);
     border-color: transparent;
   }

@@ -122,12 +122,22 @@ describe('SimpleTunerScreen', () => {
     expect(screen.getByText('E⁴')).not.toBeNull(); // CurrentTargetNote for High E (E4)
   });
 
+  // The badge's movement is a translateX percentage on its full-width track wrapper (compositor-
+  // friendly - see badgeOffsetPercent's comment), so 0% = in tune; sign = direction; the static
+  // 44.527% anchor lives in CSS, not in this inline style.
+  function badgeTranslatePercent(): number {
+    const transform = screen.getByTestId('pitch-badge-position').style.transform;
+    const match = /translateX\((-?[\d.]+)%\)/.exec(transform);
+    expect(match).not.toBeNull();
+    return parseFloat(match![1]);
+  }
+
   it('centers the pitch badge when in tune', () => {
     renderScreen();
     act(() => emitStatus('listening'));
     act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: 1000 }));
 
-    expect(screen.getByTestId('pitch-badge-position').style.left).toBe('44.527%');
+    expect(badgeTranslatePercent()).toBe(0);
   });
 
   it('shifts the pitch badge right when sharp (tune down)', () => {
@@ -136,8 +146,7 @@ describe('SimpleTunerScreen', () => {
     act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, 20), clarity: 0.95, timestamp: 1000 }));
 
     expect(screen.getByText('Tune down')).not.toBeNull();
-    const left = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
-    expect(left).toBeGreaterThan(44.527);
+    expect(badgeTranslatePercent()).toBeGreaterThan(0);
   });
 
   it('shifts the pitch badge left when flat (tune up)', () => {
@@ -146,8 +155,7 @@ describe('SimpleTunerScreen', () => {
     act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, -20), clarity: 0.95, timestamp: 1000 }));
 
     expect(screen.getByText('Tune up')).not.toBeNull();
-    const left = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
-    expect(left).toBeLessThan(44.527);
+    expect(badgeTranslatePercent()).toBeLessThan(0);
   });
 
   it('clamps the pitch badge offset for extreme cents', () => {
@@ -155,8 +163,7 @@ describe('SimpleTunerScreen', () => {
     act(() => emitStatus('listening'));
     act(() => emitReading({ frequency: shiftCents(HIGH_E_FREQUENCY, 500), clarity: 0.95, timestamp: 1000 }));
 
-    const left = parseFloat(screen.getByTestId('pitch-badge-position').style.left);
-    expect(left).toBeCloseTo(44.527 + 40.547, 2);
+    expect(badgeTranslatePercent()).toBeCloseTo(40.547, 2);
   });
 
   it('navigates to select-tuning when the header title is tapped', () => {

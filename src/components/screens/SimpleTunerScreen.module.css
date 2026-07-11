@@ -127,9 +127,21 @@
    fixed position. Anchored the same way as .currentNote at rest: SimplePitchBadge's own first
    child (the 44px indicator circle) centers on the screen's midline like CurrentTargetNote and the
    tune line, with its text label free to extend further right. */
-.pitchBadge {
+/* Full-screen-width wrapper whose translateX (set inline, in % of its own = the screen's width)
+   carries the badge's per-reading movement on the compositor - see badgeOffsetPercent in the .tsx
+   for why this replaced a per-reading `left` update on .pitchBadge itself (audit H2). */
+.pitchBadgeTrack {
   position: absolute;
   top: 8.781%; /* (259 - 210) / 558 */
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+}
+
+.pitchBadge {
+  position: absolute;
+  left: 44.527%; /* 179 / 402, same anchor as .currentNote - was BADGE_BASE_LEFT_PERCENT in the .tsx */
+  top: 0;
 }
 
 .currentNote {
