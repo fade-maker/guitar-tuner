@@ -106,10 +106,12 @@
   );
 }
 
-/* The one animated element: a ring with its own crisp border (same treatment as .rimInner - a single
-   edge, no double-edge-plus-dark-fill, so no bevel look even while it's the thing moving) that grows
-   outward starting from the static circle's own edge and fades as it goes, then resets - Ellipse 1's
-   r=124->150 no longer drives its resting shape, only its animation's outer bound. */
+/* The animated element - 3 instances (see the .tsx), staggered via animation-delay so several are
+   visible mid-journey at once, per explicit request. Each has its own crisp border (same treatment
+   as .rimInner - a single edge, no double-edge-plus-dark-fill, so no bevel look even while it's the
+   thing moving) and grows outward starting from the static circle's own edge, fading as it goes, then
+   resets - Ellipse 1's r=124->150 no longer drives its resting shape, only its animation's outer
+   bound. */
 .rimOuter {
   position: absolute;
   top: 50%;

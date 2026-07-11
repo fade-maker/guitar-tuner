@@ -122,11 +122,16 @@ describe('PermissionScreen', () => {
     expect(screen.getByRole('button', { name: 'Request access' })).not.toBeNull();
   });
 
-  it('renders one growing lens and 2 fixed-radius glass rims for the breathing illustration', () => {
+  it('renders a stationary core (lens + border) and 3 staggered pulsing rings', () => {
     const { container } = renderScreen();
 
     expect(container.querySelectorAll(`.${styles.lens}`).length).toBe(1);
     expect(container.querySelectorAll(`.${styles.rimInner}`).length).toBe(1);
-    expect(container.querySelectorAll(`.${styles.rimOuter}`).length).toBe(1);
+    const rings = container.querySelectorAll(`.${styles.rimOuter}`);
+    expect(rings.length).toBe(3);
+    // Staggered via negative animation-delay (already mid-journey on the first frame) - each
+    // instance must have a distinct delay, not all three launching in lockstep.
+    const delays = Array.from(rings).map((ring) => (ring as HTMLElement).style.animationDelay);
+    expect(new Set(delays).size).toBe(3);
   });
 });

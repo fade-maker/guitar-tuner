@@ -77,15 +77,18 @@ export function PermissionScreen(): ReactElement {
   return (
     <div className={styles.screen}>
       {/* Breathing illustration - shape/radii/color sampled from Figma's own exported PNG layers
-          (165:362, monochrome white/grey - no blue), motion from a separate reference-video analysis.
-          See PermissionScreen.module.css's own comment for both. Two independent, fixed-radius rims
-          (.rimInner/.rimOuter) that never move, shimmering together on a fast 1s cycle, plus one
-          growing lens fill (.lens) that swells from the center out to the inner rim on a slow 3s
-          cycle - not 3 identical traveling rings, which the first reference-video read got wrong. */}
+          (165:362, monochrome white/grey - no blue). See PermissionScreen.module.css's own comment
+          for the full history. Stationary core (.lens + its border .rimInner) with 3 identical
+          .rimOuter instances growing outward from the core's edge and fading, each a full 3s
+          0%->100% journey staggered a third of that (1s) apart via a negative animation-delay -
+          negative, not positive, so every instance is already mid-journey on the very first painted
+          frame instead of the screen looking empty for up to 2s while instances "catch up". */}
       <div className={styles.illustration} aria-hidden="true">
         <div className={styles.lens} />
         <div className={styles.rimInner} />
-        <div className={styles.rimOuter} />
+        <div className={styles.rimOuter} style={{ animationDelay: '0s' }} />
+        <div className={styles.rimOuter} style={{ animationDelay: '-1s' }} />
+        <div className={styles.rimOuter} style={{ animationDelay: '-2s' }} />
       </div>
 
       {/* Figma's own text node is two fixed lines; \n + white-space: pre-line reproduces the break
