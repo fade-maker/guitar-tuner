@@ -24,10 +24,15 @@ export function AdvancedTunerScreen(): ReactElement {
   // not call a separate setA4() itself.
   const { presentation, start, stop } = useAudioEngine(activeTuning, preferences.a4Frequency);
 
-  // Same temporary responsibility as SimpleTunerScreen - see that screen's note on PermissionGate.
+  // Same deferred start as SimpleTunerScreen (see its ENGINE_START_DELAY_MS comment - audit H3):
+  // the footer's 520ms pill animation starts in the same frames this screen mounts, and stacking
+  // the engine's getUserMedia/AudioContext/worklet setup into those frames stuttered the animation.
   useEffect(() => {
-    void start();
-    return () => stop();
+    const timer = setTimeout(() => void start(), 260);
+    return () => {
+      clearTimeout(timer);
+      stop();
+    };
   }, [start, stop]);
 
   function handleA4Change(delta: number): void {

@@ -7,7 +7,8 @@ export function BassIllustration(): ReactElement {
     <div className={styles.container}>
       <div className={styles.frame}>
         <div className={styles.crop}>
-          <img src={bassPhoto} alt="" className={styles.photo} />
+          {/* Same decode-off-the-mount-frame reasoning as GuitarIllustration (audit H3). */}
+          <img src={bassPhoto} alt="" decoding="async" className={styles.photo} />
         </div>
       </div>
     </div>

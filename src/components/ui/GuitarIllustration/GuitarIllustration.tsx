@@ -10,7 +10,9 @@ export function GuitarIllustration(): ReactElement {
         className={styles.masked}
         style={{ maskImage: `url("${guitarMask}")`, WebkitMaskImage: `url("${guitarMask}")` }}
       >
-        <img src={guitarPhoto} alt="" className={styles.photo} />
+        {/* decoding=async keeps this ~860KB photo's decode off the critical rendering path of the
+            mount frame - it lands mid-screen-transition otherwise (audit H3). */}
+        <img src={guitarPhoto} alt="" decoding="async" className={styles.photo} />
       </div>
     </div>
   );

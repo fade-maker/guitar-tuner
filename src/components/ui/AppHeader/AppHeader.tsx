@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { ReactElement } from 'react';
 import { classNames } from '../classNames';
 import { Icon } from '../Icon';
@@ -25,7 +26,13 @@ export interface AppHeaderAdvancedProps {
 
 export type AppHeaderProps = AppHeaderDefaultProps | AppHeaderAdvancedProps;
 
-export function AppHeader(props: AppHeaderProps): ReactElement {
+// memo (audit H4): both tuner screens re-render on every pitch reading (up to ~80/s while a note
+// sounds), but nothing in this header depends on the reading - its props are strings, booleans and
+// (caller-stabilized, see SimpleTunerScreen's useCallback handlers) callbacks, so memo keeps the
+// whole header+ToggleSwitch subtree out of that per-reading reconciliation.
+export const AppHeader = memo(AppHeaderImpl);
+
+function AppHeaderImpl(props: AppHeaderProps): ReactElement {
   if (props.variant === 'Advanced') {
     return (
       <div className={styles.header}>

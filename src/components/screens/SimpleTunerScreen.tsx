@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useAudioEngine } from '../../hooks';
 import { getAllTunings, midiToNoteName } from '../../music-theory';
-import type { StringTarget, TuningPreset } from '../../music-theory';
+import type { Accidental, StringTarget, TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
 import { classNames } from '../ui/classNames';
@@ -81,6 +81,35 @@ function badgeOffsetPercent(cents: number): number {
   return (clamped / BADGE_CENTS_RANGE) * BADGE_MAX_OFFSET_PERCENT;
 }
 
+// The screen re-renders on every pitch reading (up to ~80/s while a note sounds - presentation's
+// cents change each time), but only the badge/note/string states actually differ between those
+// renders. Memoized wrapper so each string button re-renders only when its own label/state change,
+// not on every reading (audit H4); the target->onSelect indirection exists so the parent can pass
+// one stable callback instead of a fresh per-target arrow on every render (which would defeat memo).
+interface StringSlotProps {
+  readonly target: StringTarget;
+  readonly label: string;
+  readonly state: StringControlState;
+  readonly onSelect: (target: StringTarget) => void;
+}
+
+const StringSlot = memo(function StringSlot({ target, label, state, onSelect }: StringSlotProps): ReactElement {
+  return <StringControl label={label} state={state} onClick={() => onSelect(target)} />;
+});
+
+// Both illustrations are pure static imagery (no props) - memo keeps the ~860KB masked photo
+// subtree out of the per-reading reconciliation entirely (audit H4).
+const MemoGuitarIllustration = memo(GuitarIllustration);
+const MemoBassIllustration = memo(BassIllustration);
+
+// Engine start is deferred past the screen's own mount commit (audit H3): the footer tab switch
+// that navigates here starts its 520ms pill animation in the same frames this screen mounts -
+// stacking getUserMedia + AudioContext + worklet-module setup into those exact frames is what read
+// as the animation stuttering at its start. ~260ms lands the heavy work mid-animation's travel
+// phase (its least busy stretch) while still being imperceptible for "when does the mic start" -
+// the engine's own async startup was already in that ballpark.
+const ENGINE_START_DELAY_MS = 260;
+
 export function SimpleTunerScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
   const { navigateTo } = useNavigation();
@@ -93,39 +122,56 @@ export function SimpleTunerScreen(): ReactElement {
   );
   const [manualStringId, setManualStringId] = useState<string | null>(null);
 
-  // Figma's screen has no visible Start control - the real flow is PermissionGate requesting mic
-  // access upstream, then this screen just listens. PermissionGate isn't wired into the app shell
-  // yet (see CLAUDE.md), so this screen starts the engine itself for now; that responsibility
-  // moves to PermissionGate once it exists, not duplicated here.
+  // Figma's screen has no visible Start control - the real flow is the Permission screen granting
+  // mic access upstream, then this screen just listens (see ENGINE_START_DELAY_MS above for why
+  // the start itself is deferred).
   useEffect(() => {
-    void start();
-    return () => stop();
+    const timer = setTimeout(() => void start(), ENGINE_START_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+      stop();
+    };
   }, [start, stop]);
 
   const instrument = TUNING_INSTRUMENT[activeTuning.id] ?? 'guitar';
   const title = `${instrument === 'bass' ? 'Bass' : 'Guitar'} ${activeTuning.strings.length}-string`;
   const subtitle = TUNING_SUBTITLE[activeTuning.id] ?? 'Standard';
 
-  function handleAutoModeChange(auto: boolean): void {
-    setPreference('autoMode', auto);
-    if (auto) {
-      unpinTarget();
-    } else {
-      // Entering Manual is a fresh session, not a continuation of Auto's progress - every string's
-      // Tuned badge resets, matching manual tuning's expected "start clean" behavior.
-      reset();
-      if (manualStringId) {
-        pinTarget(manualStringId);
+  // Stable references (useCallback) so the memoized AppHeader/StringSlot children actually skip
+  // re-rendering on per-reading renders - a fresh arrow per render would defeat memo entirely.
+  const handleAutoModeChange = useCallback(
+    (auto: boolean): void => {
+      setPreference('autoMode', auto);
+      if (auto) {
+        unpinTarget();
+      } else {
+        // Entering Manual is a fresh session, not a continuation of Auto's progress - every string's
+        // Tuned badge resets, matching manual tuning's expected "start clean" behavior.
+        reset();
+        if (manualStringId) {
+          pinTarget(manualStringId);
+        }
       }
-    }
-  }
+    },
+    [setPreference, unpinTarget, reset, pinTarget, manualStringId],
+  );
 
-  function handleStringClick(target: StringTarget): void {
-    setManualStringId(target.id);
-    if (!preferences.autoMode) {
-      pinTarget(target.id);
-    }
-  }
+  const handleStringClick = useCallback(
+    (target: StringTarget): void => {
+      setManualStringId(target.id);
+      if (!preferences.autoMode) {
+        pinTarget(target.id);
+      }
+    },
+    [preferences.autoMode, pinTarget],
+  );
+
+  const handleAccidentalSelect = useCallback(
+    (accidental: Accidental) => setPreference('accidental', accidental),
+    [setPreference],
+  );
+
+  const handleTitlePress = useCallback(() => navigateTo('select-tuning'), [navigateTo]);
 
   function stringLabel(target: StringTarget): string {
     return midiToNoteName(target.midi, preferences.accidental).note;
@@ -172,8 +218,8 @@ export function SimpleTunerScreen(): ReactElement {
           frequencyLabel={`${preferences.a4Frequency}Hz`}
           autoMode={preferences.autoMode}
           onAutoModeChange={handleAutoModeChange}
-          onAccidentalSelect={(accidental) => setPreference('accidental', accidental)}
-          onTitlePress={() => navigateTo('select-tuning')}
+          onAccidentalSelect={handleAccidentalSelect}
+          onTitlePress={handleTitlePress}
         />
       </div>
 
@@ -192,7 +238,7 @@ export function SimpleTunerScreen(): ReactElement {
         </div>
 
         <div className={styles.illustration}>
-          {instrument === 'bass' ? <BassIllustration /> : <GuitarIllustration />}
+          {instrument === 'bass' ? <MemoBassIllustration /> : <MemoGuitarIllustration />}
         </div>
 
         {showPitchInfo && (
@@ -216,22 +262,24 @@ export function SimpleTunerScreen(): ReactElement {
         <div className={classNames(styles.stringContainer, instrument === 'bass' && styles.stringContainerBass)}>
           <div className={columnClassName}>
             {left.map((target) => (
-              <StringControl
+              <StringSlot
                 key={target.id}
+                target={target}
                 label={stringLabel(target)}
                 state={stringState(target)}
-                onClick={() => handleStringClick(target)}
+                onSelect={handleStringClick}
               />
             ))}
           </div>
           {right.length > 0 && (
             <div className={columnClassName}>
               {right.map((target) => (
-                <StringControl
+                <StringSlot
                   key={target.id}
+                  target={target}
                   label={stringLabel(target)}
                   state={stringState(target)}
-                  onClick={() => handleStringClick(target)}
+                  onSelect={handleStringClick}
                 />
               ))}
             </div>
