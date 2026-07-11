@@ -3,3 +3,5 @@
 export type { ViewportScreenProps } from './ViewportScreen';
 export { ViewportScreen } from './ViewportScreen';
 export { AppShell } from './AppShell';
+export type { ErrorBoundaryProps } from './ErrorBoundary';
+export { ErrorBoundary } from './ErrorBoundary';

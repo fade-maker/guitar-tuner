@@ -45,8 +45,43 @@ function runMigrations(envelope: StoredPreferencesEnvelope): StoredPreferencesEn
 type ReadableStorage = Pick<Storage, 'getItem'>;
 type WritableStorage = Pick<Storage, 'setItem'>;
 
-export function loadPreferences(storage: ReadableStorage = window.localStorage): AppPreferences {
-  const raw = storage.getItem(PREFERENCES_STORAGE_KEY);
+// In-memory stand-in used whenever real localStorage is unavailable or throwing. Not persistence -
+// preferences survive only the current session - but the app keeps working instead of crashing.
+// Module-level singleton so loadPreferences/savePreferences within one session agree on contents.
+function createInMemoryStorage(): ReadableStorage & WritableStorage {
+  const data = new Map<string, string>();
+  return {
+    getItem: (key) => data.get(key) ?? null,
+    setItem: (key, value) => {
+      data.set(key, value);
+    },
+  };
+}
+
+let inMemoryFallback: (ReadableStorage & WritableStorage) | undefined;
+
+// Even *accessing* window.localStorage can throw (SecurityError): Telegram Web embeds Mini Apps in
+// an iframe, and with third-party cookies/site data blocked the property access itself fails - and
+// loadPreferences runs inside the very first render (PreferencesProvider's useState initializer),
+// so an unguarded throw here was a guaranteed white screen for those users, not a degraded mode.
+// setItem can additionally throw QuotaExceededError (private modes, full storage) - handled at the
+// call sites below, since a storage that exists can still refuse individual writes.
+function defaultStorage(): ReadableStorage & WritableStorage {
+  try {
+    return window.localStorage;
+  } catch {
+    inMemoryFallback ??= createInMemoryStorage();
+    return inMemoryFallback;
+  }
+}
+
+export function loadPreferences(storage: ReadableStorage = defaultStorage()): AppPreferences {
+  let raw: string | null;
+  try {
+    raw = storage.getItem(PREFERENCES_STORAGE_KEY);
+  } catch {
+    return DEFAULT_PREFERENCES;
+  }
   if (raw === null) return DEFAULT_PREFERENCES;
 
   let parsed: unknown;
@@ -65,7 +100,13 @@ export function loadPreferences(storage: ReadableStorage = window.localStorage):
   return { ...DEFAULT_PREFERENCES, ...migrated.preferences };
 }
 
-export function savePreferences(preferences: AppPreferences, storage: WritableStorage = window.localStorage): void {
+export function savePreferences(preferences: AppPreferences, storage: WritableStorage = defaultStorage()): void {
   const envelope: StoredPreferencesEnvelope = { version: PREFERENCES_SCHEMA_VERSION, preferences };
-  storage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(envelope));
+  try {
+    storage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(envelope));
+  } catch {
+    // Quota exceeded / storage revoked mid-session: losing persistence must degrade silently, not
+    // crash the app - this runs inside a React effect on every preference change, and an uncaught
+    // throw there would tear down the whole tree.
+  }
 }

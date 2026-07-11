@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { AppShell } from './components/layout';
+import { AppShell, ErrorBoundary } from './components/layout';
 import { AppProviders } from './providers';
 
 // Real entry point, mounted by main.tsx via index.html. Composition only - no business logic here.
@@ -15,9 +15,11 @@ import { AppProviders } from './providers';
 // components/layout/AppShell.tsx for why this replaced each screen creating its own footer.
 function App(): ReactElement {
   return (
-    <AppProviders>
-      <AppShell />
-    </AppProviders>
+    <ErrorBoundary>
+      <AppProviders>
+        <AppShell />
+      </AppProviders>
+    </ErrorBoundary>
   );
 }
 

@@ -47,11 +47,34 @@ function createFakeMicrophoneStream() {
 let addModuleImpl: () => Promise<void> = () => Promise.resolve();
 let contextInstances: FakeAudioContext[] = [];
 
+// Initial state for the next FakeAudioContext constructed - lets a test model WebKit's
+// created-suspended behavior (see AudioEngine's watchContextState).
+let nextContextState: AudioContextState = 'running';
+
 class FakeAudioContext {
   sampleRate = 44100;
+  state: AudioContextState = nextContextState;
   audioWorklet = { addModule: vi.fn(() => addModuleImpl()) };
   createMediaStreamSource = vi.fn(() => ({ connect: vi.fn() }));
   close = vi.fn(() => Promise.resolve());
+  resume = vi.fn(() => {
+    this.setState('running');
+    return Promise.resolve();
+  });
+
+  private readonly stateListeners = new Set<() => void>();
+  addEventListener = vi.fn((type: string, listener: () => void) => {
+    if (type === 'statechange') this.stateListeners.add(listener);
+  });
+  removeEventListener = vi.fn((type: string, listener: () => void) => {
+    if (type === 'statechange') this.stateListeners.delete(listener);
+  });
+
+  setState(next: AudioContextState): void {
+    if (this.state === next) return;
+    this.state = next;
+    for (const listener of [...this.stateListeners]) listener();
+  }
 
   constructor() {
     contextInstances.push(this);
@@ -74,6 +97,7 @@ beforeEach(() => {
   requestMicrophoneStream.mockReset();
   addModuleImpl = () => Promise.resolve();
   contextInstances = [];
+  nextContextState = 'running';
   vi.stubGlobal('AudioContext', FakeAudioContext);
   vi.stubGlobal('AudioWorkletNode', FakeAudioWorkletNode);
 });
@@ -198,4 +222,47 @@ describe('createAudioEngine - microphone error mapping', () => {
       expect(errors).toEqual([{ reason: expectedReason, message: 'mic said no' }]);
     },
   );
+});
+
+// WebKit creates AudioContexts 'suspended' when start() isn't gesture-driven (the returning-user
+// auto-start flow) - a suspended context silently delivers no audio while status says 'listening'.
+// See watchContextState in AudioEngine.ts.
+describe('createAudioEngine - suspended AudioContext recovery', () => {
+  it('attempts resume() immediately when the context is created suspended', async () => {
+    nextContextState = 'suspended';
+    requestMicrophoneStream.mockResolvedValue(createFakeMicrophoneStream());
+
+    const engine = createAudioEngine();
+    await engine.start();
+
+    expect(contextInstances[0]?.resume).toHaveBeenCalled();
+    expect(engine.status).toBe('listening');
+  });
+
+  it('attempts resume() when the context suspends mid-session (statechange)', async () => {
+    requestMicrophoneStream.mockResolvedValue(createFakeMicrophoneStream());
+
+    const engine = createAudioEngine();
+    await engine.start();
+    const context = contextInstances[0]!;
+    expect(context.resume).not.toHaveBeenCalled(); // started running - nothing to recover yet
+
+    context.setState('suspended');
+    expect(context.resume).toHaveBeenCalled();
+    expect(engine.status).toBe('listening'); // recovery is transparent - status machine untouched
+  });
+
+  it('stop() unhooks the statechange watcher so a closed context is never resumed', async () => {
+    requestMicrophoneStream.mockResolvedValue(createFakeMicrophoneStream());
+
+    const engine = createAudioEngine();
+    await engine.start();
+    const context = contextInstances[0]!;
+
+    engine.stop();
+    expect(context.removeEventListener).toHaveBeenCalledWith('statechange', expect.any(Function));
+
+    context.setState('suspended');
+    expect(context.resume).not.toHaveBeenCalled();
+  });
 });

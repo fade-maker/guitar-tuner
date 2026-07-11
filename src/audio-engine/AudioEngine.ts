@@ -49,6 +49,7 @@ export const createAudioEngine: CreateAudioEngine = () => {
   let microphoneStream: MicrophoneStream | undefined;
   let micStateUnsubscribe: (() => void) | undefined;
   let audioContext: AudioContext | undefined;
+  let contextStateCleanup: (() => void) | undefined;
   let workletNode: AudioWorkletNode | undefined;
   // Bumped by stopEngine()/failEngine() so an in-flight startEngine() can tell, after resuming from an
   // await, whether it's still the current attempt. Without this, a stop() (or a mic 'ended' event) that
@@ -93,11 +94,67 @@ export const createAudioEngine: CreateAudioEngine = () => {
     }
   }
 
+  // WebKit (iOS Safari, and potentially Telegram's iOS WebView) creates an AudioContext in the
+  // 'suspended' state when its construction isn't tied to a user gesture - which is exactly this
+  // app's returning-user flow (the Permission screen auto-skips itself, the tuner auto-starts on
+  // mount). A suspended context delivers no audio to the worklet while everything else looks
+  // normal: status says 'listening', readings just never arrive, and the UI sits on "searching"
+  // forever with no error. This watcher keeps the context running without touching the status
+  // machine: resume() immediately whenever the state is anything but running/closed (covers iOS's
+  // non-standard 'interrupted' too), re-check on every 'statechange', and - since a gesture-less
+  // resume() is allowed to fail on WebKit - retry on the next real user gesture as the fallback.
+  function watchContextState(context: AudioContext): void {
+    let gestureCleanup: (() => void) | undefined;
+
+    const tryResume = (): void => {
+      void context.resume().catch(() => undefined);
+    };
+
+    const armGestureResume = (): void => {
+      if (gestureCleanup || typeof document === 'undefined') return;
+      const onGesture = (): void => tryResume();
+      document.addEventListener('pointerdown', onGesture, true);
+      document.addEventListener('touchend', onGesture, true);
+      gestureCleanup = () => {
+        document.removeEventListener('pointerdown', onGesture, true);
+        document.removeEventListener('touchend', onGesture, true);
+        gestureCleanup = undefined;
+      };
+    };
+
+    const handleNotRunning = (): void => {
+      tryResume();
+      armGestureResume();
+    };
+
+    const onStateChange = (): void => {
+      if (context.state === 'running') {
+        gestureCleanup?.();
+      } else if (context.state !== 'closed') {
+        handleNotRunning();
+      }
+    };
+
+    context.addEventListener('statechange', onStateChange);
+    if (context.state !== 'running' && context.state !== 'closed') {
+      handleNotRunning();
+    }
+
+    contextStateCleanup = () => {
+      context.removeEventListener('statechange', onStateChange);
+      gestureCleanup?.();
+      contextStateCleanup = undefined;
+    };
+  }
+
   function releaseResources(): void {
     if (workletNode) {
       workletNode.port.onmessage = null;
       workletNode.disconnect();
       workletNode = undefined;
+    }
+    if (contextStateCleanup) {
+      contextStateCleanup();
     }
     if (audioContext) {
       void audioContext.close().catch(() => undefined);
@@ -157,6 +214,7 @@ export const createAudioEngine: CreateAudioEngine = () => {
 
     const context = new AudioContext();
     audioContext = context;
+    watchContextState(context);
 
     try {
       await context.audioWorklet.addModule(pitchCaptureWorkletUrl);

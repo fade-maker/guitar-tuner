@@ -74,3 +74,26 @@ describe('savePreferences', () => {
     expect(JSON.parse(raw!)).toEqual({ version: PREFERENCES_SCHEMA_VERSION, preferences: DEFAULT_PREFERENCES });
   });
 });
+
+// Real storage can throw at every touchpoint: property access on window.localStorage itself
+// (SecurityError in a cookies-blocked iframe - exactly how Telegram Web embeds Mini Apps), getItem
+// (revoked mid-session), and setItem (QuotaExceededError). None of these may crash the app - load
+// falls back to defaults, save silently loses persistence.
+describe('storage failure resilience', () => {
+  const throwingStorage = {
+    getItem(): string | null {
+      throw new DOMException('Access denied', 'SecurityError');
+    },
+    setItem(): void {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    },
+  };
+
+  it('loadPreferences returns defaults when getItem throws', () => {
+    expect(loadPreferences(throwingStorage)).toEqual(DEFAULT_PREFERENCES);
+  });
+
+  it('savePreferences swallows a throwing setItem instead of propagating', () => {
+    expect(() => savePreferences(DEFAULT_PREFERENCES, throwingStorage)).not.toThrow();
+  });
+});
