@@ -106,66 +106,69 @@
   }
 }
 
+/* Two deliberate departures from both the Figma sample and the reference-video analysis, per direct
+   feedback after seeing both running live:
+   1. Motion: the video analysis found these rims genuinely static in radius, only shimmering in
+      brightness - implemented that way twice. In practice a pure opacity dip on an otherwise static
+      shape reads as a blink, not a breath, since there's no motion cue at all. Switched to the same
+      grow-then-fade language as .lens (transform:scale + opacity, smooth throughout, no up-down
+      oscillation) - a deliberate product choice overriding the literal video finding, not a further
+      "more accurate" reading of it.
+   2. Shape: see .rimInner/.rimOuter's own comments below - both moved from a double-edge
+      (bright/dark/bright) profile to a single soft brightness hump, because the double-edge structure
+      is itself what reads as embossed/beveled metal, independent of how low its opacity is turned
+      down - already tried opacity-only softening once and it wasn't enough. */
 .rimInner,
 .rimOuter {
   position: absolute;
   top: 50%;
   left: 50%;
   border-radius: 50%;
-  animation: rimShimmer 1s ease-in-out infinite;
+  animation: rimPulse 1s ease-in-out infinite;
 }
 
-/* Ellipse 2's own rim (r=94) - sits exactly where .lens's growth tops out. Plain white, no color
-   banding - the sampled asset has no blue or any other hue anywhere in it. Opacity toned down from
-   the literally-sampled ~191/255 (0.75) to 0.42 per explicit request - the sampled value read as an
-   embossed/beveled-metal edge against the dark ring fill below, not the softer look wanted here; a
-   deliberate softening, not a re-sampling. */
+/* Ellipse 2's own rim (r=94), sitting where .lens's growth tops out - now a single soft glow band
+   (one gradient hump, no separate bright-line-over-dark-fill pair) rather than a crisp edge, so
+   there's nothing left to read as a bevel. */
 .rimInner {
   margin: -94px 0 0 -94px;
   width: 188px;
   height: 188px;
-  background: radial-gradient(
-    circle closest-side,
-    transparent calc(100% - 4px),
-    rgba(255, 255, 255, 0.42) calc(100% - 2px),
-    rgba(255, 255, 255, 0.38) 100%
-  );
+  background: radial-gradient(circle closest-side, transparent calc(100% - 11px), rgba(255, 255, 255, 0.3) calc(100% - 4px), transparent 100%);
 }
 
-/* Ellipse 1 - a genuine thick ring/donut (r=124 inner edge -> r=150 outer edge, a ~26px band, not a
-   hairline). Percentages are of this box's own 150px closest-side radius: 124/150=82.7%,
-   149/150=99.3%. Edge/fill opacities toned down from the literally-sampled values (inner-edge rim
-   ~181/255, fill ~48-53/255, outer-edge rim ~121/255) per explicit request - full-strength sampling
-   read as an embossed/beveled-metal ring rather than the softer look wanted; same deliberate
-   softening as .rimInner, not a re-sampling. */
+/* Ellipse 1's ring (r=124->150 band) - collapsed from its sampled double-edge-plus-fill profile into
+   one soft plateau of brightness spanning the band, same reasoning as .rimInner. Percentages are of
+   this box's own 150px closest-side radius. */
 .rimOuter {
   margin: -150px 0 0 -150px;
   width: 300px;
   height: 300px;
   background: radial-gradient(
     circle closest-side,
-    transparent 82%,
-    rgba(255, 255, 255, 0.38) 83.5%,
-    rgba(200, 200, 200, 0.13) 88%,
-    rgba(200, 200, 200, 0.11) 96%,
-    rgba(255, 255, 255, 0.24) 99.3%,
+    transparent 80%,
+    rgba(255, 255, 255, 0.22) 88%,
+    rgba(255, 255, 255, 0.22) 95%,
     transparent 100%
   );
 }
 
-/* Subtle by design - the measured brightness swing at fixed rim radii across the clip was only a
-   few percent, not a dramatic blink. Both rims share this animation unstaggered: the per-radius
-   phase offsets measured in the outer zone didn't resolve to a consistent, confidently-reproducible
-   lag (noise comparable to the offsets themselves at this sampling rate) - flagged as a simplification
-   rather than a recovered value. */
-@keyframes rimShimmer {
-  0%,
-  75%,
-  100% {
-    opacity: 1;
+/* Grows from a slightly-smaller-than-rest scale while fading out, then resets - same shape of
+   keyframe as .lensBreathe (a quick fade-in, then a monotonic grow+fade, no oscillation) so all 3
+   elements read as one consistent "breathing" language. Kept at the previously-established 1s cycle
+   (3x .lens's 3s) - that timing relationship came from the video analysis and isn't part of what was
+   reported as wrong. */
+@keyframes rimPulse {
+  0% {
+    transform: scale(0.92);
+    opacity: 0;
   }
-  85% {
-    opacity: 0.6;
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.06);
+    opacity: 0;
   }
 }
 
