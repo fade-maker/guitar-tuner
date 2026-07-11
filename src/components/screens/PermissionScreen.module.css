@@ -9,22 +9,112 @@
   composes: routedScreen from '../layout/ViewportScreen.module.css';
 }
 
-/* Figma: "Illustration" (165:362) - a 286px circle, horizontally centered, its own center sitting
-   at calc(50% - 118px) of the canvas height (874/2 - 118 = 319px; top edge 319 - 143 = 176px ->
-   20.137%). The real asset is a layered glass-effect circle composition that will be rebuilt later
-   as an animated WebGL shader (per explicit instruction) - this is a deliberate placeholder, not a
-   transcription: a plain radial-gradient sphere echoing the reference's grey-glow look, sized and
-   positioned exactly where the real illustration goes. */
+/* Figma: "Illustration" (165:362) positions a 286px circle with its center at calc(50% - 118px) of
+   the canvas height (874/2 - 118 = 319px; top edge 319 - 143 = 176px -> 20.137%) - kept as this
+   wrapper's anchor. The actual visual is NOT from Figma at all: a breathing "sonar ping" effect
+   directly modeled on a reference video (Apple Journal's audio-recording indicator), per explicit
+   request - white/silver instead of the reference's blue, on this screen's dark background instead
+   of the reference's near-white one. Analyzed the reference frame-by-frame (a radius-vs-time
+   luminance heatmap, not eyeballing) before building anything: confirmed a real ring travels outward
+   from the center once per ~3s breathing cycle, accelerating as it goes, thinning as it grows
+   (not just fading) - not the static-geometry/opacity-only pulse an earlier, wrong first read of the
+   video assumed.
+   No WebGL/canvas: the whole effect is 3 CSS-only rings (see .ring below) plus a static glow (.core)
+   - concluded from the analysis that nothing here needs pixel shading (no refraction, no reactive
+   lighting, no interactivity) - a plain accelerating radius + thinning border reproduces the
+   observed motion. This matters specifically for this screen: it's the very first thing rendered on
+   every app launch, so paint must start the instant the stylesheet parses - no canvas context, no
+   shader compile, no JS animation loop at all. */
 .illustration {
   position: absolute;
   top: 20.137%;
   left: 50%;
   transform: translateX(-50%);
-  width: 286px;
-  height: 286px;
+  width: 300px;
+  height: 300px;
+  pointer-events: none;
+}
+
+/* The one static element - never animates. Reference video's small bright center that every ring
+   emerges from; sized to roughly match .ring's own minimum (emergence) radius below so rings read as
+   originating from its edge, not popping in from nothing. */
+.core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -55px 0 0 -55px;
+  width: 110px;
+  height: 110px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 42%, #d9d9d9 0%, #8a8a8a 34%, #3a3a3a 68%, #222222 100%);
-  box-shadow: 0 0 0 22px rgba(255, 255, 255, 0.03), 0 0 0 44px rgba(255, 255, 255, 0.02);
+  background: radial-gradient(circle at 50% 42%, #ffffff 0%, #e9e9e9 32%, rgba(255, 255, 255, 0.25) 68%, transparent 100%);
+  box-shadow: 0 0 40px 8px rgba(255, 255, 255, 0.08);
+}
+
+/* Three instances of the same ring, staggered by a third of the cycle each (animation-delay, see the
+   .tsx) - this is what gives "several rings visible at once at different stages" without hand-
+   coordinating separate hand-off elements: N identical instances of one continuous 0%->100% journey,
+   offset in time, is trivially seamless-looping by construction (no discontinuity to get wrong).
+   Pre-centered via margin (half of the fixed 300px box) rather than a translate(-50%,-50%) baked into
+   the same transform as the scale below - keeps the animated transform to scale() alone, so the only
+   thing animating is genuinely compositor-cheap; centering itself never moves.
+   border-radius:50% + border (not box-shadow) for the ring shape - a plain circle outline, no glass/
+   blur treatment, matching the "просто след из линии"-style plainness already established for the
+   pitch badge trail elsewhere in this project. */
+.ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -150px 0 0 -150px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  border-style: solid;
+  animation: ringPulse 3s ease-in infinite;
+}
+
+/* Growth (scale) is compositor-only; border-width/opacity are paint, not compositor - a real,
+   accepted trade-off (see .illustration's own comment): this screen owns no live resource yet (no
+   microphone stream, no audio pipeline competing for the main thread the way the tuner screens do),
+   so three small circles repainting is negligible. Values reverse-engineered from the reference
+   analysis, not measured exactly (this isn't a Figma value to transcribe) - min scale (0.367) puts
+   the ring's start radius at .core's own 55px edge; max scale (1.0) reaches this box's full 150px
+   radius. border-width shrinks faster than the scale grows so the *rendered* stroke genuinely
+   thins (transform:scale() alone would make a fixed border-width look thicker as the box grows, the
+   opposite of what's wanted) - 12px at 36.7% scale renders ~4.4px, 2px at ~73% scale renders ~1.5px,
+   0.5px at 100% scale renders as a near-invisible hairline right as it fades out. ease-in matches the
+   reference's own measured motion: slow near the center, accelerating outward. */
+@keyframes ringPulse {
+  0% {
+    transform: scale(0.367);
+    border-width: 12px;
+    border-color: rgba(255, 255, 255, 0.85);
+    opacity: 0.9;
+  }
+  60% {
+    transform: scale(0.747);
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.5);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    border-width: 0.5px;
+    border-color: rgba(255, 255, 255, 0.15);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation: none;
+    /* Rests at the reference's own "static circle" edge (the .core-to-ring hand-off radius) rather
+       than at either animation extreme, so the still image reads as a coherent single ring, not a
+       barely-there sliver or an oversized outline. */
+    transform: scale(0.6);
+    border-width: 4px;
+    border-color: rgba(255, 255, 255, 0.4);
+    opacity: 0.5;
+  }
 }
 
 /* Figma: 165:361 - SF Pro Display Semibold 32px / 36px line-height, plain #ffffff (Figma binds

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NavigationProvider, useNavigation } from '../../navigation';
 import { PreferencesProvider, usePreferences } from '../../preferences';
 import { PermissionScreen } from './PermissionScreen';
+import styles from './PermissionScreen.module.css';
 
 // jsdom has neither navigator.mediaDevices nor navigator.permissions - both are defined per-test
 // (configurable so they can be redefined/removed between tests).
@@ -119,5 +120,17 @@ describe('PermissionScreen', () => {
     // Give the mount-time query a tick to resolve, then confirm nothing navigated.
     await waitFor(() => expect(screen.getByTestId('current-screen').textContent).toBe('permission'));
     expect(screen.getByRole('button', { name: 'Request access' })).not.toBeNull();
+  });
+
+  it('renders one static core and 3 staggered ring instances for the breathing illustration', () => {
+    const { container } = renderScreen();
+
+    expect(container.querySelectorAll(`.${styles.core}`).length).toBe(1);
+    const rings = container.querySelectorAll(`.${styles.ring}`);
+    expect(rings.length).toBe(3);
+    // Staggered via negative animation-delay (already mid-journey on the first frame) - each
+    // instance must have a distinct delay, not all three launching in lockstep.
+    const delays = Array.from(rings).map((ring) => (ring as HTMLElement).style.animationDelay);
+    expect(new Set(delays).size).toBe(3);
   });
 });

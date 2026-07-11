@@ -76,9 +76,18 @@ export function PermissionScreen(): ReactElement {
 
   return (
     <div className={styles.screen}>
-      {/* Placeholder for the layered glass-circle illustration - will be rebuilt as an animated
-          WebGL shader (Apple Journal-style) later, per explicit instruction. */}
-      <div className={styles.illustration} aria-hidden="true" />
+      {/* Breathing "sonar ping" illustration - see PermissionScreen.module.css's own comment for the
+          full reference-video analysis and why this is CSS-only (no WebGL/canvas). 3 identical ring
+          instances, each a full 3s 0%->100% journey, staggered by a third of that (1s) via a negative
+          animation-delay - negative, not positive, so every instance is already mid-journey on the
+          very first painted frame instead of the screen looking empty for up to 2s while instances
+          "catch up" to their offset. */}
+      <div className={styles.illustration} aria-hidden="true">
+        <div className={styles.core} />
+        <div className={styles.ring} style={{ animationDelay: '0s' }} />
+        <div className={styles.ring} style={{ animationDelay: '-1s' }} />
+        <div className={styles.ring} style={{ animationDelay: '-2s' }} />
+      </div>
 
       {/* Figma's own text node is two fixed lines; \n + white-space: pre-line reproduces the break
           without a markup-only <br>. Figma's master reads "Request acces " (typo + trailing space)
