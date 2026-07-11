@@ -1764,6 +1764,47 @@ scroll) both at rest and mid-Select-Tuning-transition - confirming `.viewportScr
 genuinely sufficient on its own, this was never load-bearing for that. `tsc -b`, full test suite
 (456/62, unchanged), `npm run lint`, `vite build` all clean.
 
+### Permission Screen - real implementation (163:4008, "Permission Screen" page)
+
+The last placeholder screen is now real, built from the Figma frame the user linked directly
+(the MCP page-listing for this file only ever returns the "Colors" page - a tooling limitation
+worked around by asking for the frame URL, not by guessing).
+
+What: `PermissionScreen.tsx` + `.module.css` + `.test.tsx` - title ("Allow microphone / to start
+tuning", SF Pro Display Semibold 32/36, plain #ffffff exactly as Figma binds it, not
+text/Surface/primary), a "Request access" primary button in the same 44px-padded bottom band shape
+as Select Tuning's Save bar (but with no gradient fill - Figma gives this container no paint), and
+a **deliberate placeholder** for the illustration: Figma's layered glass-circle composition will be
+rebuilt later as an animated WebGL shader (Apple Journal-style, per explicit instruction) - the
+placeholder is a plain radial-gradient sphere at the exact position/size (286px circle, centered,
+center at 50%-118px of the canvas) where the real one goes. Figma's button reads "Request acces "
+(typo + trailing space) - corrected to "Request access", same policy as "Advansed tunind".
+
+Behavior: pressing the button calls `getUserMedia({audio:true})`, immediately stops the granted
+probe stream's tracks (the tuner screen owns the real capture session via its own `useAudioEngine`),
+and navigates to the tuner (`tunerMode`-aware). A denied result stays on the screen with the button
+still usable - Figma has no denied/error state design, so nothing was invented beyond allowing a
+retry. On mount, the screen checks the Permissions API (`navigator.permissions.query({name:
+'microphone'})` through a local interface, since TS's `PermissionName` union may exclude it) and
+skips itself straight to the tuner when access is already granted from a previous session - this is
+the achievable form of the requested "всегда на этом сайте": a web app cannot force permission
+persistence (that's the browser's own per-origin prompt UI decision), but it can respect a
+persisted grant so returning users never see this screen or a second prompt. Engines without the
+API (or the descriptor - guarded by try/catch) just show the screen normally.
+
+Wiring: `AppProviders` now passes `initialScreen="permission"` - resolving the integration decision
+Stage 5's log explicitly deferred ("which screen renders while the permission gate is closed").
+The app boots into Permission; granted users pass through it invisibly. `SCREENS_WITHOUT_FOOTER`
+already listed `permission` since the AppShell stage, so no footer changes were needed.
+`AppRouter.test.tsx`/`RouteTransition.test.tsx` updated from the old 'Permission (stub)' text probe
+to 'Request access' (RouteTransition's tests use Permission as their neutral non-Settings screen).
+
+Verified: 462 tests / 63 files (6 new - render, grant->navigate->tracks-stopped, tunerMode-aware
+destination, denied->stays, already-granted->skips, prompt->shows), `tsc -b`, `npm run lint`,
+`vite build` clean; screenshotted the built app at 402x874 against the Figma frame - layout matches
+(sphere placeholder, title position/size, button geometry), and the app genuinely boots into this
+screen via the real entry point.
+
 **Footer gradient restored to Figma's real value, now that the actual clipping bug is fixed.**
 Re-fetched `get_design_context` on the live BottomNavigation component (`66:3223`, via a fileKey the
 user provided directly - no fileKey had been available to any earlier session's Figma calls) rather

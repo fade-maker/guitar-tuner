@@ -84,7 +84,7 @@ describe('RouteTransition', () => {
   it('a switch between two non-Select-Tuning, non-Settings screens is an instant swap', () => {
     const { container, navigate } = renderTransition('permission', ['simple-tuner']);
     navigate('simple-tuner');
-    expect(screen.queryByText('Permission (stub)')).toBeNull();
+    expect(screen.queryByText('Request access')).toBeNull();
     expect(container.querySelectorAll(`.${styles.layer}`).length).toBe(1);
   });
 
@@ -150,7 +150,7 @@ describe('RouteTransition', () => {
     const { container, navigate } = renderTransition('permission', ['select-tuning']);
     navigate('select-tuning');
 
-    expect(screen.getByText('Permission (stub)')).not.toBeNull();
+    expect(screen.getByText('Request access')).not.toBeNull();
     expect(screen.getByText('Select tuning')).not.toBeNull();
     expect(container.querySelector(`.${styles.enterSlideUp}`)).not.toBeNull();
   });
@@ -160,7 +160,7 @@ describe('RouteTransition', () => {
     navigate('permission');
 
     expect(screen.getByText('Select tuning')).not.toBeNull();
-    expect(screen.getByText('Permission (stub)')).not.toBeNull();
+    expect(screen.getByText('Request access')).not.toBeNull();
     expect(container.querySelector(`.${styles.exitSlideDown}`)).not.toBeNull();
   });
 

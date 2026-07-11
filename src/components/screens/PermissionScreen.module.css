@@ -1,0 +1,67 @@
+@import '../../theme/tokens.css';
+
+/* Figma: "Permission Screen" (163:4008, Permission Screen page) - transcribed against the 402x874
+   reference canvas, same percentage-rebasing technique as every other screen. No Bottom Navigation
+   here (already listed in AppShell's SCREENS_WITHOUT_FOOTER since that mechanism was built); the
+   "system(ios) - don't copy" frame (status bar, iOS Close/collapse buttons, home indicator) is
+   Telegram/OS chrome and excluded per the project's standing rule. */
+.screen {
+  composes: routedScreen from '../layout/ViewportScreen.module.css';
+}
+
+/* Figma: "Illustration" (165:362) - a 286px circle, horizontally centered, its own center sitting
+   at calc(50% - 118px) of the canvas height (874/2 - 118 = 319px; top edge 319 - 143 = 176px ->
+   20.137%). The real asset is a layered glass-effect circle composition that will be rebuilt later
+   as an animated WebGL shader (per explicit instruction) - this is a deliberate placeholder, not a
+   transcription: a plain radial-gradient sphere echoing the reference's grey-glow look, sized and
+   positioned exactly where the real illustration goes. */
+.illustration {
+  position: absolute;
+  top: 20.137%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 286px;
+  height: 286px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, #d9d9d9 0%, #8a8a8a 34%, #3a3a3a 68%, #222222 100%);
+  box-shadow: 0 0 0 22px rgba(255, 255, 255, 0.03), 0 0 0 44px rgba(255, 255, 255, 0.02);
+}
+
+/* Figma: 165:361 - SF Pro Display Semibold 32px / 36px line-height, plain #ffffff (Figma binds
+   text-white here, not text/Surface/primary's #faf9f5 - kept exact), centered, two fixed lines,
+   top 551/874 = 63.043%. */
+.title {
+  position: absolute;
+  top: 63.043%;
+  left: 0;
+  width: 100%;
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 32px;
+  line-height: 36px;
+  text-align: center;
+  color: #ffffff;
+  white-space: pre-line;
+}
+
+/* Figma: 165:411 - the same 44px-padded full-width bottom band shape as Select Tuning's own Save
+   bar (165:406's button is byte-identical geometry to 174:1392's: white, 58px tall, full width,
+   radius/full), but with no gradient fill on the band itself - this screen's background is empty
+   behind it, nothing scrolls under it, so Figma gives the container no paint at all. */
+.actionBar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 44px;
+}
+
+/* Same targeting technique as SelectTuningScreen's .saveButton - Button deliberately exposes no
+   className prop, and Figma's 58px/full-width geometry genuinely differs from Button's own fixed
+   "large" size. */
+.actionButton button {
+  width: 100%;
+  height: 58px;
+}

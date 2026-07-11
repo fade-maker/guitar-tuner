@@ -32,12 +32,14 @@ afterEach(() => {
 
 describe('AppRouter', () => {
   it.each([
-    ['permission', 'Permission (stub)'],
+    ['permission', 'Request access'],
   ] as const satisfies readonly (readonly [ScreenId, string])[])('renders the %s screen', (initialScreen, text) => {
     render(
-      <NavigationProvider initialScreen={initialScreen}>
-        <AppRouter />
-      </NavigationProvider>,
+      <PreferencesProvider>
+        <NavigationProvider initialScreen={initialScreen}>
+          <AppRouter />
+        </NavigationProvider>
+      </PreferencesProvider>,
     );
 
     expect(screen.getByText(text)).not.toBeNull();
