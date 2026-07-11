@@ -55,14 +55,18 @@
   pointer-events: none;
 }
 
-/* The center glow (Ellipse 3) - the one element that actually changes size. White-only, opacity
-   ramping down with radius (matches the sampled ~191->100 falloff, expressed as opacity over
-   transparent rather than grey-over-dark so it reads correctly regardless of the screen's exact
-   background shade). Fully centered at 50% 50% (an earlier pass's 42% off-center origin made it
-   visibly non-concentric with the rims - a real, reported bug).
-   Sized to the disc's own rim radius (94px, i.e. 188px box) rather than the full 300px box, then
-   scaled 0->1 - growth is transform:scale() (compositor-only); the keyframe's opacity ramp is the
-   paint cost this screen can afford (no competing mic/audio pipeline here). */
+/* Third departure from the reference-video analysis, per direct feedback after seeing the previous
+   (breathing-lens) pass live: the center should be a stationary circle, not something that scales/
+   fades in place, with a single ring animating outward *from* it instead. So .lens and .rimInner
+   (its border) are both static now - all motion moved onto .rimOuter below. This is a bigger product
+   departure than the previous two passes: the video analysis's own finding (a swelling lens is what
+   moves) is no longer what's built here at all. */
+
+/* The center glow (Ellipse 3) - stationary, no animation. White-only, opacity ramping down with
+   radius (matches the sampled ~191->100 falloff, expressed as opacity over transparent rather than
+   grey-over-dark so it reads correctly regardless of the screen's exact background shade). Fully
+   centered at 50% 50% (an earlier pass's 42% off-center origin made it visibly non-concentric with
+   the rims around it - a real, reported bug). Sized to the disc's own rim radius (94px, 188px box). */
 .lens {
   position: absolute;
   top: 50%;
@@ -73,115 +77,82 @@
   border-radius: 50%;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(255, 255, 255, 0.73) 0%,
-    rgba(255, 255, 255, 0.6) 45%,
-    rgba(255, 255, 255, 0.35) 88%,
+    rgba(255, 255, 255, 0.7) 0%,
+    rgba(255, 255, 255, 0.55) 45%,
+    rgba(255, 255, 255, 0.32) 88%,
     rgba(255, 255, 255, 0) 100%
   );
-  animation: lensBreathe 3s ease-in-out infinite;
 }
 
-/* Growth phase (0%->40%, ~1.2s) matches the measured ~1.3s the reference's own fill takes to reach
-   the inner rim; the remaining 60% of the cycle is the fade/reset the analysis didn't need to time
-   precisely (no crisp edge to track once the fill is dissolving, unlike its growth edge). */
-@keyframes lensBreathe {
-  0% {
-    transform: scale(0.08);
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.9;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 0.75;
-  }
-  70% {
-    transform: scale(1);
-    opacity: 0.1;
-  }
-  100% {
-    transform: scale(0.08);
-    opacity: 0;
-  }
+/* Ellipse 2's own rim (r=94), sitting exactly at .lens's own edge - stationary, a real crisp border
+   line (not the wide soft hump the previous pass replaced it with chasing a different complaint -
+   that made the border itself unreadable, which is what was reported here). A single edge with
+   nothing but transparent beyond it (no separate darker fill band next to it, unlike .rimOuter) reads
+   as a plain outline, not a bevel, so this can stay reasonably crisp without reintroducing the
+   embossed-metal look. */
+.rimInner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -94px 0 0 -94px;
+  width: 188px;
+  height: 188px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle closest-side,
+    transparent calc(100% - 3px),
+    rgba(255, 255, 255, 0.55) calc(100% - 1.5px),
+    rgba(255, 255, 255, 0.5) 100%
+  );
 }
 
-/* Two deliberate departures from both the Figma sample and the reference-video analysis, per direct
-   feedback after seeing both running live:
-   1. Motion: the video analysis found these rims genuinely static in radius, only shimmering in
-      brightness - implemented that way twice. In practice a pure opacity dip on an otherwise static
-      shape reads as a blink, not a breath, since there's no motion cue at all. Switched to the same
-      grow-then-fade language as .lens (transform:scale + opacity, smooth throughout, no up-down
-      oscillation) - a deliberate product choice overriding the literal video finding, not a further
-      "more accurate" reading of it.
-   2. Shape: see .rimInner/.rimOuter's own comments below - both moved from a double-edge
-      (bright/dark/bright) profile to a single soft brightness hump, because the double-edge structure
-      is itself what reads as embossed/beveled metal, independent of how low its opacity is turned
-      down - already tried opacity-only softening once and it wasn't enough. */
-.rimInner,
+/* The one animated element: a ring with its own crisp border (same treatment as .rimInner - a single
+   edge, no double-edge-plus-dark-fill, so no bevel look even while it's the thing moving) that grows
+   outward starting from the static circle's own edge and fades as it goes, then resets - Ellipse 1's
+   r=124->150 no longer drives its resting shape, only its animation's outer bound. */
 .rimOuter {
   position: absolute;
   top: 50%;
   left: 50%;
-  border-radius: 50%;
-  animation: rimPulse 1s ease-in-out infinite;
-}
-
-/* Ellipse 2's own rim (r=94), sitting where .lens's growth tops out - now a single soft glow band
-   (one gradient hump, no separate bright-line-over-dark-fill pair) rather than a crisp edge, so
-   there's nothing left to read as a bevel. */
-.rimInner {
-  margin: -94px 0 0 -94px;
-  width: 188px;
-  height: 188px;
-  background: radial-gradient(circle closest-side, transparent calc(100% - 11px), rgba(255, 255, 255, 0.3) calc(100% - 4px), transparent 100%);
-}
-
-/* Ellipse 1's ring (r=124->150 band) - collapsed from its sampled double-edge-plus-fill profile into
-   one soft plateau of brightness spanning the band, same reasoning as .rimInner. Percentages are of
-   this box's own 150px closest-side radius. */
-.rimOuter {
   margin: -150px 0 0 -150px;
   width: 300px;
   height: 300px;
+  border-radius: 50%;
   background: radial-gradient(
     circle closest-side,
-    transparent 80%,
-    rgba(255, 255, 255, 0.22) 88%,
-    rgba(255, 255, 255, 0.22) 95%,
-    transparent 100%
+    transparent calc(100% - 3px),
+    rgba(255, 255, 255, 0.6) calc(100% - 1.5px),
+    rgba(255, 255, 255, 0.55) 100%
   );
+  animation: rimPulse 3s ease-out infinite;
 }
 
-/* Grows from a slightly-smaller-than-rest scale while fading out, then resets - same shape of
-   keyframe as .lensBreathe (a quick fade-in, then a monotonic grow+fade, no oscillation) so all 3
-   elements read as one consistent "breathing" language. Kept at the previously-established 1s cycle
-   (3x .lens's 3s) - that timing relationship came from the video analysis and isn't part of what was
-   reported as wrong. */
+/* Starts right at the static circle's own edge (94/150 = 0.627 scale) and grows to just past this
+   box's own 150px radius, fading out over the same span - a classic single expanding-ring pulse, not
+   the dual lens+rim system the reference video suggested. 3s matches the cadence that analysis found
+   for the overall breathing cycle; nothing else depends on that number anymore now that only one
+   element animates. */
 @keyframes rimPulse {
   0% {
-    transform: scale(0.92);
+    transform: scale(0.627);
     opacity: 0;
   }
-  15% {
-    opacity: 0.9;
+  10% {
+    opacity: 0.85;
   }
   100% {
-    transform: scale(1.06);
+    transform: scale(1.05);
     opacity: 0;
   }
 }
 
+/* .lens/.rimInner are already stationary - nothing to disable. Only .rimOuter animates, so only it
+   needs a resting state here. */
 @media (prefers-reduced-motion: reduce) {
-  .lens {
-    animation: none;
-    transform: scale(0.7);
-    opacity: 0.4;
-  }
-  .rimInner,
   .rimOuter {
     animation: none;
-    opacity: 1;
+    transform: scale(0.85);
+    opacity: 0.5;
   }
 }
 
