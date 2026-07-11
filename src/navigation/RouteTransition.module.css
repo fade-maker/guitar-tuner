@@ -80,7 +80,7 @@
   }
 }
 .scrimOut {
-  animation: scrimOut 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  animation: scrimOut 380ms cubic-bezier(0.45, 0, 0.55, 1) forwards;
 }
 
 /* Opaque fill for the sliding layer - screens don't paint their own full-bleed background (they
@@ -102,9 +102,14 @@
     transform: translateX(100%);
   }
 }
+/* Slower than the initial version (300ms -> 380ms, matching the entrance) and a symmetric ease-in-out
+   curve instead of reusing the entrance's decelerate curve - that curve is built to arrive gently
+   (fast start, slow finish), which on an exit meant the sheet visibly lingered right at the edge
+   before disappearing; ease-in-out reads as a smoother, more even glide off-screen. Per explicit
+   feedback ("уезжает" should feel smoother) - an engineering read, no Figma source for this either. */
 .exitSlideOutRight {
   composes: sheetSurface;
-  animation: exitSlideOutRight 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  animation: exitSlideOutRight 380ms cubic-bezier(0.45, 0, 0.55, 1) forwards;
 }
 
 @keyframes enterSlideInRight {
