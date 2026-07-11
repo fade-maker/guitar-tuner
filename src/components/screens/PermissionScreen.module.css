@@ -9,32 +9,45 @@
   composes: routedScreen from '../layout/ViewportScreen.module.css';
 }
 
-/* Figma: "Illustration" (165:362) positions a 286px circle with its center at calc(50% - 118px) of
-   the canvas height (874/2 - 118 = 319px; top edge 319 - 143 = 176px -> 20.137%) - kept as this
-   wrapper's anchor. The actual visual is NOT from Figma at all: a breathing "liquid glass" effect
-   directly modeled on a reference video (an Apple audio-recording indicator), per explicit request -
-   white/silver instead of the reference's blue, on this screen's dark background instead of the
-   reference's near-white one.
+/* Figma: "Illustration" (165:362, Permission Screen 163:4008) - a 286px frame containing 3 raster
+   layers (Figma exports them as flattened, blurred PNGs, not vector fills - get_design_context only
+   returns <img> tags for each; colors/radii below come from sampling the exported PNGs directly, not
+   from a style/variable lookup). Confirmed by a radius-vs-brightness scan of the composed export
+   (144 angle samples per radius ring):
+   - Every sampled pixel has R=G=B - the whole illustration is monochrome white/grey. The earlier
+     blue tint in this file was invented, not sourced from anywhere - removed.
+   - Ellipse 3 (165:360, r=68): the center glow, smooth falloff from ~191/255 at center to ~100 at
+     its own edge - no hard boundary.
+   - Ellipse 2 (165:359, r=90): a filled disc *underneath* the glow, with a crisp bright rim exactly
+     at r=90 (brightness spikes to ~191/255 right at that radius, i.e. as bright as the glow's own
+     center) - not a soft edge like the glow.
+   - Ellipse 1 (163:4210, r=143): a genuine thick ring/donut, not a hairline - bright rim at its own
+     inner edge (r=118, ~181/255) and a dimmer rim at its outer edge (r=143, ~121/255), with a dark
+     grey fill between (~48-53/255) - the "кольца тонкие, должны быть как в Figma" gap: this project's
+     first 2 CSS passes used a 4-8px hairline for this ring; Figma's own asset makes it a ~25px band
+     (118->143 out of a 143px max radius - roughly a sixth of the whole illustration's radius).
+   Scaled 1.049x (300px box / Figma's 286px frame) below: r68->71, r90->94, r118->124, r143->150.
 
-   Re-analyzed the reference frame-by-frame twice (a radius-vs-time luminance heatmap the first time,
-   a full radius-vs-time matrix plus fixed-radius time series the second time) after the first CSS
-   pass turned out visually wrong. The second pass overturned the first pass's own conclusion:
-   - There is NO ring that travels outward across the whole illustration. What actually moves is a
-     lens-shaped glow (.lens below) that swells from the center out to one fixed inner rim and resets
-     - a 3.0s cycle, confirmed by tracking its own leading edge across ~25 sampled frames.
-   - The thin circles further out (.rimInner/.rimOuter) never change radius at all - confirmed by
-     sampling brightness at 7 fixed radii across the full 9.4s clip: each one oscillates in place,
-     synchronized, on a 1.0s cycle - 3x faster than the lens, not the same cycle staggered in time.
-   - Checked specifically for a rotating specular highlight (an angular brightness-peak scan at 2
-     radii across a full slow cycle): the peak angle does not move outside sampling noise - the glass
-     look here is not from a moving light glint.
-   No WebGL/canvas: nothing observed needs pixel shading (no refraction, no reactive lighting, no
-   interactivity) - fixed-geometry rings plus one scaling fill reproduces the observed motion, and
+   The breathing *motion* (unlike this shape/color data) has no Figma source - Figma's own asset is
+   static - and comes from a separate frame-by-frame analysis of a reference video (an Apple
+   audio-recording indicator), re-confirmed twice after the first CSS pass misread it:
+   - No ring travels outward. A lens-shaped glow (.lens) swells from center to the disc's own rim
+     (r=94) and resets, 3.0s cycle - confirmed by tracking its own leading edge across ~25 frames.
+   - The rims (.rimInner/.rimOuter) never change radius - confirmed by sampling brightness at 7 fixed
+     radii across the full clip: each oscillates in place, synchronized, on a 1.0s cycle (3x faster
+     than the lens), not the same cycle staggered in time.
+   - No rotating specular highlight (an angular brightness-peak scan across a full slow cycle found no
+     angle drift beyond sampling noise) - not attempted here either.
+   No WebGL/canvas: fixed-geometry rings plus one scaling fill reproduces the observed motion, and
    this is the very first thing rendered on every app launch, so paint must start the instant the
-   stylesheet parses - no canvas context, no shader compile, no JS animation loop at all. */
+   stylesheet parses - no canvas context, no shader compile, no JS animation loop at all.
+
+   Position raised from Figma's own y=176/874=20.137% per explicit request (the Figma-transcribed
+   position read as too low once the illustration's real, thicker geometry was in place) - a
+   deliberate deviation from the transcribed value, not a recovered one. */
 .illustration {
   position: absolute;
-  top: 20.137%;
+  top: 12%;
   left: 50%;
   transform: translateX(-50%);
   width: 300px;
@@ -42,29 +55,28 @@
   pointer-events: none;
 }
 
-/* The swelling glow at the center - the one element that actually changes size. Radial-gradient
-   fully centered at 50% 50% (the first CSS pass used an off-center 42% gradient origin meant to read
-   as a "lit sphere"; it instead visibly read as a mispositioned circle relative to the rims around
-   it - a real, reported bug, not a rendering illusion). white->blue->transparent mirrors what the
-   reference actually shows: the fill is whitest at its own center and cools toward blue further out,
-   not a flat tint.
-   Sized to the inner rim's own diameter (140px) rather than the full 300px box, then scaled 0->1 -
-   growth is transform:scale() (compositor-only); the keyframe's opacity ramp is the paint cost this
-   screen can afford (see the block comment above: no competing mic/audio pipeline here). */
+/* The center glow (Ellipse 3) - the one element that actually changes size. White-only, opacity
+   ramping down with radius (matches the sampled ~191->100 falloff, expressed as opacity over
+   transparent rather than grey-over-dark so it reads correctly regardless of the screen's exact
+   background shade). Fully centered at 50% 50% (an earlier pass's 42% off-center origin made it
+   visibly non-concentric with the rims - a real, reported bug).
+   Sized to the disc's own rim radius (94px, i.e. 188px box) rather than the full 300px box, then
+   scaled 0->1 - growth is transform:scale() (compositor-only); the keyframe's opacity ramp is the
+   paint cost this screen can afford (no competing mic/audio pipeline here). */
 .lens {
   position: absolute;
   top: 50%;
   left: 50%;
-  margin: -70px 0 0 -70px;
-  width: 140px;
-  height: 140px;
+  margin: -94px 0 0 -94px;
+  width: 188px;
+  height: 188px;
   border-radius: 50%;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(214, 236, 255, 0.75) 38%,
-    rgba(151, 197, 255, 0.35) 72%,
-    rgba(151, 197, 255, 0) 100%
+    rgba(255, 255, 255, 0.73) 0%,
+    rgba(255, 255, 255, 0.6) 45%,
+    rgba(255, 255, 255, 0.35) 88%,
+    rgba(255, 255, 255, 0) 100%
   );
   animation: lensBreathe 3s ease-in-out infinite;
 }
@@ -94,15 +106,6 @@
   }
 }
 
-/* Both rims share one glass-edge technique: a filled circle whose own background is a tight-radius
-   radial-gradient (white -> blue -> white, back-to-back within a few px), then `mask` cuts everything
-   but a thin band at the very edge out of it - this is what gives the rim its own internal color
-   *variation* ("белый потом синий и разный", per explicit request) instead of a flat border-color,
-   which is what a plain CSS `border` can only ever produce. Same masked-ring family of technique as
-   FooterNavigation's own gradient border elsewhere in this project, applied here via a single
-   `radial-gradient` mask instead of that component's two-layer `mask-composite: exclude` - simpler
-   because this ring's color pattern is itself radial already, so one gradient can supply both the
-   color and the ring-shaped cutout in one declaration. */
 .rimInner,
 .rimOuter {
   position: absolute;
@@ -112,40 +115,40 @@
   animation: rimShimmer 1s ease-in-out infinite;
 }
 
-/* Radius confirmed directly from the reference (the fixed line the lens fill grows to meet).
-   6px band, banded white/blue/white within it - thick enough for the color transition to actually
-   read at real device sizes instead of collapsing into one blended hue. */
+/* Ellipse 2's own rim (r=94) - a crisp, bright, thin edge (sampled ~191/255, as bright as the glow's
+   own center) sitting exactly where .lens's growth tops out. Plain white, no color banding - the
+   sampled asset has no blue or any other hue anywhere in it. */
 .rimInner {
-  margin: -70px 0 0 -70px;
-  width: 140px;
-  height: 140px;
+  margin: -94px 0 0 -94px;
+  width: 188px;
+  height: 188px;
   background: radial-gradient(
     circle closest-side,
-    transparent calc(100% - 7px),
-    rgba(255, 255, 255, 0.95) calc(100% - 5.5px),
-    rgba(151, 197, 255, 0.9) calc(100% - 3px),
-    rgba(255, 255, 255, 0.8) calc(100% - 1px),
-    transparent 100%
+    transparent calc(100% - 4px),
+    rgba(255, 255, 255, 0.75) calc(100% - 2px),
+    rgba(255, 255, 255, 0.7) 100%
   );
-  mask-image: radial-gradient(circle closest-side, transparent calc(100% - 8px), #000 calc(100% - 7px));
-  -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 8px), #000 calc(100% - 7px));
 }
 
-/* Radius confirmed from the reference's own outermost visible circle, near this box's own edge -
-   fainter and thinner than the inner rim, same banded-glass technique. */
+/* Ellipse 1 - a genuine thick ring/donut (r=124 inner edge -> r=150 outer edge, a ~26px band, not a
+   hairline), sampled directly from the Figma export: bright inner-edge rim (~181/255), dark grey fill
+   between the two edges (~48-53/255 - present but subtle against this screen's own dark background),
+   dimmer outer-edge rim (~121/255, per Figma's own export - the outer edge is genuinely fainter than
+   the inner one, not a transcription error). Percentages are of this box's own 150px closest-side
+   radius: 124/150=82.7%, 149/150=99.3%. */
 .rimOuter {
   margin: -150px 0 0 -150px;
   width: 300px;
   height: 300px;
   background: radial-gradient(
     circle closest-side,
-    transparent calc(100% - 4px),
-    rgba(255, 255, 255, 0.55) calc(100% - 3px),
-    rgba(151, 197, 255, 0.45) calc(100% - 1.5px),
+    transparent 82%,
+    rgba(255, 255, 255, 0.68) 83.5%,
+    rgba(200, 200, 200, 0.16) 88%,
+    rgba(200, 200, 200, 0.14) 96%,
+    rgba(255, 255, 255, 0.42) 99.3%,
     transparent 100%
   );
-  mask-image: radial-gradient(circle closest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px));
-  -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px));
 }
 
 /* Subtle by design - the measured brightness swing at fixed rim radii across the clip was only a

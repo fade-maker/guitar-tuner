@@ -76,11 +76,12 @@ export function PermissionScreen(): ReactElement {
 
   return (
     <div className={styles.screen}>
-      {/* Breathing "liquid glass" illustration - see PermissionScreen.module.css's own comment for
-          the frame-by-frame reference re-analysis this is built from. Two independent, fixed-radius
-          glass rims (.rimInner/.rimOuter) that never move, shimmering together on a fast 1s cycle,
-          plus one growing lens fill (.lens) that swells from the center out to the inner rim on a
-          slow 3s cycle - not 3 identical traveling rings, which the first reference read got wrong. */}
+      {/* Breathing illustration - shape/radii/color sampled from Figma's own exported PNG layers
+          (165:362, monochrome white/grey - no blue), motion from a separate reference-video analysis.
+          See PermissionScreen.module.css's own comment for both. Two independent, fixed-radius rims
+          (.rimInner/.rimOuter) that never move, shimmering together on a fast 1s cycle, plus one
+          growing lens fill (.lens) that swells from the center out to the inner rim on a slow 3s
+          cycle - not 3 identical traveling rings, which the first reference-video read got wrong. */}
       <div className={styles.illustration} aria-hidden="true">
         <div className={styles.lens} />
         <div className={styles.rimInner} />
