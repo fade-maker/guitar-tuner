@@ -1822,3 +1822,71 @@ the footer's own bottom edge - matching the user's own description of the intend
 `scrollHeight === clientHeight`, confirming this screen never had a variant of the clipping bug, only
 the same shared-component gradient symptom). `tsc -b`, full test suite (456/62, unchanged),
 `npm run lint`, `vite build` all clean.
+### Production Readiness Audit - implementation pass (stages 1-4)
+
+A full audit (architecture / performance / animation-FPS / production-readiness / code-quality,
+report-only) was run first and its findings then implemented strictly in priority order, with the
+full check suite (tsc, vitest, lint, build) green at every stage boundary. One commit per stage;
+see each commit body for the detailed why. Summary of what changed:
+
+**Stage 1 - Critical (`d68d817`):**
+- **C1**: `preferences/storage.ts` guards every storage touchpoint (the `window.localStorage`
+  property access itself throws SecurityError in Telegram Web's cookies-blocked iframe - and
+  `loadPreferences` runs in the first render, so this was a guaranteed white screen there), with a
+  module-level in-memory fallback. Public API unchanged.
+- **C2**: one `ErrorBoundary` (`components/layout/ErrorBoundary.tsx`) at the App root - minimal,
+  fully self-contained inline-styled fallback ("Something went wrong" + Reload), class component by
+  necessity (no hook equivalent exists). No Figma error design exists; this is the audit-approved
+  minimum.
+- **C4**: `AudioEngine.watchContextState()` - WebKit creates AudioContexts 'suspended' without a
+  user gesture (exactly the returning-user auto-start flow), which previously produced
+  status='listening' with zero readings forever. Now: immediate resume(), re-check on every
+  'statechange' (any non-running/non-closed state, covering iOS's non-standard 'interrupted'), and
+  a one-shot document pointerdown/touchend retry as the gesture fallback; unhooked in
+  releaseResources. Status machine untouched. **Still needs a real-iPhone verification.**
+- **C3 (engine errors have no UI) deliberately NOT implemented** - blocked on design, not code:
+  Figma has no error-state designs for any screen. Flagged in the final report.
+
+**Stage 2 - FPS/performance:**
+- **H2 (`8eed1c4`)**: every layout-property animation moved to transform-only compositor animation:
+  FooterNavigation's sliding highlight and ToggleSwitch's thumb/indicator (left/top/width/height
+  keyframes -> translateX + non-uniform scale about center, with translate offsets reproducing the
+  old boxes exactly - resting geometry pixel-identical, verified in-browser; corner-radius
+  distortion exists only mid-flight, ~0.3px for the thumb, up to ~6px for the pill at 4%-alpha
+  fill), and SimplePitchBadge's per-reading movement (inline `left: %` -> `translateX(%)` on a new
+  full-screen-width `.pitchBadgeTrack` wrapper, since transform percentages are relative to the
+  element's own box). Select Tuning's accordion (grid-template-rows) deliberately stays: pushing
+  siblings down is inherently layout, and no audio pipeline runs on that screen.
+- **H1 (`2e214ad`)**: the capture worklet batches render quanta into one hop-sized message (83/s
+  instead of 345/s, zero added latency - nothing downstream acts more often than once per hop);
+  `windowAccumulator` reuses one scratch window buffer instead of allocating ~2030 floats per hop
+  (~0.7MB/s garbage before). Contract documented on `WindowReady`: samples valid only until the
+  next push()/reset(). DSP stays on the main thread by explicit instruction - moving it into the
+  worklet/a Worker is the deferred architecture change.
+- **H3+H4 (`87c8b4a`)**: both tuner screens defer engine start by 260ms past mount so
+  getUserMedia/AudioContext/worklet setup stops landing in the footer animation's first frames;
+  illustration photos decode async. `AppHeader` memoized (whole header+ToggleSwitch subtree was
+  reconciled per reading), both illustrations memoized (static prop-less photo subtrees), string
+  buttons render through a memoized `StringSlot` wrapper with useCallback-stabilized handlers.
+  No other memo added - everything else genuinely changes per reading.
+
+**Stage 3 - Medium (`7ae5c76`):** M3 - preference persistence debounced (150ms trailing) with a
+'pagehide' + provider-unmount flush so the last change is never lost. M4 - NavigationProvider's
+stale initialScreen comment fixed. M2 was delivered inside H2. **M1 (image optimization) skipped
+honestly**: no WebP encoder on this machine (sips writes only HEIC), and the one candidate
+downscale came back *larger* after sips' PNG re-encode - WebP re-export with real tooling remains
+a pre-release recommendation.
+
+**Stage 4 - Low (`3766434`):** deleted only provably dead code: the four type-only component
+contracts from stage 0 (`components/{Header,PermissionGate,StringSelector,TunerGauge}`), their
+importerless barrel `components/index.ts`, and unimported `App.css`. Kept everything plausibly
+useful: `motion/`, `theme/*.ts`, `useTelegramTheme`, `openLink`, the animation-system drivers
+(foundation for the paused SimplePitchBadge work), `vite-plugin-mkcert`.
+
+Verified end-to-end after all stages via the established fake-mic Playwright click-through
+(permission auto-skip -> simple tuner -> settings -> advanced toggle -> advanced tuner -> select
+tuning modal -> save -> back), zero console errors; 472 tests / 64 files; tsc/lint/build clean.
+
+Known deferred items (out of scope per instructions, listed in the final report): moving DSP off
+the main thread (the single biggest remaining FPS lever), C3 error-state UI (needs Figma designs),
+WebP image re-export, real-device iOS verification of the C4 fix.
