@@ -1,0 +1,111 @@
+@import '../../theme/tokens.css';
+
+/* Same shared shell every routed screen fills - see SettingsScreen.module.css's own comment. No
+   footer prop (listed in AppShell's SCREENS_WITHOUT_FOOTER, same as FAQ/Select Tuning/Permission) -
+   this is a sub-screen reached from Settings, not a main tab. */
+.screen {
+  composes: routedScreen from '../layout/ViewportScreen.module.css';
+}
+
+/* Byte-identical header shell to FAQScreen's own - same "no Figma source, reuse this app's existing
+   restrained visual language" reasoning, not worth a shared component for two consumers this small. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  transition: background-color 120ms ease;
+}
+
+.backButton:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.backIcon {
+  display: flex;
+  transform: rotate(180deg);
+}
+
+.title {
+  flex: 1 0 0;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  font-size: 18px;
+  color: var(--color-text-primary);
+}
+
+.headerSpacer {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
+  padding: 0 16px 24px;
+  box-sizing: border-box;
+}
+
+.card {
+  width: 100%;
+  padding: 4px 12px;
+  box-sizing: border-box;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-card);
+  border: 1px solid rgba(225, 224, 217, 0.08);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.rowLabel {
+  flex: 1 0 0;
+  min-width: 0;
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.divider {
+  width: 100%;
+  height: 0;
+  margin: 0;
+  border: none;
+  border-top: 1px solid rgba(225, 224, 217, 0.08);
+}

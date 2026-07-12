@@ -17,4 +17,10 @@ describe('InTuneZone', () => {
     render(<InTuneZone state="Tuning started" />);
     expect(screen.queryByText('Start playing')).toBeNull();
   });
+
+  it('uses the provided promptText override instead of the English default', () => {
+    render(<InTuneZone state="Default" promptText="Empieza a tocar" />);
+    expect(screen.getByText('Empieza a tocar')).not.toBeNull();
+    expect(screen.queryByText('Start playing')).toBeNull();
+  });
 });

@@ -92,4 +92,16 @@ describe('AppRouter', () => {
 
     expect(screen.getByText('Advanced tuning')).not.toBeNull();
   });
+
+  it('renders the real LanguageScreen for language', () => {
+    render(
+      <PreferencesProvider>
+        <NavigationProvider initialScreen="language">
+          <AppRouter />
+        </NavigationProvider>
+      </PreferencesProvider>,
+    );
+
+    expect(screen.getAllByText('English').length).toBeGreaterThan(0);
+  });
 });

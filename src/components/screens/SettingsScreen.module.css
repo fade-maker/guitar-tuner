@@ -164,6 +164,19 @@
   flex-shrink: 0;
 }
 
+/* Shows the currently-selected language before the Language row's own chevron - same muted-value
+   pattern as .calibrateValue, but tertiary-colored since it's a secondary value next to a nav
+   chevron, not an editable primary value like the calibrate stepper's own number. */
+.rowValue {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .navRow {
   cursor: pointer;
   background: none;

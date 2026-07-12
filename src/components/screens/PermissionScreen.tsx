@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { ReactElement } from 'react';
+import { useTranslation } from '../../i18n';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
 import { triggerHapticFeedback } from '../../telegram/haptics';
@@ -44,6 +45,7 @@ async function queryMicrophonePermission(): Promise<MicrophonePermissionStatus |
 export function PermissionScreen(): ReactElement {
   const { preferences } = usePreferences();
   const { navigateTo } = useNavigation();
+  const t = useTranslation();
 
   const tunerScreen = preferences.tunerMode === 'advanced' ? 'advanced-tuner' : 'simple-tuner';
 
@@ -93,13 +95,15 @@ export function PermissionScreen(): ReactElement {
 
       {/* Figma's own text node is two fixed lines; \n + white-space: pre-line reproduces the break
           without a markup-only <br>. Figma's master reads "Request acces " (typo + trailing space)
-          - corrected here, same policy as the "Advansed tunind" precedent. */}
-      <h1 className={styles.title}>{'Allow microphone\nto start tuning'}</h1>
+          - corrected here, same policy as the "Advansed tunind" precedent. Each locale's own title
+          carries its own "\n" at the right word-break point - not necessarily the same word count
+          as English. */}
+      <h1 className={styles.title}>{t.permission.title}</h1>
 
       <div className={styles.actionBar}>
         <div className={styles.actionButton}>
           <Button variant="primary" size="large" onClick={() => void handleRequestAccess()}>
-            Request access
+            {t.permission.button}
           </Button>
         </div>
       </div>

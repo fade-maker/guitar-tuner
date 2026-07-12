@@ -60,7 +60,34 @@ describe('loadPreferences', () => {
       JSON.stringify({ version: PREFERENCES_SCHEMA_VERSION, preferences: { tunerMode: 'advanced' } }),
     );
 
-    expect(loadPreferences(storage)).toEqual({ ...DEFAULT_PREFERENCES, tunerMode: 'advanced' });
+    expect(loadPreferences(storage)).toEqual({ ...DEFAULT_PREFERENCES, tunerMode: 'advanced', language: 'en' });
+  });
+});
+
+describe('loadPreferences language detection', () => {
+  it('uses the detected language when nothing is stored at all (fresh install)', () => {
+    expect(loadPreferences(new FakeStorage(), () => 'ru').language).toBe('ru');
+  });
+
+  it('uses the detected language when a stored envelope predates the language field (upgrading user)', () => {
+    const storage = new FakeStorage();
+    storage.setItem(
+      PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ version: PREFERENCES_SCHEMA_VERSION, preferences: { tunerMode: 'advanced' } }),
+    );
+
+    expect(loadPreferences(storage, () => 'es').language).toBe('es');
+  });
+
+  it('does not call the detector, and keeps the stored choice, once a language was explicitly saved', () => {
+    const storage = new FakeStorage();
+    savePreferences({ ...DEFAULT_PREFERENCES, language: 'ru' }, storage);
+
+    const detectLanguage = () => {
+      throw new Error('should not be called once a language is already persisted');
+    };
+
+    expect(loadPreferences(storage, detectLanguage).language).toBe('ru');
   });
 });
 

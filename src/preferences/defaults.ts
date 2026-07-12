@@ -12,4 +12,7 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   haptics: true,
   animations: true,
   soundEffectsEnabled: true,
+  // Static fallback for resetPreferences()/tests. loadPreferences() in storage.ts overrides this
+  // with a Telegram-detected language whenever there's no persisted choice yet - see its own comment.
+  language: 'en',
 };

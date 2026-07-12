@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import {
   AdvancedTunerScreen,
   FAQScreen,
+  LanguageScreen,
   PermissionScreen,
   SelectTuningScreen,
   SettingsScreen,
@@ -27,5 +28,7 @@ export function resolveScreen(screen: ScreenId): ReactElement {
       return <PermissionScreen />;
     case 'faq':
       return <FAQScreen />;
+    case 'language':
+      return <LanguageScreen />;
   }
 }

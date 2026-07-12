@@ -24,4 +24,10 @@ describe('SimplePitchBadge', () => {
     expect(screen.getByText('Tune down')).not.toBeNull();
     expect(screen.getByText('+11')).not.toBeNull();
   });
+
+  it('uses provided label overrides instead of the English defaults', () => {
+    render(<SimplePitchBadge state="Tune down" cents={11} tuneDownLabel="Baja" />);
+    expect(screen.getByText('Baja')).not.toBeNull();
+    expect(screen.queryByText('Tune down')).toBeNull();
+  });
 });

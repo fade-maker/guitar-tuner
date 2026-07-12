@@ -60,6 +60,27 @@ describe('AppHeader - Default variant', () => {
     expect(onAccidentalSelect).toHaveBeenNthCalledWith(1, 'flat');
     expect(onAccidentalSelect).toHaveBeenNthCalledWith(2, 'sharp');
   });
+
+  it('uses provided translated labels instead of the English defaults', () => {
+    render(
+      <AppHeader
+        variant="Default"
+        title="Гитара 6 струн"
+        subtitle="Standard"
+        frequencyLabel="440Hz"
+        autoMode={true}
+        onAutoModeChange={() => {}}
+        autoLabel="Авто"
+        autoAriaLabel="Автоматический режим"
+        flatAriaLabel="Бемольная нотация"
+        sharpAriaLabel="Диезная нотация"
+      />,
+    );
+    expect(screen.getByText('Авто')).not.toBeNull();
+    expect(screen.getByRole('switch', { name: 'Автоматический режим' })).not.toBeNull();
+    expect(screen.getByLabelText('Бемольная нотация')).not.toBeNull();
+    expect(screen.getByLabelText('Диезная нотация')).not.toBeNull();
+  });
 });
 
 describe('AppHeader - Advanced variant', () => {

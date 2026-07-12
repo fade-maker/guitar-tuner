@@ -3,10 +3,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { NavigationProvider, useNavigation } from '../../navigation';
+import { PreferencesProvider } from '../../preferences';
 import { FAQScreen } from './FAQScreen';
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
 });
 
 function Probe(): ReactElement {
@@ -16,10 +18,12 @@ function Probe(): ReactElement {
 
 function renderScreen() {
   return render(
-    <NavigationProvider initialScreen="faq">
-      <FAQScreen />
-      <Probe />
-    </NavigationProvider>,
+    <PreferencesProvider>
+      <NavigationProvider initialScreen="faq">
+        <FAQScreen />
+        <Probe />
+      </NavigationProvider>
+    </PreferencesProvider>,
   );
 }
 

@@ -9,11 +9,11 @@ import { ViewportScreen } from './ViewportScreen';
 
 // Screens that render full-bleed with no Bottom Navigation at all: Select Tuning (removed from
 // Figma for this screen), Permission (today a placeholder, but its own Figma exception is a
-// single button, not the tab bar, once built for real), and FAQ (a sub-screen reached from
-// Settings via its own back button, not a main tab - same reasoning as Select Tuning). A screen
-// ends up here by being listed, never by choosing whether to render FooterNavigation itself - only
-// AppShell ever creates it.
-const SCREENS_WITHOUT_FOOTER: ReadonlySet<ScreenId> = new Set(['select-tuning', 'permission', 'faq']);
+// single button, not the tab bar, once built for real), and FAQ/Language (both sub-screens reached
+// from Settings via their own back button, not a main tab - same reasoning as Select Tuning). A
+// screen ends up here by being listed, never by choosing whether to render FooterNavigation itself
+// - only AppShell ever creates it.
+const SCREENS_WITHOUT_FOOTER: ReadonlySet<ScreenId> = new Set(['select-tuning', 'permission', 'faq', 'language']);
 
 function footerTabFor(screen: ScreenId): FooterNavigationTab {
   return screen === 'settings' ? 'Settings' : 'Tuner';

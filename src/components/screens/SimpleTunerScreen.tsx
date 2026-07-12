@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useAudioEngine } from '../../hooks';
+import { useTranslation } from '../../i18n';
 import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { Accidental, StringTarget, TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
@@ -113,8 +114,10 @@ const ENGINE_START_DELAY_MS = 260;
 export function SimpleTunerScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
   const { navigateTo } = useNavigation();
+  const t = useTranslation();
   const allTunings = useMemo(() => getAllTunings(), []);
-  const activeTuning: TuningPreset = allTunings.find((t) => t.id === preferences.selectedTuning) ?? allTunings[0];
+  const activeTuning: TuningPreset =
+    allTunings.find((tuning) => tuning.id === preferences.selectedTuning) ?? allTunings[0];
 
   const { presentation, pinTarget, unpinTarget, reset, start, stop } = useAudioEngine(
     activeTuning,
@@ -134,7 +137,7 @@ export function SimpleTunerScreen(): ReactElement {
   }, [start, stop]);
 
   const instrument = TUNING_INSTRUMENT[activeTuning.id] ?? 'guitar';
-  const title = `${instrument === 'bass' ? 'Bass' : 'Guitar'} ${activeTuning.strings.length}-string`;
+  const title = t.tunerHeader.instrumentTitle(instrument, activeTuning.strings.length);
   const subtitle = TUNING_SUBTITLE[activeTuning.id] ?? 'Standard';
 
   // Stable references (useCallback) so the memoized AppHeader/StringSlot children actually skip
@@ -223,6 +226,10 @@ export function SimpleTunerScreen(): ReactElement {
           onAutoModeChange={handleAutoModeChange}
           onAccidentalSelect={handleAccidentalSelect}
           onTitlePress={handleTitlePress}
+          autoLabel={t.tunerHeader.auto}
+          autoAriaLabel={t.tunerHeader.autoAriaLabel}
+          flatAriaLabel={t.tunerHeader.flatAriaLabel}
+          sharpAriaLabel={t.tunerHeader.sharpAriaLabel}
         />
       </div>
 
@@ -248,7 +255,13 @@ export function SimpleTunerScreen(): ReactElement {
           <>
             <div className={styles.pitchBadgeTrack} style={badgeTransform} data-testid="pitch-badge-position">
               <div className={styles.pitchBadge}>
-                <SimplePitchBadge state={badgeState} cents={Math.abs(Math.round(presentation.cents ?? 0))} />
+                <SimplePitchBadge
+                  state={badgeState}
+                  cents={Math.abs(Math.round(presentation.cents ?? 0))}
+                  inTuneLabel={t.tunerStatus.inTune}
+                  tuneUpLabel={t.tunerStatus.tuneUp}
+                  tuneDownLabel={t.tunerStatus.tuneDown}
+                />
               </div>
             </div>
             <div className={styles.trailTrack} style={badgeTransform}>

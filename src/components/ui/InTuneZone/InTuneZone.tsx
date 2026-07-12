@@ -9,13 +9,15 @@ export type InTuneZoneState = 'Default' | 'Tuning started';
 
 export interface InTuneZoneProps {
   readonly state?: InTuneZoneState;
+  // Optional, English-defaulting override - same convention as the other tuner-status primitives.
+  readonly promptText?: string;
 }
 
-export function InTuneZone({ state = 'Tuning started' }: InTuneZoneProps): ReactElement {
+export function InTuneZone({ state = 'Tuning started', promptText = 'Start playing' }: InTuneZoneProps): ReactElement {
   const isDefault = state === 'Default';
   return (
     <div className={classNames(styles.ring, isDefault && styles.withPrompt)}>
-      {isDefault && <span className={styles.promptText}>Start playing</span>}
+      {isDefault && <span className={styles.promptText}>{promptText}</span>}
     </div>
   );
 }

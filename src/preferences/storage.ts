@@ -1,3 +1,5 @@
+import type { Language } from '../i18n/types';
+import { detectTelegramLanguage } from '../telegram/language';
 import { DEFAULT_PREFERENCES } from './defaults';
 import type { AppPreferences } from './types';
 
@@ -75,29 +77,45 @@ function defaultStorage(): ReadableStorage & WritableStorage {
   }
 }
 
-export function loadPreferences(storage: ReadableStorage = defaultStorage()): AppPreferences {
+// detectLanguage is injectable (defaults to the real Telegram reader) purely for testability, same
+// convention as the storage param below.
+export function loadPreferences(
+  storage: ReadableStorage = defaultStorage(),
+  detectLanguage: () => Language = detectTelegramLanguage,
+): AppPreferences {
+  // Every "couldn't read a real stored value" exit uses this instead of a bare DEFAULT_PREFERENCES -
+  // a brand-new user (or one who predates this field entirely) gets a smart, Telegram-detected
+  // starting language instead of always landing on English. Once saved, savePreferences() persists
+  // whatever the user is actually using (their own explicit choice, or this detected one
+  // unchanged) - so this detection only ever runs once, at the true first load.
+  const fallback = (): AppPreferences => ({ ...DEFAULT_PREFERENCES, language: detectLanguage() });
+
   let raw: string | null;
   try {
     raw = storage.getItem(PREFERENCES_STORAGE_KEY);
   } catch {
-    return DEFAULT_PREFERENCES;
+    return fallback();
   }
-  if (raw === null) return DEFAULT_PREFERENCES;
+  if (raw === null) return fallback();
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return DEFAULT_PREFERENCES;
+    return fallback();
   }
 
-  if (!isStoredEnvelope(parsed)) return DEFAULT_PREFERENCES;
+  if (!isStoredEnvelope(parsed)) return fallback();
   // A version newer than this build understands (e.g. the user rolled back the app) can't be
   // migrated backwards safely - fall back to defaults rather than guess at its shape.
-  if (parsed.version > PREFERENCES_SCHEMA_VERSION) return DEFAULT_PREFERENCES;
+  if (parsed.version > PREFERENCES_SCHEMA_VERSION) return fallback();
 
   const migrated = runMigrations(parsed);
-  return { ...DEFAULT_PREFERENCES, ...migrated.preferences };
+  const merged = { ...DEFAULT_PREFERENCES, ...migrated.preferences };
+  // Distinct from the exits above: this is a real, readable stored envelope that simply predates
+  // the `language` field (an upgrading existing user, not a fresh install) - still gets the same
+  // smart detection rather than silently defaulting to English forever.
+  return migrated.preferences.language === undefined ? { ...merged, language: detectLanguage() } : merged;
 }
 
 export function savePreferences(preferences: AppPreferences, storage: WritableStorage = defaultStorage()): void {

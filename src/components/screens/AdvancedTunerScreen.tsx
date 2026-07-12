@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import type { ReactElement } from 'react';
 import { useAudioEngine } from '../../hooks';
+import { useTranslation } from '../../i18n';
 import { DEFAULT_A4_FREQUENCY, getAllTunings, midiToNoteName } from '../../music-theory';
 import type { TuningPreset } from '../../music-theory';
 import { usePreferences } from '../../preferences';
@@ -13,8 +14,10 @@ import styles from './AdvancedTunerScreen.module.css';
 
 export function AdvancedTunerScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
+  const t = useTranslation();
   const allTunings = useMemo(() => getAllTunings(), []);
-  const activeTuning: TuningPreset = allTunings.find((t) => t.id === preferences.selectedTuning) ?? allTunings[0];
+  const activeTuning: TuningPreset =
+    allTunings.find((tuning) => tuning.id === preferences.selectedTuning) ?? allTunings[0];
 
   // Advanced Tuner always auto-detects the nearest string - Figma's header for this screen has no
   // Auto switch (unlike Simple Tuner's), and no manual per-string picker exists on this screen, so
@@ -58,7 +61,7 @@ export function AdvancedTunerScreen(): ReactElement {
     <div className={styles.screen}>
       <div className={styles.header}>
         {/* Figma's title text reads "Advansed tunind" - a typo, not reproduced here. */}
-        <AppHeader variant="Advanced" title="Advanced tuning" frequencyLabel={`${preferences.a4Frequency}Hz`} />
+        <AppHeader variant="Advanced" title={t.advancedTuner.title} frequencyLabel={`${preferences.a4Frequency}Hz`} />
       </div>
 
       <div className={styles.main}>
@@ -73,7 +76,7 @@ export function AdvancedTunerScreen(): ReactElement {
           type="button"
           className={styles.accidentalLeft}
           onClick={() => setPreference('accidental', 'flat')}
-          aria-label="Use flat notation"
+          aria-label={t.tunerHeader.flatAriaLabel}
         >
           <Icon name="flat" size={24} />
         </button>
@@ -81,13 +84,13 @@ export function AdvancedTunerScreen(): ReactElement {
           type="button"
           className={styles.accidentalRight}
           onClick={() => setPreference('accidental', 'sharp')}
-          aria-label="Use sharp notation"
+          aria-label={t.tunerHeader.sharpAriaLabel}
         >
           <Icon name="sharp" size={24} />
         </button>
 
         <div className={styles.noteArea}>
-          <InTuneZone state={hasTarget ? 'Tuning started' : 'Default'} />
+          <InTuneZone state={hasTarget ? 'Tuning started' : 'Default'} promptText={t.tunerStatus.startPlaying} />
           {hasTarget && currentNote && (
             <div className={styles.noteCircleLayer}>
               <NoteCircle note={currentNote.note} state={presentation.inTune ? 'In tune' : 'Searching'} />
@@ -97,7 +100,12 @@ export function AdvancedTunerScreen(): ReactElement {
 
         {hasTarget && (
           <div className={styles.statusBadge}>
-            <AdvancedStatusBadge state={badgeState} />
+            <AdvancedStatusBadge
+              state={badgeState}
+              label={
+                badgeState === 'In tune' ? t.tunerStatus.inTune : badgeState === 'Tune up' ? t.tunerStatus.tuneUp : t.tunerStatus.tuneDown
+              }
+            />
           </div>
         )}
 
@@ -111,7 +119,7 @@ export function AdvancedTunerScreen(): ReactElement {
             <StepperButton type="+" size="large" onClick={() => handleA4Change(1)} />
           </div>
           <Button variant="secondary" size="large" onClick={handleReset}>
-            Reset
+            {t.advancedTuner.reset}
           </Button>
         </div>
       </div>

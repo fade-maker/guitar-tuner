@@ -16,4 +16,10 @@ describe('AdvancedStatusBadge', () => {
     render(<AdvancedStatusBadge state={state} />);
     expect(screen.getByText(text)).not.toBeNull();
   });
+
+  it('uses the provided label override instead of the English default', () => {
+    render(<AdvancedStatusBadge state="Tune up" label="Sube" />);
+    expect(screen.getByText('Sube')).not.toBeNull();
+    expect(screen.queryByText('Tune up')).toBeNull();
+  });
 });

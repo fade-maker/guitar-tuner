@@ -6,3 +6,4 @@ export { openExternalLink } from './openLink';
 export { initTelegramWebApp, getTelegramWebApp } from './webApp';
 export { useTelegramViewportHeight } from './useTelegramViewportHeight';
 export { useTelegramUser } from './useTelegramUser';
+export { detectTelegramLanguage } from './language';

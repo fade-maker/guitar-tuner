@@ -95,6 +95,11 @@ describe('AppShell', () => {
     expect(screen.queryByRole('navigation')).toBeNull();
   });
 
+  it('renders no Bottom Navigation on Language', () => {
+    renderShell('language');
+    expect(screen.queryByRole('navigation')).toBeNull();
+  });
+
   it('does not remount the footer when navigating between screens', () => {
     renderShell('simple-tuner');
     const navBefore = screen.getByRole('navigation');

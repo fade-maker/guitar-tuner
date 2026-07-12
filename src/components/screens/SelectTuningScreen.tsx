@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
+import { useTranslation } from '../../i18n';
+import type { Translations } from '../../i18n';
 import { getAllTunings, midiToNoteName } from '../../music-theory';
 import type { TuningPreset } from '../../music-theory';
 import { useNavigation } from '../../navigation';
@@ -26,10 +28,27 @@ import { TUNING_INSTRUMENT } from './tuningInstrument';
 // (guitar, bass) - per Stage 3's explicit "no ukulele" instruction, not an oversight.
 type PickableInstrument = 'guitar' | 'bass';
 
-const INSTRUMENT_OPTIONS: readonly { value: PickableInstrument; label: string }[] = [
-  { value: 'guitar', label: 'Guitar 6-string' },
-  { value: 'bass', label: 'Bass 4-string' },
-];
+// A function, not a module-level constant, because its labels are translated - computed fresh from
+// the current useTranslation() result inside the component rather than once at module load.
+function instrumentOptions(t: Translations): readonly { value: PickableInstrument; label: string }[] {
+  return [
+    { value: 'guitar', label: t.selectTuning.guitarOption },
+    { value: 'bass', label: t.selectTuning.bassOption },
+  ];
+}
+
+// TuningCategory ('Power'/'Open'/'Extras') is data-layer vocabulary (tuningCategory.ts) shared with
+// non-display logic (CATEGORY_ORDER) - this maps it to display text without changing that data.
+function categoryLabel(t: Translations, category: TuningCategory): string {
+  switch (category) {
+    case 'Power':
+      return t.selectTuning.categoryPower;
+    case 'Open':
+      return t.selectTuning.categoryOpen;
+    case 'Extras':
+      return t.selectTuning.categoryExtras;
+  }
+}
 
 // Figma's row label reads "Drop-D" on this screen (hyphenated), distinct from Simple Tuner's
 // header subtitle spelling - both are screen-level display strings, not the same constant. The
@@ -136,6 +155,7 @@ function TuningRow({ tuning, isPending, accidental, onClick }: TuningRowProps): 
 export function SelectTuningScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
   const { navigateTo } = useNavigation();
+  const t = useTranslation();
   const allTunings = useMemo(() => getAllTunings(), []);
 
   const initialInstrument: PickableInstrument = preferences.selectedInstrument === 'bass' ? 'bass' : 'guitar';
@@ -216,7 +236,7 @@ export function SelectTuningScreen(): ReactElement {
             <img src={bgPatternLines} alt="" className={styles.bgPatternImg} />
           </div>
 
-          <span className={styles.title}>Select tuning</span>
+          <span className={styles.title}>{t.selectTuning.title}</span>
 
           <div className={classNames(styles.illustration, instrument === 'bass' && styles.illustrationBass)}>
             {instrument === 'bass' ? <BassIllustrationSmall /> : <GuitarIllustrationSmall />}
@@ -224,7 +244,7 @@ export function SelectTuningScreen(): ReactElement {
         </div>
 
         <div className={styles.pickerBlock} ref={pickerBlockRef}>
-          <SegmentedControl options={INSTRUMENT_OPTIONS} value={instrument} onChange={setInstrument} />
+          <SegmentedControl options={instrumentOptions(t)} value={instrument} onChange={setInstrument} />
 
           {/* Standard is its own card now, not the first row of a flat list - Figma split it out
               (74:4406) once the catalog below grew large enough to need its own collapsible
@@ -271,7 +291,7 @@ export function SelectTuningScreen(): ReactElement {
                       onClick={() => handleCategoryToggle(group.category)}
                       aria-expanded={isExpanded}
                     >
-                      <span className={styles.rowLabel}>{group.category}</span>
+                      <span className={styles.rowLabel}>{categoryLabel(t, group.category)}</span>
                       <span className={classNames(styles.chevron, !isExpanded && styles.chevronCollapsed)}>
                         <Icon name="arrow-down" size={16} />
                       </span>
@@ -329,7 +349,7 @@ export function SelectTuningScreen(): ReactElement {
       <div className={styles.saveBar}>
         <div className={styles.saveButton}>
           <Button variant="primary" size="large" onClick={handleSave}>
-            Save
+            {t.selectTuning.save}
           </Button>
         </div>
       </div>

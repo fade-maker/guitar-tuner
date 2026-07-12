@@ -1,3 +1,4 @@
+import type { Language } from '../i18n/types';
 import type { Accidental } from '../music-theory';
 
 export type TunerMode = 'simple' | 'advanced';
@@ -19,4 +20,5 @@ export interface AppPreferences {
   readonly haptics: boolean;
   readonly animations: boolean;
   readonly soundEffectsEnabled: boolean;
+  readonly language: Language;
 }

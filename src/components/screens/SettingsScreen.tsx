@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { LANGUAGE_NAMES, useTranslation } from '../../i18n';
 import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
 import { openExternalLink, useTelegramUser } from '../../telegram';
@@ -13,6 +14,7 @@ export function SettingsScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
   const telegramUser = useTelegramUser();
   const { navigateTo } = useNavigation();
+  const t = useTranslation();
 
   function handleCalibrateChange(delta: number): void {
     const next = preferences.a4Frequency + delta;
@@ -31,7 +33,7 @@ export function SettingsScreen(): ReactElement {
         <div className={styles.profile}>
           <img src={telegramUser?.photoUrl ?? settingsAvatar} alt="" className={styles.avatar} />
           <div className={styles.identity}>
-            <span className={styles.nickname}>{telegramUser?.displayName ?? 'Nickname'}</span>
+            <span className={styles.nickname}>{telegramUser?.displayName ?? t.settings.nicknamePlaceholder}</span>
             {usernameLine !== null && <span className={styles.username}>{usernameLine}</span>}
           </div>
         </div>
@@ -42,11 +44,11 @@ export function SettingsScreen(): ReactElement {
               <span className={styles.iconSlot}>
                 <Icon name="setting-4" size={24} />
               </span>
-              <span className={styles.rowLabel}>Advanced mode</span>
+              <span className={styles.rowLabel}>{t.settings.advancedMode}</span>
               <ToggleSwitch
                 checked={preferences.tunerMode === 'advanced'}
                 onChange={(checked) => setPreference('tunerMode', checked ? 'advanced' : 'simple')}
-                aria-label="Advanced mode"
+                aria-label={t.settings.advancedMode}
               />
             </div>
           </div>
@@ -56,13 +58,13 @@ export function SettingsScreen(): ReactElement {
               <span className={styles.iconSlot}>
                 <Icon name="volume-low" size={24} />
               </span>
-              <span className={styles.rowLabel}>Sound effect</span>
+              <span className={styles.rowLabel}>{t.settings.soundEffect}</span>
               {/* Persists to AppPreferences now, but nothing reads it yet - no sound-effect playback
                   exists anywhere in audio-engine. Wiring an actual sound is a separate feature. */}
               <ToggleSwitch
                 checked={preferences.soundEffectsEnabled}
                 onChange={(checked) => setPreference('soundEffectsEnabled', checked)}
-                aria-label="Sound effect"
+                aria-label={t.settings.soundEffect}
               />
             </div>
             <hr className={styles.divider} />
@@ -70,11 +72,11 @@ export function SettingsScreen(): ReactElement {
               <span className={styles.iconSlot}>
                 <Icon name="refresh-2" size={24} />
               </span>
-              <span className={styles.rowLabel}>Left-handed mode</span>
+              <span className={styles.rowLabel}>{t.settings.leftHandedMode}</span>
               <ToggleSwitch
                 checked={preferences.leftHanded}
                 onChange={(checked) => setPreference('leftHanded', checked)}
-                aria-label="Left-handed mode"
+                aria-label={t.settings.leftHandedMode}
               />
             </div>
             <hr className={styles.divider} />
@@ -86,18 +88,18 @@ export function SettingsScreen(): ReactElement {
               <span className={styles.iconSlot}>
                 <Icon name="musicnote" size={24} />
               </span>
-              <span className={styles.rowLabel}>Calibrate</span>
+              <span className={styles.rowLabel}>{t.settings.calibrate}</span>
               <StepperButton type="-" size="small" onClick={() => handleCalibrateChange(-1)} />
               <span className={styles.calibrateValue}>{preferences.a4Frequency}Hz</span>
               <StepperButton type="+" size="small" onClick={() => handleCalibrateChange(1)} />
             </div>
             <hr className={styles.divider} />
-            {/* No language/i18n system exists - the row is rendered per Figma but is a no-op. */}
-            <button type="button" className={classNames(styles.row, styles.navRow)} onClick={() => {}}>
+            <button type="button" className={classNames(styles.row, styles.navRow)} onClick={() => navigateTo('language')}>
               <span className={styles.iconSlot}>
                 <Icon name="global" size={24} />
               </span>
-              <span className={styles.rowLabel}>Language</span>
+              <span className={styles.rowLabel}>{t.settings.language}</span>
+              <span className={styles.rowValue}>{LANGUAGE_NAMES[preferences.language]}</span>
               <Icon name="arrow-right" size={16} color="#c2c0b6" />
             </button>
           </div>
@@ -111,7 +113,7 @@ export function SettingsScreen(): ReactElement {
               <span className={styles.iconSlot}>
                 <Icon name="messages-2" size={20} />
               </span>
-              <span className={styles.rowLabel}>Support</span>
+              <span className={styles.rowLabel}>{t.settings.support}</span>
               <Icon name="arrow-right" size={16} color="#c2c0b6" />
             </button>
             <hr className={styles.divider} />
@@ -123,12 +125,12 @@ export function SettingsScreen(): ReactElement {
               <span className={styles.iconSlot}>
                 <Icon name="book" size={20} />
               </span>
-              <span className={styles.rowLabel}>FAQ</span>
+              <span className={styles.rowLabel}>{t.settings.faq}</span>
               <Icon name="arrow-right" size={16} color="#c2c0b6" />
             </button>
           </div>
 
-          <span className={styles.version}>TunerApp v.1.0.0</span>
+          <span className={styles.version}>{t.settings.version}</span>
         </div>
       </div>
     </div>

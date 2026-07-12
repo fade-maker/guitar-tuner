@@ -149,6 +149,13 @@ describe('SettingsScreen', () => {
     expect(screen.getByTestId('current-screen').textContent).toBe('faq');
   });
 
+  it('navigates to the Language screen when the Language row is tapped, and shows the current language', () => {
+    renderScreenWithNavigationProbe();
+    expect(screen.getByText('English')).not.toBeNull(); // default language's own display name
+    fireEvent.click(screen.getByText('Language'));
+    expect(screen.getByTestId('current-screen').textContent).toBe('language');
+  });
+
   it('increments and decrements preferences.a4Frequency via the Calibrate stepper', () => {
     renderScreen();
     expect(screen.getByText('440Hz')).not.toBeNull();

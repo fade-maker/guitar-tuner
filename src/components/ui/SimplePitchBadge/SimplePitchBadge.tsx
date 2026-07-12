@@ -8,6 +8,11 @@ export interface SimplePitchBadgeProps {
   readonly state?: SimplePitchBadgeState;
   // Cents to display on "Tune up"/"Tune down" - e.g. 11 renders as "-11"/"+11" per Figma.
   readonly cents?: number;
+  // Optional, English-defaulting translated labels - same convention as AppHeader's own optional
+  // text props, keeps this primitive's existing tests/gallery usage unchanged.
+  readonly inTuneLabel?: string;
+  readonly tuneUpLabel?: string;
+  readonly tuneDownLabel?: string;
 }
 
 function Tail({ color }: { color: string }): ReactElement {
@@ -40,7 +45,13 @@ function Checkmark(): ReactElement {
   );
 }
 
-export function SimplePitchBadge({ state = 'In tune', cents = 11 }: SimplePitchBadgeProps): ReactElement {
+export function SimplePitchBadge({
+  state = 'In tune',
+  cents = 11,
+  inTuneLabel = 'In tune!',
+  tuneUpLabel = 'Tune up',
+  tuneDownLabel = 'Tune down',
+}: SimplePitchBadgeProps): ReactElement {
   const isTuneDown = state === 'Tune down';
   const isTuneUp = state === 'Tune up';
   const isOffPitch = isTuneUp || isTuneDown;
@@ -58,7 +69,7 @@ export function SimplePitchBadge({ state = 'In tune', cents = 11 }: SimplePitchB
         </span>
       </div>
       <div className={styles.label}>
-        <span className={styles.labelText}>{isTuneDown ? 'Tune down' : isTuneUp ? 'Tune up' : 'In tune!'}</span>
+        <span className={styles.labelText}>{isTuneDown ? tuneDownLabel : isTuneUp ? tuneUpLabel : inTuneLabel}</span>
       </div>
     </div>
   );

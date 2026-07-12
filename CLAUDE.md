@@ -1992,3 +1992,97 @@ than reporting a clean pass honestly.
 
 Final state this session: 489 tests / 66 files (up from 476/64 at session start), `tsc -b`,
 `npm run lint`, `npm run build` all clean. 4 commits in this worktree, none pushed.
+
+### i18n - 3 languages (English/Russian/Spanish), a real Language screen, Telegram-aware default
+
+Closed the other flagged Settings gap this project's own history kept naming ("No language/i18n
+system exists" - `SettingsScreen.tsx`'s own comment on the Language row, same category of gap as
+the FAQ row before it). Discussed the plan before writing any code, per the project's standing
+rule for changes this size, including which 3 languages and the first-launch default behavior -
+both were the user's own explicit call, not assumed.
+
+**Architecture, no new dependency** (consistent with this project's own history of hand-rolling
+`classNames`, routing, and the animation primitives rather than reaching for a library):
+- `src/i18n/types.ts` - `Language = 'en' | 'ru' | 'es'`, and one `Translations` interface covering
+  every piece of UI copy in the app as typed, nested keys - not a stringly-typed `t('some.key')`
+  API. A locale file missing a key is a compile error, not a runtime gap found by clicking around.
+- `src/i18n/locales/{en,ru,es}.ts` - one dictionary per language, each `satisfies`/typed against
+  `Translations`. `en.ts` is byte-identical to the strings that existed in components before this
+  pass (verified by the full test suite passing unchanged, not just by eye).
+- `src/i18n/useTranslation.ts` - `useTranslation()` reads `usePreferences().preferences.language`
+  and returns the matching dictionary. No new Context - same "derive from the existing single
+  source" reasoning as every other small hook in this codebase.
+- `AppPreferences.language: Language` (`preferences/types.ts`) - persists through the existing
+  localStorage envelope/versioning/backfill mechanism untouched.
+
+**Telegram-aware first-launch default, not a flat "always English"**: `src/telegram/language.ts`'s
+`detectTelegramLanguage()` reads `initDataUnsafe.user.language_code` (same fresh-minimal-interface,
+unverified-because-cosmetic convention as `useTelegramUser.ts`/`haptics.ts` - this only ever seeds a
+freely-overridable UI preference, never an authorization decision), compares only the primary BCP-47
+subtag, and falls back to English for anything outside the 3 supported languages.
+`preferences/storage.ts`'s `loadPreferences()` now takes an injectable `detectLanguage` parameter
+(same DI seam as its existing `storage` parameter) and calls it - instead of the flat
+`DEFAULT_PREFERENCES.language` - on *every* path where there's no real stored choice yet: a
+brand-new install, and an existing pre-i18n user's stored envelope that simply predates the field
+(both distinguished from "a language was explicitly saved," which is never touched again once set).
+Real bug caught by running the existing test suite, not by inspection: `storage.test.ts` runs in
+plain Node (no jsdom - deliberately, so this module stays usable outside a browser at all), and the
+new default parameter's real implementation touched `window` unconditionally, crashing every
+existing `loadPreferences()` test that didn't override it. Fixed by guarding
+`typeof window === 'undefined'` inside `detectTelegramLanguage()` itself, not by forcing jsdom onto
+a test file whose whole point was staying environment-agnostic.
+
+**New Language screen** (`LanguageScreen.tsx`, `ScreenId: 'language'`) - no Figma source (same
+authorization/reasoning as `FAQScreen.tsx`'s own precedent): a plain back-chevron header (byte-
+identical shell to FAQScreen's) plus the row+`CheckIndicator` picker pattern already established by
+Select Tuning's Standard row. Language names (`LANGUAGE_NAMES`) are native endonyms
+("English"/"Русский"/"Español") shown identically regardless of the app's *current* language -
+the standard convention (a Russian-reading user picking their language still finds it by its own
+script, not a translated name). Settings' Language row now also shows the current selection before
+its chevron (`.rowValue`, new) - a small UX addition beyond just "make it not a no-op," flagged as
+that rather than silently bundled in.
+
+**Deliberately NOT translated**: tuning/preset names (Drop D, Open G, Standard, Power/Open/Extras -
+wait, Power/Open/Extras *are* translated, see below; the tuning names themselves are not) and every
+individual tuning id's own display string (`TUNING_ROW_LABEL` in `SelectTuningScreen.tsx`,
+`TUNING_SUBTITLE` in `SimpleTunerScreen.tsx`) - these are international guitar vocabulary used
+unchanged by Russian- and Spanish-speaking guitarists alike (nobody calls it "строй понижения на
+тон" instead of "Drop D"), not UI chrome. The Power/Open/Extras *category* labels themselves are
+translated (`categoryPower`/`categoryOpen`/`categoryExtras`) since those are generic grouping words,
+not proper nouns, unlike the tuning names they contain.
+
+**Presentational primitives stayed prop-driven, not context-aware**: `AppHeader`, `SimplePitchBadge`,
+`AdvancedStatusBadge`, and `InTuneZone` each hardcoded their own English display text internally
+(e.g. `SimplePitchBadge`'s `'Tune down'`/`'Tune up'`/`'In tune!'`). Rather than having them call
+`useTranslation()` themselves (which would couple these "pixel-perfect primitives" - see Stage 7's
+own framing - to the preferences Context, a real architecture change this project has consistently
+avoided: every primitive's state is driven by props, never read from context), each gained optional,
+English-defaulting text props (`inTuneLabel`, `autoLabel`, `label`, `promptText`, ...). Existing
+tests/gallery usage that doesn't pass them is provably unchanged (the full suite passed without
+editing a single existing assertion in these files); i18n-aware screens pass the real translated
+strings down. `StringControl`/`NoteCircle` needed no changes - neither renders language-dependent
+text (`label`/`note` are music notation, not UI copy).
+
+**Grammar, not string concatenation, for interpolated text**: `Translations.tunerHeader
+.instrumentTitle(instrument, stringCount)` is a function per locale, not a fixed prefix/suffix
+template - English suffixes "6-string", Russian/Spanish don't ("6-струнная гитара"/"Guitarra de 6
+cuerdas" put the count in a structurally different position). Widened to accept `'ukulele'` too
+(matching `InstrumentId`, not just Select Tuning's own narrower `'guitar' | 'bass'`) once `tsc -b`
+caught the real mismatch - `SimpleTunerScreen.tsx`'s `TUNING_INSTRUMENT` lookup can produce it even
+though Select Tuning itself doesn't expose it yet.
+
+**FAQ content fully translated**, not left English-only - all 9 Q&A pairs, real prose translations
+(not machine-literal) in `i18n/locales/{ru,es}.ts`'s own `faq.entries`. `FAQScreen.tsx` no longer
+owns `FAQ_ENTRIES` at all; it reads `t.faq.entries`. A dedicated structural test
+(`i18n/locales/locales.test.ts`) exists specifically because `Translations.faq.entries` is a plain
+array type, not a fixed-length tuple - TypeScript enforces every *key* exists in every locale, but
+can't catch a locale silently shipping fewer FAQ entries than the others; that test does.
+
+Verified end-to-end via a real browser (Playwright against the dev server, not just the unit
+suite): switched language via the real Settings -> Language flow, confirmed the switch is live
+(no reload needed - the Language screen's own title re-rendered from "Language" to "Язык" in the
+same interaction), confirmed it survives a full page reload (localStorage), and confirmed Simple
+Tuner's header and the FAQ screen's content both render correctly in Russian after the switch; a
+separate pass confirmed Spanish renders correctly too. 519 tests / 76 files (up from 489/66),
+`tsc -b`, `npm run lint`, `npm run build` all clean. Nothing committed yet, per instruction to build
+first and check in before committing.

@@ -16,6 +16,12 @@ export interface AppHeaderDefaultProps {
   readonly onAutoModeChange: (autoMode: boolean) => void;
   readonly onTitlePress?: () => void;
   readonly onAccidentalSelect?: (accidental: Accidental) => void;
+  // Optional, English-defaulting translated text - keeps this primitive's own tests/gallery usage
+  // unchanged for callers that don't pass them, while i18n-aware screens supply the real strings.
+  readonly autoLabel?: string;
+  readonly autoAriaLabel?: string;
+  readonly flatAriaLabel?: string;
+  readonly sharpAriaLabel?: string;
 }
 
 export interface AppHeaderAdvancedProps {
@@ -50,7 +56,19 @@ function AppHeaderImpl(props: AppHeaderProps): ReactElement {
     );
   }
 
-  const { title, subtitle, frequencyLabel, autoMode, onAutoModeChange, onTitlePress, onAccidentalSelect } = props;
+  const {
+    title,
+    subtitle,
+    frequencyLabel,
+    autoMode,
+    onAutoModeChange,
+    onTitlePress,
+    onAccidentalSelect,
+    autoLabel = 'Auto',
+    autoAriaLabel = 'Auto mode',
+    flatAriaLabel = 'Use flat notation',
+    sharpAriaLabel = 'Use sharp notation',
+  } = props;
 
   return (
     <div className={classNames(styles.header, styles.default)}>
@@ -75,8 +93,8 @@ function AppHeaderImpl(props: AppHeaderProps): ReactElement {
           </div>
         </div>
         <div className={styles.autoRow}>
-          <span className={styles.autoLabel}>Auto</span>
-          <ToggleSwitch checked={autoMode} onChange={onAutoModeChange} aria-label="Auto mode" />
+          <span className={styles.autoLabel}>{autoLabel}</span>
+          <ToggleSwitch checked={autoMode} onChange={onAutoModeChange} aria-label={autoAriaLabel} />
         </div>
       </div>
       <div className={styles.accidentalRow}>
@@ -84,7 +102,7 @@ function AppHeaderImpl(props: AppHeaderProps): ReactElement {
           type="button"
           className={styles.accidentalButton}
           onClick={() => onAccidentalSelect?.('flat')}
-          aria-label="Use flat notation"
+          aria-label={flatAriaLabel}
         >
           <Icon name="flat" size={24} />
         </button>
@@ -92,7 +110,7 @@ function AppHeaderImpl(props: AppHeaderProps): ReactElement {
           type="button"
           className={styles.accidentalButton}
           onClick={() => onAccidentalSelect?.('sharp')}
-          aria-label="Use sharp notation"
+          aria-label={sharpAriaLabel}
         >
           <Icon name="sharp" size={24} />
         </button>
