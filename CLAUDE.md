@@ -1890,3 +1890,105 @@ tuning modal -> save -> back), zero console errors; 472 tests / 64 files; tsc/li
 Known deferred items (out of scope per instructions, listed in the final report): moving DSP off
 the main thread (the single biggest remaining FPS lever), C3 error-state UI (needs Figma designs),
 WebP image re-export, real-device iOS verification of the C4 fix.
+
+### Release-candidate pass - tuner-engine calibration, in-tune success feedback, FAQ screen
+
+Lead-Engineer pass through the full priority list (engine -> production polish -> FAQ -> release
+click-through), working from a separate audit's findings for Priority 1 (verified against the
+actual source before changing anything, not taken on faith). Four commits, one per real change,
+full check suite (`tsc -b`, `vitest run`, `npm run lint`, `npm run build`) green at every boundary.
+
+**Priority 1 - tuner engine (`e6a05b8`).** Four fixes, all frequency/timing-derived so their
+*mechanism* is verifiable without real recorded audio (see the commit body and each file's own
+comments for exact numbers):
+1. **Per-instrument analysis window**, new `src/hooks/instrumentProfile.ts`
+   (`deriveInstrumentProfile()`). A fixed 46ms window is mathematically too short for bass - MPM
+   needs ~2-4 periods of the fundamental to place its peak, and bass low E (41.2Hz) only gets ~1.9
+   at 46ms. Derives a window duration from the tuning targets that holds standard guitar's own
+   ~3.8-period coverage for whatever the lowest string actually is: guitar stays byte-for-byte at
+   46ms (verified, not assumed), bass lands ~92-122ms, low drop-tuned guitars get a smaller
+   proportional bump. Lives in `src/hooks/` (not `audio-engine/`) specifically so `audio-engine/`
+   still never imports `music-theory`'s `StringTarget` - the boundary CLAUDE.md's "Pitch pipeline
+   redesign" entry already fought to establish stays intact. Threaded through via a new
+   `AudioEngineOverrides` optional parameter on `createAudioEngine()` (`AudioEngine.ts`) - additive,
+   not a signature break.
+2. **`instrumentRange` wired up** - it existed in `CandidateValidationConfig` and was fully
+   implemented in `candidateValidator.ts`, but nothing ever populated it, so 22-31Hz room
+   rumble/hum (this project's own calibration notes recorded this cluster) passed straight through
+   once above the RMS floor. Derived with wide margins (below the /2 subharmonic, above the x2
+   octave-up misread) so the octave corrector still sees genuine octave errors to fold - only
+   truly out-of-instrument noise is rejected.
+3. **`stabilizer.ts`'s `DEBOUNCE_TOLERANCE_MS` 30 -> 120.** At 30ms, ~3 consecutive low-clarity
+   frames fully cleared the median/EMA track, forcing a full re-confirmation - on electric-guitar
+   decay and bass (clarity dips below threshold in bursts, not cleanly) this read as the note
+   "flickering"/losing confidence, exactly the reported symptom.
+4. **`octaveCorrector.ts`'s `GAP_RESET_MS` 30 -> 300.** The octave-continuity memory
+   (`referenceFrequency`) was wiped after any 30ms gap, but real gaps between plucks are longer, so
+   every new attack - harmonic-heavy, the most octave-error-prone moment - bootstrapped its octave
+   decision from zero. Re-derived why 300ms is still safe against this module's own documented
+   Drop-D/standard-tuning octave-apart-target permanent-lockup risk: that protection comes from
+   `OCTAVE_CONFIRM_FRAMES` requiring *consecutive* frames after a candidate arrives, not from a
+   short gap timeout - raising the gap timeout doesn't weaken it.
+
+Per the task's explicit instruction, no real guitar/bass hardware or recordings were used to
+validate feel - CLAUDE.md's own "Pitch pipeline redesign" entry already found synthetic signals
+can't reliably reproduce the real octave-error failure mode either. What *was* verified: each
+fix's mechanism, in new/extended unit tests - `instrumentProfile.test.ts` (new: window duration for
+standard guitar/bass-standard/bass-low-b/drop-A guitar; instrument-range floor/ceiling math against
+real tuning presets), `useAudioEngine.test.ts` (new: guitar vs. bass get different
+`AudioEngineOverrides` from the real `createAudioEngine` call), `stabilizer.test.ts` (new: a ~100ms
+low-clarity burst no longer abandons an established track), `octaveCorrector.test.ts` (updated gap
+timing + new: octave memory survives an ordinary 200ms between-plucks gap and still folds the next
+attack). This confirms the code does what's intended - it does not confirm it sounds better on a
+real instrument, and is reported as such rather than overclaimed. **Bass window-duration change
+specifically still needs real recorded audio before it can be called validated feel-wise** - flagged
+per the task's own explicit example of this exact honesty bar.
+
+**Priority 2 - production polish (`5cf87a9`).** Surveyed every shipped screen/primitive for missing
+feedback per CLAUDE.md's own "CSS-vs-engine audit" conclusion (most of the app already has either a
+deliberate no-animation state or prior-session-added motion) - found exactly one real gap: reaching
+'In tune' had zero success feedback anywhere. `StringControl` and `NoteCircle` (Simple/Advanced
+Tuner's two in-tune indicators) now crossfade between states (160-180ms) instead of snapping, and
+play a single one-shot settle-pop keyframe (scale 1 -> ~1.06 -> 1, 280ms) the moment they reach
+'In tune' - transform-only (no layout properties, consistent with the FPS audit's own H2 finding),
+`prefers-reduced-motion`-respecting (matches the existing pattern elsewhere in this project), no
+Figma motion source (none exists for either component - same engineering-judgment category as
+Button's press-state or Select Tuning's card-modal entrance, not a Figma deviation). Verified via
+the gallery.html + Playwright + local-static-server technique (file:// hit a module-script CORS
+issue in this sandbox's bundled Chromium this session - localhost sidesteps it, noted for future
+sessions hitting the same wall).
+
+**Priority 3 - FAQ (`4ca4c7a`).** Closed Settings' last flagged no-op row with a real in-app screen
+(`FAQScreen.tsx`, new `ScreenId: 'faq'`) - no external host, no publish/deploy risk. Reuses two
+already-established, already-tested patterns instead of inventing new ones: the exact
+grid-template-rows accordion technique from Select Tuning's Power/Open/Extras catalog, and the
+existing `arrow-right` chevron glyph (rotated 180deg) for the back button, since no Figma source
+exists for this screen at all (explicitly authorized to use engineering judgment here). Content is
+real and grounded in this app's actual behavior - mic/permission troubleshooting, why low
+strings/bass take longer to lock in, the documented octave-flicker edge case, Simple vs. Advanced,
+Auto vs. Manual, A4 calibration, changing tuning, left-handed mode - not generic filler. Listed in
+`AppShell`'s `SCREENS_WITHOUT_FOOTER` (a sub-screen reached via its own back button, not a main
+tab, same reasoning as Select Tuning); gets a plain instant swap in `RouteTransition`, not a new
+slide/modal animation - deliberately lower-risk than extending that component's
+Select-Tuning-specific animation state machine for one more screen. Verified via the real
+production build (`dist/`, served over a local static server, not `file://`) with a fake-mic
+Playwright click-through: Permission -> Simple Tuner -> Settings -> FAQ -> expand a question ->
+back to Settings, footer correctly reappears on return, zero console errors across the flow.
+
+**Priority 4 - release click-through.** Drove the real production build end-to-end as a first-time
+user (Permission -> auto-skip logic -> Simple Tuner -> Manual/Auto toggle -> Select Tuning -> scroll
+-> Save -> Settings -> Advanced mode toggle -> Advanced Tuner -> back) via Playwright against a
+served `dist/`, both with a muted fake-mic stream (covers navigation/UI state) and a genuine
+oscillator-backed `MediaStream` at E2 (82.41Hz, attempting to exercise the live DSP pipeline
+end-to-end through a real signal) - the oscillator attempt didn't produce a visible locked reading
+in this headless/sandboxed environment (likely an AudioWorklet-in-headless-Chromium limitation, not
+investigated further since it's a bonus verification beyond what the task required, not a
+requirement itself) and was abandoned rather than debugged at length. The muted-stream click-through
+found zero console errors/warnings and no visually unfinished state across every screen reached;
+grepped shipped `src/` (excluding `debug/`) for stray `console.log`/`TODO`/`FIXME` - one match, a
+documented comment referencing a past Figma-MCP limitation, not a real TODO. No further Priority 4
+changes were made - padding the list with cosmetic tweaks nothing actually needs was judged worse
+than reporting a clean pass honestly.
+
+Final state this session: 489 tests / 66 files (up from 476/64 at session start), `tsc -b`,
+`npm run lint`, `npm run build` all clean. 4 commits in this worktree, none pushed.
