@@ -261,6 +261,21 @@ describe('rejection handling (against an existing track)', () => {
     expect(stabilizer.push(rejected(t))).toBeNull();
   });
 
+  it('rides through a ~100ms burst of low-clarity frames without abandoning the track', () => {
+    // The core of the "flickers, feels less confident" fix: a held note whose clarity dips below
+    // threshold for a run of frames (electric decay, bass) must keep reporting the established pitch,
+    // not fall back to null and force a fresh re-confirmation. ~100ms of dropped frames is within the
+    // raised DEBOUNCE_TOLERANCE_MS; at the previous 30ms this would already have cleared to null.
+    const stabilizer = createPitchStabilizer();
+    const { t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, 1000);
+
+    for (let t = seededAt + HOP_MS; t <= seededAt + 96; t += HOP_MS) {
+      const reading = stabilizer.push(rejected(t));
+      expect(reading).not.toBeNull();
+      expect(reading!.frequency).toBeCloseTo(BASE_FREQUENCY, 0);
+    }
+  });
+
   it('treats resumption after a cleared signal as a fresh, unbiased confirmation - not a continuation', () => {
     const stabilizer = createPitchStabilizer();
     const { t: seededAt } = bootstrap(stabilizer, BASE_FREQUENCY, 0.9, 1000);

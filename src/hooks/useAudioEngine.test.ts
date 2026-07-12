@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AudioEngineError, EngineStatus, PitchReading } from '../audio-engine';
+import type { AudioEngineError, AudioEngineOverrides, EngineStatus, PitchReading } from '../audio-engine';
 
 // Only AudioEngine (the real Web Audio/getUserMedia boundary) is faked here. TunerPresenter is the
 // real, already-tested implementation, so these tests exercise the real presenter logic through the
 // hook's wiring, not a second mock of it.
-const { fakeEngine, readingListeners, statusListeners, errorListeners } = vi.hoisted(() => {
+const { fakeEngine, createAudioEngineMock, readingListeners, statusListeners, errorListeners } = vi.hoisted(() => {
   const readingListeners: Array<(reading: PitchReading) => void> = [];
   const statusListeners: Array<(status: EngineStatus) => void> = [];
   const errorListeners: Array<(error: AudioEngineError) => void> = [];
@@ -27,12 +27,16 @@ const { fakeEngine, readingListeners, statusListeners, errorListeners } = vi.hoi
     onError: vi.fn((fn: (error: AudioEngineError) => void) => register(errorListeners, fn)),
   };
 
-  return { fakeEngine, readingListeners, statusListeners, errorListeners };
+  const createAudioEngineMock = vi.fn<(overrides?: AudioEngineOverrides) => typeof fakeEngine>(
+    () => fakeEngine,
+  );
+
+  return { fakeEngine, createAudioEngineMock, readingListeners, statusListeners, errorListeners };
 });
 
 vi.mock('../audio-engine', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../audio-engine')>();
-  return { ...actual, createAudioEngine: () => fakeEngine };
+  return { ...actual, createAudioEngine: createAudioEngineMock };
 });
 
 vi.mock('../telegram/haptics', () => ({
@@ -63,6 +67,7 @@ function emitError(error: AudioEngineError): void {
 beforeEach(() => {
   fakeEngine.start.mockClear();
   fakeEngine.stop.mockClear();
+  createAudioEngineMock.mockClear();
   readingListeners.length = 0;
   statusListeners.length = 0;
   errorListeners.length = 0;
@@ -76,6 +81,27 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+});
+
+describe('useAudioEngine - instrument profile wiring', () => {
+  it('builds the engine with a per-instrument window + range derived from the tuning targets', () => {
+    renderHook(() => useAudioEngine(getStandardTuning()));
+    const guitarOverrides = createAudioEngineMock.mock.calls[0]?.[0];
+    expect(guitarOverrides?.windowDurationMs).toBe(46);
+    expect(guitarOverrides?.instrumentRange).toBeDefined();
+
+    cleanup();
+    createAudioEngineMock.mockClear();
+
+    renderHook(() => useAudioEngine(BASS_TUNING));
+    const bassOverrides = createAudioEngineMock.mock.calls[0]?.[0];
+    // Bass gets a materially longer window (its low E is too low for the 46ms guitar window).
+    expect(bassOverrides?.windowDurationMs).toBeGreaterThan(46);
+    // ...and a lower instrument-range floor than guitar, matching its lower lowest string.
+    expect(bassOverrides?.instrumentRange?.minFrequency).toBeLessThan(
+      guitarOverrides!.instrumentRange!.minFrequency,
+    );
+  });
 });
 
 describe('useAudioEngine', () => {

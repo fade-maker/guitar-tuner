@@ -174,11 +174,29 @@ describe('signal-loss gap handling', () => {
     corrector.correct(accepted(BASE_FREQUENCY * 2, 0.95, 1)); // 1 of 5 confirmations, still folding
 
     // A real pause (well over GAP_RESET_MS) - the guitarist stopped playing.
-    corrector.correct(rejected(60));
+    corrector.correct(rejected(500));
 
     // Treated as a fresh bootstrap: passed through unfolded, not "1 more confirmation toward 5".
-    const afterGap = corrector.correct(accepted(BASE_FREQUENCY * 2, 0.95, 61));
+    const afterGap = corrector.correct(accepted(BASE_FREQUENCY * 2, 0.95, 501));
     expect(frequencyOf(afterGap)).toBeCloseTo(BASE_FREQUENCY * 2, 5);
+  });
+
+  it('octave memory survives an ordinary between-plucks gap (folds the next attack, not bootstraps it)', () => {
+    // Models the real fix: real gaps between plucks (~150-300ms) are far longer than a dropped frame
+    // or two, but the string is still the same physical string in the same octave. The next pluck's
+    // attack transient is exactly where a harmonic can outrank the fundamental (an octave-up misread),
+    // so the reference octave must still be there to fold it - it must NOT have bootstrapped from zero.
+    const corrector = createOctaveCorrector(TEST_CONFIG);
+    corrector.correct(accepted(BASE_FREQUENCY, 0.95, 0));
+
+    // A natural gap between two plucks: longer than the old 30ms reset, shorter than the new 300ms one.
+    corrector.correct(rejected(200));
+
+    // The new pluck's first frame reads an octave up (harmonic-dominated attack) - still folded down
+    // to the known octave, because the reference survived the gap.
+    const foldedAttack = corrector.correct(accepted(BASE_FREQUENCY * 2, 0.95, 205));
+    expect(foldedAttack.accepted).toBe(true);
+    expect(frequencyOf(foldedAttack)).toBeCloseTo(BASE_FREQUENCY, 5);
   });
 
   it('does not clear anything on a rejection before any candidate has ever been accepted', () => {

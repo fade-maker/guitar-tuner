@@ -49,12 +49,15 @@ const PENDING_ALTERNATE_AGREEMENT_CENTS = 15;
 
 // How long a gap since the last accepted candidate is tolerated before referenceFrequency/
 // pendingAlternate are treated as stale and cleared. Independently defined (not imported from
-// stabilizer.ts, per this module's own no-cross-module-state-coupling design), but intentionally the
-// same order of magnitude as stabilizer.ts's DEBOUNCE_TOLERANCE_MS: by the time Stabilizer itself has
-// already forgotten its own track, there's no basis for this module's octave memory to outlive it
-// either. A short gap (a frame or two of low clarity mid-note) deliberately does NOT reset - only a
-// genuinely sustained silence does.
-const GAP_RESET_MS = 30;
+// stabilizer.ts, per this module's own no-cross-module-state-coupling design), and deliberately
+// LONGER than the Stabilizer's own debounce: the two answer different questions. Stabilizer's track
+// is "what is the smoothed pitch right now" and rightly forgets after a short clarity gap; this
+// module's referenceFrequency is "which octave was this physical string in", which stays true across
+// the natural silence between two plucks of the same string. At the previous 30ms every new pluck
+// bootstrapped its octave decision from zero - exactly during the attack transient, where harmonics
+// dominate and octave misreads are most likely. Raised so the octave memory survives an ordinary
+// gap between plucks; only a genuinely long pause (the player stopping) resets it.
+const GAP_RESET_MS = 300;
 
 interface PendingAlternate {
   readonly frequency: number; // the raw, unfolded frequency first suggesting this alternate octave

@@ -1,5 +1,6 @@
 import { DEFAULT_AUDIO_ENGINE_CONFIG } from '../config';
 import { createFrameProcessor } from './frameProcessor';
+import type { InstrumentRange } from './signal/candidateValidator';
 import { requestMicrophoneStream } from './microphone';
 import type { MicrophoneError, MicrophoneStream } from './microphone';
 import type { AudioEngineError, EngineStatus, PitchReading } from './types';
@@ -21,7 +22,20 @@ export interface AudioEngine {
   onStatusChange(listener: (status: EngineStatus) => void): () => void;
 }
 
-export type CreateAudioEngine = () => AudioEngine;
+// Optional per-instrument DSP tuning. Both are plain numbers derived by the caller (see the hook
+// layer's instrumentProfile.ts) - AudioEngine deliberately never sees a StringTarget/tuning preset,
+// keeping music-theory out of the audio pipeline. Omitted fields fall back to
+// DEFAULT_AUDIO_ENGINE_CONFIG / no extra instrument range.
+export interface AudioEngineOverrides {
+  // Narrows Candidate Validation below the global minFrequency/maxFrequency floor, to reject
+  // out-of-instrument rumble/hum. Wide by design so genuine octave-misread candidates still pass.
+  readonly instrumentRange?: InstrumentRange;
+  // A longer analysis window for low-pitched instruments (bass), where the default is too short for
+  // MPM to place the fundamental. See instrumentProfile.ts for the derivation.
+  readonly windowDurationMs?: number;
+}
+
+export type CreateAudioEngine = (overrides?: AudioEngineOverrides) => AudioEngine;
 
 const WORKLET_NAME = 'pitch-capture';
 
@@ -44,7 +58,7 @@ function mapMicrophoneError(error: MicrophoneError): AudioEngineError {
   }
 }
 
-export const createAudioEngine: CreateAudioEngine = () => {
+export const createAudioEngine: CreateAudioEngine = (overrides = {}) => {
   let status: EngineStatus = 'idle';
   let microphoneStream: MicrophoneStream | undefined;
   let micStateUnsubscribe: (() => void) | undefined;
@@ -234,7 +248,8 @@ export const createAudioEngine: CreateAudioEngine = () => {
     }
 
     const sampleRate = context.sampleRate;
-    const windowSize = Math.round((DEFAULT_AUDIO_ENGINE_CONFIG.windowDurationMs / 1000) * sampleRate);
+    const windowDurationMs = overrides.windowDurationMs ?? DEFAULT_AUDIO_ENGINE_CONFIG.windowDurationMs;
+    const windowSize = Math.round((windowDurationMs / 1000) * sampleRate);
     const hopSize = Math.round((DEFAULT_AUDIO_ENGINE_CONFIG.hopDurationMs / 1000) * sampleRate);
 
     const frameProcessor = createFrameProcessor({
@@ -246,6 +261,7 @@ export const createAudioEngine: CreateAudioEngine = () => {
       clarityThreshold: DEFAULT_AUDIO_ENGINE_CONFIG.clarityThreshold,
       minRmsAmplitude: DEFAULT_AUDIO_ENGINE_CONFIG.minRmsAmplitude,
       octaveConfirmFrames: DEFAULT_AUDIO_ENGINE_CONFIG.octaveConfirmFrames,
+      instrumentRange: overrides.instrumentRange,
     });
 
     const sourceNode = context.createMediaStreamSource(stream.stream);

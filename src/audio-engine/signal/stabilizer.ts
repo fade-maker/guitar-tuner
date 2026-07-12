@@ -20,7 +20,13 @@ const RELEASE_THRESHOLD_CENTS = 8;
 const CONFIRMATION_THRESHOLD_CENTS = 50;
 const PENDING_AGREEMENT_TOLERANCE_CENTS = 15;
 const CONFIRMATION_DURATION_MS = 40;
-const DEBOUNCE_TOLERANCE_MS = 30;
+// How long a run of rejected (low-clarity) frames is tolerated before the established median/EMA
+// track is abandoned (clearAll) and a fresh candidate must re-confirm from scratch. At the previous
+// 30ms this cleared after only ~3 dropped frames (hop ~12ms), which on electric-guitar decay and
+// bass - where clarity dips below the threshold in bursts rather than cleanly - forced constant
+// re-confirmation and read as the note "flickering"/losing confidence. Raised so a normal sustained
+// note rides through those brief clarity dips; a genuine pause (hundreds of ms) still clears it.
+const DEBOUNCE_TOLERANCE_MS = 120;
 
 function computeMedian(buffer: readonly number[], count: number): number {
   const sorted = buffer.slice(0, count).sort((a, b) => a - b);

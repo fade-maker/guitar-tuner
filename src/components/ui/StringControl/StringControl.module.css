@@ -20,6 +20,14 @@
   font-size: 20px;
   cursor: pointer;
   padding: 10px;
+  /* Crossfade between the 4 states instead of snapping. No Figma motion spec exists for this screen
+     (consistent with every other motion decision in this project) - a short, quiet fade, not a
+     flourish. transform is animated per-state below (settle pop); it must not be transitioned here or
+     the pop would ease in/out instead of playing its own keyframe. */
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
 
 .default {
@@ -32,6 +40,31 @@
   background: var(--color-surface-inverse);
   border: 1px solid rgba(225, 224, 217, 0.08);
   color: var(--color-text-inverse);
+  /* Success feedback: a single subtle settle-pop the moment a string reaches in-tune. Runs once when
+     the class is applied (React keeps the same <button> mounted, only its state class changes), not
+     on every re-render. transform doesn't reflow, so the flex-shrink oval concern above is unaffected. */
+  animation: stringSettle 280ms ease-out;
+}
+
+@keyframes stringSettle {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.07);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control {
+    transition: none;
+  }
+  .inTune {
+    animation: none;
+  }
 }
 
 .tuned {

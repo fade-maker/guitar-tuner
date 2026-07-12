@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createAudioEngine } from '../audio-engine';
 import type { AudioEngine, AudioEngineError, EngineStatus } from '../audio-engine';
+import { deriveInstrumentProfile } from './instrumentProfile';
 import { scheduler } from '../animation';
 import { createTunerPresenter } from '../presentation/tunerPresenter';
 import type { TunerPresentationState, TunerPresenter } from '../presentation/tunerPresenter';
@@ -50,7 +51,18 @@ export const useAudioEngine: UseAudioEngine = (tuningPreset = getStandardTuning(
   // during render at all (React Compiler-era purity rules), so useState's one-time initializer is the
   // sanctioned way to construct something exactly once per mount.
   const [presenter] = useState<TunerPresenter>(() => createPresenter(tuningPreset, a4));
-  const [engine] = useState<AudioEngine>(() => createAudioEngine());
+  // The engine's DSP window + instrument range are derived from the tuning targets once, at mount.
+  // This is correct for how the app navigates today: switching tuning (guitar<->bass) goes through
+  // Select Tuning, which unmounts the live tuner screen, so a fresh engine is built with the new
+  // preset on return. If a future change keeps the tuner mounted across a preset switch, this would
+  // need the live-config plumbing that AudioEngine deliberately doesn't have yet (see CLAUDE.md).
+  const [engine] = useState<AudioEngine>(() => {
+    const profile = deriveInstrumentProfile(tuningPreset.strings, a4);
+    return createAudioEngine({
+      instrumentRange: profile.instrumentRange,
+      windowDurationMs: profile.windowDurationMs,
+    });
+  });
 
   const [presentation, setPresentation] = useState<TunerPresentationState>(() => presenter.tick(0));
   const [engineStatus, setEngineStatus] = useState<EngineStatus>('idle');
