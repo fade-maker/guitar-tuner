@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { useNavigation } from '../../navigation';
 import { usePreferences } from '../../preferences';
 import { openExternalLink, useTelegramUser } from '../../telegram';
 import { classNames } from '../ui/classNames';
@@ -11,6 +12,7 @@ const SUPPORT_URL = 'https://t.me/vrwrxx';
 export function SettingsScreen(): ReactElement {
   const { preferences, setPreference } = usePreferences();
   const telegramUser = useTelegramUser();
+  const { navigateTo } = useNavigation();
 
   function handleCalibrateChange(delta: number): void {
     const next = preferences.a4Frequency + delta;
@@ -113,8 +115,11 @@ export function SettingsScreen(): ReactElement {
               <Icon name="arrow-right" size={16} color="#c2c0b6" />
             </button>
             <hr className={styles.divider} />
-            {/* No FAQ destination decided yet (deliberately, not just unfinished) - stays a no-op. */}
-            <button type="button" className={classNames(styles.row, styles.navRow)} onClick={() => {}}>
+            <button
+              type="button"
+              className={classNames(styles.row, styles.navRow)}
+              onClick={() => navigateTo('faq')}
+            >
               <span className={styles.iconSlot}>
                 <Icon name="book" size={20} />
               </span>

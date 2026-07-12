@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NavigationProvider } from '../../navigation';
+import { NavigationProvider, useNavigation } from '../../navigation';
 import { PreferencesProvider, usePreferences } from '../../preferences';
 import { SettingsScreen } from './SettingsScreen';
 
@@ -26,6 +27,22 @@ function renderScreen() {
     <PreferencesProvider>
       <NavigationProvider initialScreen="settings">
         <SettingsScreen />
+      </NavigationProvider>
+    </PreferencesProvider>,
+  );
+}
+
+function NavigationProbe(): ReactElement {
+  const { screen: current } = useNavigation();
+  return <span data-testid="current-screen">{current}</span>;
+}
+
+function renderScreenWithNavigationProbe() {
+  return render(
+    <PreferencesProvider>
+      <NavigationProvider initialScreen="settings">
+        <SettingsScreen />
+        <NavigationProbe />
       </NavigationProvider>
     </PreferencesProvider>,
   );
@@ -124,6 +141,12 @@ describe('SettingsScreen', () => {
     renderScreen();
     fireEvent.click(screen.getByText('Support'));
     expect(openExternalLink).toHaveBeenCalledWith('https://t.me/vrwrxx');
+  });
+
+  it('navigates to the FAQ screen when the FAQ row is tapped', () => {
+    renderScreenWithNavigationProbe();
+    fireEvent.click(screen.getByText('FAQ'));
+    expect(screen.getByTestId('current-screen').textContent).toBe('faq');
   });
 
   it('increments and decrements preferences.a4Frequency via the Calibrate stepper', () => {

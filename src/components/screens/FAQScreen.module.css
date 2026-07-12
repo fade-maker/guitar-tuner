@@ -1,0 +1,159 @@
+@import '../../theme/tokens.css';
+
+/* Same shared shell every routed screen fills - see SettingsScreen.module.css's own comment for
+   why this composes rather than re-deriving viewport sizing/Bottom Navigation slot handling. No
+   footer prop is used here (this screen is listed in AppShell's SCREENS_WITHOUT_FOOTER, same as
+   Select Tuning/Permission) - it's a sub-screen reached from Settings, not a main tab. */
+.screen {
+  composes: routedScreen from '../layout/ViewportScreen.module.css';
+}
+
+/* No Figma AppHeader instance exists for this screen (it has no Figma source at all - see the
+   .tsx's own comment) - a plain back-chevron + centered title, matching this app's existing
+   restrained visual language rather than inventing a new header component. headerSpacer balances
+   backButton's own width so the title stays visually centered regardless of backButton's hit area. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  transition: background-color 120ms ease;
+}
+
+.backButton:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Reuses the existing "arrow-right" chevron glyph rotated 180deg instead of adding a new SVG path -
+   this project has no dedicated back-chevron icon, and the shape is otherwise identical. */
+.backIcon {
+  display: flex;
+  transform: rotate(180deg);
+}
+
+.title {
+  flex: 1 0 0;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-family-display);
+  font-weight: 500;
+  font-size: 18px;
+  color: var(--color-text-primary);
+}
+
+.headerSpacer {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
+  padding: 0 16px 24px;
+  box-sizing: border-box;
+}
+
+/* Same card language as SettingsScreen's own .card. */
+.card {
+  width: 100%;
+  padding: 4px 12px;
+  box-sizing: border-box;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-card);
+  border: 1px solid rgba(225, 224, 217, 0.08);
+}
+
+.item {
+  width: 100%;
+}
+
+.questionRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.question {
+  flex: 1 0 0;
+  min-width: 0;
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+}
+
+/* Same rotate-in-place chevron technique as SelectTuningScreen's own catalog chevron. */
+.chevron {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+  transition: transform 250ms ease;
+}
+
+.chevronCollapsed {
+  transform: rotate(-90deg);
+}
+
+/* Same 0fr -> 1fr grid-template-rows accordion technique already established (and tested) in
+   SelectTuningScreen - reused rather than re-invented. */
+.expandWrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.expandWrapperOpen {
+  grid-template-rows: 1fr;
+}
+
+.expandInner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.answer {
+  margin: 0 0 14px;
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-tertiary);
+}
+
+.divider {
+  width: 100%;
+  height: 0;
+  margin: 0;
+  border: none;
+  border-top: 1px solid rgba(225, 224, 217, 0.08);
+}
