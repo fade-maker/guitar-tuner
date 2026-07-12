@@ -9,16 +9,45 @@
   box-sizing: border-box;
   padding: var(--space-10);
   border-radius: var(--radius-full);
+  /* Crossfade between Searching and In tune instead of snapping the fill/text colour. No Figma motion
+     spec for this screen - a quiet fade, matching StringControl's own state crossfade. */
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
 }
 
 .inTune {
   background: var(--color-surface-inverse);
   color: var(--color-text-inverse);
+  /* Same success settle-pop as StringControl, for Advanced Tuner's in-tune moment. Runs once on the
+     Searching -> In tune class change (the circle element stays mounted). */
+  animation: circleSettle 280ms ease-out;
 }
 
 .searching {
   background: var(--color-surface-card);
   color: var(--color-text-primary);
+}
+
+@keyframes circleSettle {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .circle {
+    transition: none;
+  }
+  .inTune {
+    animation: none;
+  }
 }
 
 .text {
