@@ -8,6 +8,7 @@ import type { TunerPresentationState, TunerPresenter } from '../presentation/tun
 import { DEFAULT_A4_FREQUENCY, getStandardTuning } from '../music-theory';
 import type { TuningPreset } from '../music-theory';
 import { DEFAULT_PRESENTATION_CONFIG, DEFAULT_TUNING_TOLERANCE_CONFIG } from '../config';
+import { playInTuneSound } from '../sound/playInTuneSound';
 import { triggerHapticFeedback } from '../telegram/haptics';
 
 export interface UseAudioEngineResult {
@@ -33,8 +34,14 @@ export interface UseAudioEngineResult {
 // updated value. There is deliberately no separate setA4() escape hatch on UseAudioEngineResult -
 // every caller (SimpleTunerScreen, AdvancedTunerScreen, DebugSettingsPanel) already has
 // preferences.a4Frequency on hand to pass straight through, so a second, manually-called path to
-// the same effect would just be redundant API surface.
-export type UseAudioEngine = (tuningPreset?: TuningPreset, a4?: number) => UseAudioEngineResult;
+// the same effect would just be redundant API surface. soundEffectsEnabled is a plain read (no
+// live-sync effect needed like a4's - it's only ever consulted at the moment hapticTrigger fires,
+// never applied to any persistent engine/presenter state), same controlled-input shape regardless.
+export type UseAudioEngine = (
+  tuningPreset?: TuningPreset,
+  a4?: number,
+  soundEffectsEnabled?: boolean,
+) => UseAudioEngineResult;
 
 function createPresenter(tuningPreset: TuningPreset, a4: number): TunerPresenter {
   return createTunerPresenter({
@@ -46,7 +53,11 @@ function createPresenter(tuningPreset: TuningPreset, a4: number): TunerPresenter
   });
 }
 
-export const useAudioEngine: UseAudioEngine = (tuningPreset = getStandardTuning(), a4 = DEFAULT_A4_FREQUENCY) => {
+export const useAudioEngine: UseAudioEngine = (
+  tuningPreset = getStandardTuning(),
+  a4 = DEFAULT_A4_FREQUENCY,
+  soundEffectsEnabled = true,
+) => {
   // Lazy useState initializers, not useRef: this project's lint rules forbid touching ref.current
   // during render at all (React Compiler-era purity rules), so useState's one-time initializer is the
   // sanctioned way to construct something exactly once per mount.
@@ -130,11 +141,16 @@ export const useAudioEngine: UseAudioEngine = (tuningPreset = getStandardTuning(
 
   // Fires exactly on the render where hapticTrigger transitions to true - the presenter is already
   // one-shot/cooldown-gated internally, so this effect only needs to react to the boolean itself.
+  // Sound effect reuses this exact same signal rather than re-deriving "just reached in tune" a
+  // second time - one edge-detected event, two independent feedback channels.
   useEffect(() => {
     if (presentation.hapticTrigger) {
       triggerHapticFeedback();
+      if (soundEffectsEnabled) {
+        playInTuneSound();
+      }
     }
-  }, [presentation.hapticTrigger]);
+  }, [presentation.hapticTrigger, soundEffectsEnabled]);
 
   const start = useCallback(async () => {
     setError(null);

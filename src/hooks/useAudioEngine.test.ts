@@ -43,7 +43,12 @@ vi.mock('../telegram/haptics', () => ({
   triggerHapticFeedback: vi.fn(),
 }));
 
+vi.mock('../sound/playInTuneSound', () => ({
+  playInTuneSound: vi.fn(),
+}));
+
 import { getAllTunings, getStandardTuning, midiToFrequency } from '../music-theory';
+import { playInTuneSound } from '../sound/playInTuneSound';
 import { triggerHapticFeedback } from '../telegram/haptics';
 import { useAudioEngine } from './useAudioEngine';
 
@@ -72,6 +77,7 @@ beforeEach(() => {
   statusListeners.length = 0;
   errorListeners.length = 0;
   vi.mocked(triggerHapticFeedback).mockClear();
+  vi.mocked(playInTuneSound).mockClear();
   // Fully deterministic: the tick loop never fires on its own during these tests, so every
   // presentation-state change is driven explicitly by emitReading/emitStatus.
   vi.stubGlobal('requestAnimationFrame', vi.fn(() => 0));
@@ -254,6 +260,42 @@ describe('useAudioEngine', () => {
     // Staying locked afterward must not re-fire it.
     act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: t + HOP_MS }));
     expect(triggerHapticFeedback).toHaveBeenCalledTimes(1);
+  });
+
+  it('plays the in-tune sound effect on the same edge as haptic feedback, by default', () => {
+    const { result } = renderHook(() => useAudioEngine());
+    act(() => emitStatus('listening'));
+
+    let t = 1000;
+    act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: t }));
+    expect(playInTuneSound).not.toHaveBeenCalled();
+
+    while (result.current.presentation.state !== 'locked' && t < 1000 + 280 + 300) {
+      t += HOP_MS;
+      act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: t }));
+    }
+
+    expect(result.current.presentation.state).toBe('locked');
+    expect(playInTuneSound).toHaveBeenCalledTimes(1);
+
+    // Staying locked afterward must not re-fire it, same as haptic feedback's own edge-gating.
+    act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: t + HOP_MS }));
+    expect(playInTuneSound).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not play the sound effect when soundEffectsEnabled is false, but still triggers haptics', () => {
+    const { result } = renderHook(() => useAudioEngine(getStandardTuning(), 440, false));
+    act(() => emitStatus('listening'));
+
+    let t = 1000;
+    while (result.current.presentation.state !== 'locked' && t < 1000 + 280 + 300) {
+      t += HOP_MS;
+      act(() => emitReading({ frequency: HIGH_E_FREQUENCY, clarity: 0.95, timestamp: t }));
+    }
+
+    expect(result.current.presentation.state).toBe('locked');
+    expect(triggerHapticFeedback).toHaveBeenCalledTimes(1);
+    expect(playInTuneSound).not.toHaveBeenCalled();
   });
 
   it('reset() clears tunedTargetIds and immediately reflects it in presentation, without waiting for the next tick', () => {

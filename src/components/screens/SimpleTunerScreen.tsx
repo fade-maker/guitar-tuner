@@ -122,6 +122,7 @@ export function SimpleTunerScreen(): ReactElement {
   const { presentation, pinTarget, unpinTarget, reset, start, stop } = useAudioEngine(
     activeTuning,
     preferences.a4Frequency,
+    preferences.soundEffectsEnabled,
   );
   const [manualStringId, setManualStringId] = useState<string | null>(null);
 

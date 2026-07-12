@@ -25,7 +25,11 @@ export function AdvancedTunerScreen(): ReactElement {
   // hook's own controlled a4 input - useAudioEngine keeps the presenter's calibration synced to it
   // on every render, so this screen's own Calibrate stepper only needs to update AppPreferences,
   // not call a separate setA4() itself.
-  const { presentation, start, stop } = useAudioEngine(activeTuning, preferences.a4Frequency);
+  const { presentation, start, stop } = useAudioEngine(
+    activeTuning,
+    preferences.a4Frequency,
+    preferences.soundEffectsEnabled,
+  );
 
   // Same deferred start as SimpleTunerScreen (see its ENGINE_START_DELAY_MS comment - audit H3):
   // the footer's 520ms pill animation starts in the same frames this screen mounts, and stacking

@@ -69,6 +69,14 @@ beforeEach(() => {
   statusListeners.length = 0;
   vi.stubGlobal('requestAnimationFrame', vi.fn(() => 0));
   vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  // jsdom has no real implementation of HTMLMediaElement.play() (it logs "Not implemented" and
+  // returns undefined instead of a Promise) - this screen's default soundEffectsEnabled=true means
+  // reaching "in tune" now really calls playInTuneSound(), same as AppShell.test.tsx's own matchMedia
+  // stub for a jsdom gap this file never used to hit.
+  Object.defineProperty(window.HTMLMediaElement.prototype, 'play', {
+    value: vi.fn(() => Promise.resolve()),
+    configurable: true,
+  });
 });
 
 afterEach(() => {
